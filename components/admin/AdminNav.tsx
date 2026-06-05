@@ -9,7 +9,7 @@ import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu,
 import { cn } from '@/lib/utils';
 
 const adminMenuItems = [
-  { label: 'Dashboard', href: '/admin', icon: LayoutGrid },
+  { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutGrid },
   { label: 'News', href: '/admin/news', icon: FileText },
   { label: 'Vehicles', href: '/admin/vehicles', icon: Car },
   { label: 'Manufacturers', href: '/admin/manufacturers', icon: Package },
@@ -66,7 +66,7 @@ export default function AdminNav() {
       <aside className="hidden md:flex md:w-64 bg-white border-r border-gray-100 flex-col">
         {/* Logo */}
         <div className="p-4 border-b border-gray-100">
-          <Link href="/admin" className="inline-block">
+          <Link href="/admin/dashboard" className="inline-block">
             <Image
               src="/EV_logo_White.png"
               alt="EVMotorHub Admin"

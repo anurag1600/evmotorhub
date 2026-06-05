@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, X, Plus, Minus, Scale, Zap, Gauge, Battery, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, X, Plus, Minus, Scale, Zap, Gauge, Battery, Clock, CircleCheck as CheckCircle2, Circle as XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
 import { formatPrice, getVehicleTypeLabel } from '@/lib/format';

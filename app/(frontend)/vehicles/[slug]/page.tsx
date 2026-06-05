@@ -2,10 +2,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import {
-  Zap, Gauge, Battery, Clock, ChevronRight, Scale, CheckCircle2,
-  XCircle, ArrowRight, Calendar, ExternalLink, Share2, ChevronLeft as ChevronLeftIcon
-} from 'lucide-react';
+import { Zap, Gauge, Battery, Clock, ChevronRight, Scale, CircleCheck as CheckCircle2, Circle as XCircle, ArrowRight, Calendar, ExternalLink, Share2, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
 import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';

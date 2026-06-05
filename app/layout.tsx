@@ -2,8 +2,6 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
 import { supabase } from '@/lib/supabase';
 
 const inter = Inter({
@@ -102,11 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-IN" className={inter.variable}>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
         <OrganizationSchema />
-        <Navbar />
-        <main className="flex-1 pt-[100px] md:pt-[108px]">
-          {children}
-        </main>
-        <Footer />
+        {children}
         <Toaster position="top-center" />
       </body>
     </html>

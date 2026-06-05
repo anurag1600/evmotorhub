@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Search, Zap, Clock, Wifi, Coffee, X, Filter, CheckCircle2 } from 'lucide-react';
+import { MapPin, Search, Zap, Clock, Wifi, Coffee, X, Filter, CircleCheck as CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation } from '@/lib/types';
 import { getStatusColor } from '@/lib/format';

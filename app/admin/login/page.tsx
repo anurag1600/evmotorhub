@@ -1,21 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { Zap, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
+import { CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
+import { useAdmin } from '@/lib/admin-context';
 
 export default function AdminLogin() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect') || '/admin';
+  const redirect = searchParams.get('redirect') || '/admin/dashboard';
+  const { isAdmin, loading: adminLoading } = useAdmin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!adminLoading && isAdmin) {
+      router.replace(redirect);
+    }
+  }, [adminLoading, isAdmin, redirect, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,23 +33,13 @@ export default function AdminLogin() {
     setSuccess('');
 
     try {
-      console.log('[ADMIN LOGIN] Attempting login with:', email);
-
       const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      console.log('[ADMIN LOGIN] Sign in result:', {
-        userId: user?.id,
-        error: signInError?.message
-      });
-
       if (signInError) throw signInError;
       if (!user) throw new Error('Login failed');
-
-      // Check if user is admin
-      console.log('[ADMIN LOGIN] Checking admin_users for user_id:', user.id);
 
       const { data: adminUser, error: adminError } = await supabase
         .from('admin_users')
@@ -48,40 +47,43 @@ export default function AdminLogin() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      console.log('[ADMIN LOGIN] Admin query result:', {
-        adminUser,
-        adminError: adminError?.message,
-        isAdmin: !!adminUser?.is_active
-      });
-
       if (adminError) {
-        console.error('[ADMIN LOGIN] Admin query error:', adminError);
         await supabase.auth.signOut();
         throw new Error(`Database error: ${adminError.message}`);
       }
 
       if (!adminUser) {
-        console.error('[ADMIN LOGIN] No admin record found');
         await supabase.auth.signOut();
         throw new Error('Access denied. You are not an admin.');
       }
 
       if (!adminUser.is_active) {
-        console.error('[ADMIN LOGIN] Admin not active');
         await supabase.auth.signOut();
         throw new Error('Access denied. Account is inactive.');
       }
 
-      console.log('[ADMIN LOGIN] Login successful, redirecting...');
       setSuccess('Login successful! Redirecting...');
-      setTimeout(() => router.push(redirect), 1000);
+      router.push(redirect);
     } catch (err: any) {
-      console.error('[ADMIN LOGIN] Error:', err);
       setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
+
+  // Show loading while checking existing auth
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0a2e14] to-[#145a2c] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-green-300" />
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated
+  if (isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a2e14] to-[#145a2c] flex items-center justify-center p-4">
@@ -166,14 +168,14 @@ export default function AdminLogin() {
           {/* Back to Site */}
           <div className="mt-6 text-center">
             <Link href="/" className="text-[#145a2c] text-sm font-medium hover:underline">
-              ← Back to Website
+              &larr; Back to Website
             </Link>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-green-200 text-xs mt-8">
-          EVMotorHub Admin • Secure Portal
+          EVMotorHub Admin &bull; Secure Portal
         </p>
       </div>
     </div>
