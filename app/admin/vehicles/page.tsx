@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
-import { Car, Plus, Edit2, Trash2, Search, Loader2, AlertCircle } from 'lucide-react';
+import { Car, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
 import { formatPrice, getVehicleTypeLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -34,7 +34,7 @@ export default function VehiclesManagementPage() {
     setLoading(true);
     try {
       let countQuery = supabase.from('vehicles').select('id', { count: 'exact', head: true });
-      let dataQuery = supabase.from('vehicles').select('*').order('created_at', { ascending: false });
+      let dataQuery = supabase.from('vehicles').select('*').order('updated_at', { ascending: false });
 
       if (type) { countQuery = countQuery.eq('type', type); dataQuery = dataQuery.eq('type', type); }
       if (status) { countQuery = countQuery.eq('status', status); dataQuery = dataQuery.eq('status', status); }

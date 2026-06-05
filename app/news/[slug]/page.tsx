@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Clock, ChevronRight, Tag, ArrowLeft, ArrowRight, Calendar } from 'lucide-react';
@@ -78,9 +79,10 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
               {/* Cover Image */}
               <div className="relative h-56 sm:h-72 lg:h-80">
-                <Image
+                <ImageWithFallback
                   src={article.image_url}
                   alt={article.title}
+                  fallbackCategory="news"
                   fill
                   className="object-cover"
                   sizes="(max-width: 1024px) 100vw, 65vw"
@@ -174,7 +176,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
                   {related.map((a) => (
                     <Link key={a.id} href={`/news/${a.slug}`} className="group flex gap-3 items-start">
                       <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                        <Image src={a.image_url} alt={a.title} fill className="object-cover" sizes="64px" />
+                        <ImageWithFallback src={a.image_url} alt={a.title} fallbackCategory="news" fill className="object-cover" sizes="64px" />
                       </div>
                       <div>
                         <span className={cn('text-xs font-semibold px-1.5 py-0.5 rounded mb-1 inline-block', getCategoryColor(a.category))}>

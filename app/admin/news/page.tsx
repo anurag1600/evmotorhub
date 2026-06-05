@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle } from '@/lib/types';
-import { FileText, Plus, Edit2, Trash2, Search, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -34,7 +34,7 @@ export default function NewsManagementPage() {
     setLoading(true);
     try {
       let countQuery = supabase.from('news').select('id', { count: 'exact', head: true });
-      let dataQuery = supabase.from('news').select('*').order('created_at', { ascending: false });
+      let dataQuery = supabase.from('news').select('*').order('updated_at', { ascending: false });
 
       if (status) { countQuery = countQuery.eq('status', status); dataQuery = dataQuery.eq('status', status); }
       if (search) { countQuery = countQuery.ilike('title', `%${search}%`); dataQuery = dataQuery.ilike('title', `%${search}%`); }
@@ -52,7 +52,7 @@ export default function NewsManagementPage() {
   useEffect(() => { setPage(1); }, [search, status]);
 
   const fetchAllForExport = async () => {
-    const { data } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('news').select('*').order('updated_at', { ascending: false });
     return (data || []) as NewsArticle[];
   };
 

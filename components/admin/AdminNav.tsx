@@ -5,10 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAdmin } from '@/lib/admin-context';
-import {
-  LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings,
-  Menu, X, LogOut, Lock, Loader2, ChevronRight, Search, Home, MessageSquare, Scale
-} from 'lucide-react';
+import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const adminMenuItems = [
@@ -16,14 +13,13 @@ const adminMenuItems = [
   { label: 'News', href: '/admin/news', icon: FileText },
   { label: 'Vehicles', href: '/admin/vehicles', icon: Car },
   { label: 'Manufacturers', href: '/admin/manufacturers', icon: Package },
-  { label: 'Charging Stations', href: '/admin/charging', icon: Car },
-  { label: 'Hero Slides', href: '/admin/hero-slides', icon: ImageIcon },
+  { label: 'Charging Stations', href: '/admin/charging', icon: Zap },
   { label: 'Popular Comparisons', href: '/admin/comparisons', icon: Scale },
-  { label: 'CMS Pages', href: '/admin/cms', icon: FileText },
+  { label: 'CMS Pages', href: '/admin/cms', icon: Globe },
+  { label: 'FAQ', href: '/admin/faq', icon: HelpCircle },
   { label: 'Homepage Settings', href: '/admin/settings', icon: Home },
   { label: 'Contact Settings', href: '/admin/contact', icon: MessageSquare },
-  { label: 'News Settings', href: '/admin/news-settings', icon: FileText },
-  { label: 'Vehicle Settings', href: '/admin/vehicle-settings', icon: Car },
+  { label: 'Footer Settings', href: '/admin/footer', icon: Sliders },
   { label: 'SEO Settings', href: '/admin/seo', icon: Search },
 ];
 

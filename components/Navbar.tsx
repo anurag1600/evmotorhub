@@ -50,17 +50,6 @@ const navLinks = [
       { label: 'Compare Vehicles', href: '/compare' },
     ],
   },
-  {
-    label: 'Company',
-    href: '#',
-    dropdown: [
-      { label: 'About Us', href: '/about' },
-      { label: 'Contact Us', href: '/contact' },
-      { label: 'Privacy Policy', href: '/privacy' },
-      { label: 'Terms & Conditions', href: '/terms' },
-      { label: 'Disclaimer', href: '/disclaimer' },
-    ],
-  },
 ];
 
 export default function Navbar() {

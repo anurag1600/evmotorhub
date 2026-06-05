@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { Zap, Gauge, Clock, Battery, ArrowRight, Calendar, CheckCircle2 } from 'lucide-react';
+import ImageWithFallback from '@/components/ImageWithFallback';
+import { Zap, Gauge, Clock, Battery, ArrowRight, Calendar, CircleCheck as CheckCircle2 } from 'lucide-react';
 import { Vehicle } from '@/lib/types';
 import { formatPrice, getVehicleTypeLabel, getSegmentColor, getSegmentLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -20,9 +20,10 @@ export default function VehicleCard({ vehicle, compact = false }: VehicleCardPro
         {/* Image */}
         <div className="relative overflow-hidden bg-gradient-to-br from-gray-50 to-green-50">
           <div className={cn('relative w-full', compact ? 'h-40' : 'h-48 sm:h-52')}>
-            <Image
-              src={vehicle.image_url || 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=600'}
+            <ImageWithFallback
+              src={vehicle.image_url || ''}
               alt={vehicle.name}
+              fallbackCategory="vehicle"
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Globe, MapPin, Calendar, Building2, ChevronRight, ArrowRight, ExternalLink, Car } from 'lucide-react';
@@ -59,9 +59,10 @@ export default async function ManufacturerDetailPage({ params }: { params: { slu
 
       {/* Hero */}
       <div className="relative h-56 sm:h-72 overflow-hidden">
-        <Image
+        <ImageWithFallback
           src={manufacturer.hero_image_url}
           alt={manufacturer.name}
+          fallbackCategory="manufacturer"
           fill
           className="object-cover"
           sizes="100vw"
@@ -71,9 +72,10 @@ export default async function ManufacturerDetailPage({ params }: { params: { slu
         <div className="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
           <div className="flex items-end gap-4">
             <div className="w-16 h-16 sm:w-20 sm:h-20 relative rounded-2xl overflow-hidden bg-white border-2 border-white/30 flex-shrink-0">
-              <Image
+              <ImageWithFallback
                 src={manufacturer.logo_url || manufacturer.hero_image_url}
                 alt={manufacturer.name}
+                fallbackCategory="manufacturer"
                 fill
                 className="object-cover"
                 sizes="80px"

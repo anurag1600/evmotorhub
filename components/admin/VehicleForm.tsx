@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, Manufacturer } from '@/lib/types';
-import { Save, Loader2, X, AlertCircle } from 'lucide-react';
+import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
 
@@ -61,6 +61,8 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
   const [proInput, setProInput] = useState('');
   const [conInput, setConInput] = useState('');
   const [galleryInput, setGalleryInput] = useState('');
+  const [specKey, setSpecKey] = useState('');
+  const [specValue, setSpecValue] = useState('');
 
   useEffect(() => {
     fetchManufacturers();
@@ -305,7 +307,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
 
           {/* Specifications */}
           <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold">Specifications</h2>
+            <h2 className="text-lg font-bold">Core Specifications</h2>
             <div className="grid md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Range (km)</label>
@@ -355,6 +357,118 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
                   className="admin-input"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Additional Specifications */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Additional Specifications</h2>
+            <p className="text-xs text-gray-500">Add custom key-value pairs like Kerb Weight, Tyre Type, Boot Space, etc.</p>
+            <div className="space-y-2">
+              {Object.entries(formData.specifications).map(([key, value], idx, arr) => (
+                <div key={key} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2.5">
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => {
+                      const entries = Object.entries(formData.specifications);
+                      if (idx > 0) {
+                        [entries[idx], entries[idx - 1]] = [entries[idx - 1], entries[idx]];
+                        setFormData({ ...formData, specifications: Object.fromEntries(entries) });
+                      }
+                    }} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" disabled={idx === 0}>
+                      <ChevronUp size={12} className="text-gray-500" />
+                    </button>
+                    <button type="button" onClick={() => {
+                      const entries = Object.entries(formData.specifications);
+                      if (idx < entries.length - 1) {
+                        [entries[idx], entries[idx + 1]] = [entries[idx + 1], entries[idx]];
+                        setFormData({ ...formData, specifications: Object.fromEntries(entries) });
+                      }
+                    }} className="p-1 hover:bg-gray-200 rounded disabled:opacity-30" disabled={idx === arr.length - 1}>
+                      <ChevronDown size={12} className="text-gray-500" />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={key}
+                    onChange={(e) => {
+                      const entries = Object.entries(formData.specifications);
+                      entries[idx] = [e.target.value, value];
+                      setFormData({ ...formData, specifications: Object.fromEntries(entries) });
+                    }}
+                    className="admin-input flex-1 text-sm"
+                    placeholder="Spec name"
+                  />
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={(e) => {
+                      const entries = Object.entries(formData.specifications);
+                      entries[idx] = [key, e.target.value];
+                      setFormData({ ...formData, specifications: Object.fromEntries(entries) });
+                    }}
+                    className="admin-input flex-1 text-sm"
+                    placeholder="Value"
+                  />
+                  <button type="button" onClick={() => {
+                    const newSpecs = { ...formData.specifications };
+                    delete newSpecs[key];
+                    setFormData({ ...formData, specifications: newSpecs });
+                  }} className="p-1.5 text-red-400 hover:text-red-600 rounded">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 items-end pt-2 border-t border-gray-100">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={specKey}
+                  onChange={(e) => setSpecKey(e.target.value)}
+                  className="admin-input text-sm"
+                  placeholder="e.g. Kerb Weight"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Value</label>
+                <input
+                  type="text"
+                  value={specValue}
+                  onChange={(e) => setSpecValue(e.target.value)}
+                  className="admin-input text-sm"
+                  placeholder="e.g. 118 kg"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (specKey.trim()) {
+                        setFormData({
+                          ...formData,
+                          specifications: { ...formData.specifications, [specKey.trim()]: specValue.trim() }
+                        });
+                        setSpecKey('');
+                        setSpecValue('');
+                      }
+                    }
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (specKey.trim()) {
+                    setFormData({
+                      ...formData,
+                      specifications: { ...formData.specifications, [specKey.trim()]: specValue.trim() }
+                    });
+                    setSpecKey('');
+                    setSpecValue('');
+                  }
+                }}
+                className="admin-btn-secondary flex items-center gap-1"
+              >
+                <Plus size={14} /> Add
+              </button>
             </div>
           </div>
 

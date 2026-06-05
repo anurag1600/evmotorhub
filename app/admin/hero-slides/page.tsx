@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { HeroSlide } from '@/lib/types';
-import { Layers, Plus, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Layers, Plus, CreditCard as Edit2, Trash2, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
@@ -25,7 +25,7 @@ export default function AdminHeroSlidesPage() {
     try {
       const [{ count }, { data }] = await Promise.all([
         supabase.from('hero_slides').select('id', { count: 'exact', head: true }),
-        supabase.from('hero_slides').select('*').order('created_at', { ascending: false })
+        supabase.from('hero_slides').select('*').order('updated_at', { ascending: false })
           .range((page - 1) * pageSize, page * pageSize - 1),
       ]);
       setSlides((data as HeroSlide[]) || []);

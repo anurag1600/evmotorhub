@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import { Clock, ArrowRight, Tag } from 'lucide-react';
 import { NewsArticle } from '@/lib/types';
 import { getCategoryLabel, getCategoryColor, timeAgo } from '@/lib/format';
@@ -16,9 +17,10 @@ export default function NewsCard({ article, featured = false }: NewsCardProps) {
       <Link href={`/news/${article.slug}`} className="group block">
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 ev-card-hover md:flex">
           <div className="relative md:w-2/5 h-52 md:h-auto overflow-hidden">
-            <Image
+            <ImageWithFallback
               src={article.image_url}
               alt={article.title}
+              fallbackCategory="news"
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 768px) 100vw, 40vw"
@@ -70,9 +72,10 @@ export default function NewsCard({ article, featured = false }: NewsCardProps) {
     <Link href={`/news/${article.slug}`} className="group block">
       <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 ev-card-hover h-full flex flex-col">
         <div className="relative h-44 overflow-hidden">
-          <Image
+          <ImageWithFallback
             src={article.image_url}
             alt={article.title}
+            fallbackCategory="news"
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

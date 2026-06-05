@@ -6,16 +6,17 @@ import {
   Star, Users, Database, Radio
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Vehicle, NewsArticle, Manufacturer, HeroSlide, SiteConfig } from '@/lib/types';
+import { Vehicle, NewsArticle, Manufacturer, SiteConfig } from '@/lib/types';
 import { formatPrice } from '@/lib/format';
 import VehicleCard from '@/components/VehicleCard';
 import NewsCard from '@/components/NewsCard';
-import HeroCarousel from '@/components/HeroCarousel';
+import HeroSection from '@/components/HeroSection';
+import HomePageFAQ from '@/components/HomePageFAQ';
 
 export const revalidate = 3600;
 
 async function getData() {
-  const [vehiclesRes, newsRes, manufacturersRes, heroSlidesRes, siteConfigRes] = await Promise.all([
+  const [vehiclesRes, newsRes, manufacturersRes, siteConfigRes] = await Promise.all([
     supabase
       .from('vehicles')
       .select('*, manufacturers(name, slug)')
@@ -34,12 +35,6 @@ async function getData() {
       .order('name')
       .limit(8),
     supabase
-      .from('hero_slides')
-      .select('*')
-      .eq('is_active', true)
-      .order('order', { ascending: true })
-      .limit(5),
-    supabase
       .from('site_config')
       .select('*')
       .limit(1),
@@ -56,7 +51,6 @@ async function getData() {
     news: (newsRes.data || []) as NewsArticle[],
     manufacturers: (manufacturersRes.data || []) as Manufacturer[],
     upcoming: (upcomingRes.data || []) as (Vehicle & { manufacturers: { name: string; slug: string } })[],
-    heroSlides: (heroSlidesRes.data || []) as HeroSlide[],
     siteConfig: (siteConfigRes.data?.[0] || null) as SiteConfig | null,
   };
 }
@@ -109,7 +103,7 @@ const whyUs = [
 ];
 
 export default async function HomePage() {
-  const { vehicles, news, manufacturers, upcoming, heroSlides, siteConfig } = await getData();
+  const { vehicles, news, manufacturers, upcoming, siteConfig } = await getData();
 
   const scooters = vehicles.filter(v => v.type === 'scooter');
   const bikes = vehicles.filter(v => v.type === 'bike');
@@ -117,14 +111,19 @@ export default async function HomePage() {
 
   return (
     <div className="bg-white">
-      {/* Hero Carousel */}
-      <HeroCarousel
-        slides={heroSlides}
+      {/* Hero Section */}
+      <HeroSection
         heroTitle={siteConfig?.hero_title || "Find Your Perfect Electric Vehicle in India"}
         heroSubtitle={siteConfig?.hero_subtitle || "India's EV Revolution is Here"}
         heroDescription={siteConfig?.hero_description || "Compare 50+ EV scooters, bikes, and cars. Real specs, honest prices, expert reviews — everything you need to switch to electric."}
+        heroBadgeText={(siteConfig as any)?.hero_badge_text || ""}
         heroCtaText={siteConfig?.hero_cta_text || "Explore Vehicles"}
         heroCtaUrl={siteConfig?.hero_cta_url || "/vehicles"}
+        heroCta2Text={(siteConfig as any)?.hero_cta2_text || ""}
+        heroCta2Url={(siteConfig as any)?.hero_cta2_url || ""}
+        heroRightMainImage={(siteConfig as any)?.hero_right_main_image || ""}
+        heroRightSecondaryImages={(siteConfig as any)?.hero_right_secondary_images || []}
+        homepageStats={siteConfig?.homepage_stats as any || {}}
       />
 
       {/* Stats Bar */}
@@ -420,6 +419,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* FAQ Section */}
+      <HomePageFAQ />
 
       {/* Newsletter */}
       <section className="py-12 bg-[#edfaf1] border-y border-green-100">

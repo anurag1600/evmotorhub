@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { Zap, AlertCircle, Loader2 } from 'lucide-react';
+import { Zap, CircleAlert as AlertCircle, Loader as Loader2 } from 'lucide-react';
 
 export default function AdminLogin() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/admin';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -72,7 +74,7 @@ export default function AdminLogin() {
 
       console.log('[ADMIN LOGIN] Login successful, redirecting...');
       setSuccess('Login successful! Redirecting...');
-      setTimeout(() => router.push('/admin'), 1000);
+      setTimeout(() => router.push(redirect), 1000);
     } catch (err: any) {
       console.error('[ADMIN LOGIN] Error:', err);
       setError(err.message || 'Login failed');

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useAdmin } from '@/lib/admin-context';
-import { LayoutGrid, FileText, Car, Package, TrendingUp, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { LayoutGrid, FileText, Car, Package, TrendingUp, CircleAlert as AlertCircle, ArrowRight, Loader as Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DashboardStats {
@@ -30,8 +30,8 @@ const quickActions = [
   { label: 'Add News Article', href: '/admin/news/new', icon: FileText },
   { label: 'Manage Manufacturers', href: '/admin/manufacturers', icon: Package },
   { label: 'Manage Charging Stations', href: '/admin/charging', icon: Car },
-  { label: 'View Media Library', href: '/admin/media', icon: 'image' },
-  { label: 'Update SEO Settings', href: '/admin/settings', icon: 'settings' },
+  { label: 'Manage FAQ', href: '/admin/faq', icon: 'help' },
+  { label: 'Update SEO Settings', href: '/admin/seo', icon: 'settings' },
 ];
 
 export default function AdminDashboard() {

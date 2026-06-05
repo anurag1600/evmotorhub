@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import { Calendar, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface VehicleGalleryProps {
@@ -44,14 +44,14 @@ export default function VehicleGallery({
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <Image
+        <ImageWithFallback
           src={allImages[activeIdx]}
           alt={`${vehicleName} - Image ${activeIdx + 1}`}
+          fallbackCategory="vehicle"
           fill
           className="object-cover transition-opacity duration-300"
           sizes="(max-width: 1024px) 100vw, 50vw"
           priority={activeIdx === 0}
-          unoptimized
         />
 
         {/* Badges */}
@@ -104,13 +104,13 @@ export default function VehicleGallery({
                 i === activeIdx ? 'border-[#145a2c]' : 'border-gray-100 hover:border-gray-300'
               }`}
             >
-              <Image
+              <ImageWithFallback
                 src={url}
                 alt={`${vehicleName} thumbnail ${i + 1}`}
+                fallbackCategory="vehicle"
                 fill
                 className="object-cover"
                 sizes="80px"
-                unoptimized
               />
             </button>
           ))}

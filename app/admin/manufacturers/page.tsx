@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Manufacturer } from '@/lib/types';
-import { Package, Plus, Edit2, Trash2, Search, Loader2, AlertCircle } from 'lucide-react';
+import { Package, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
@@ -31,7 +31,7 @@ export default function ManufacturersManagementPage() {
     setLoading(true);
     try {
       let countQuery = supabase.from('manufacturers').select('id', { count: 'exact', head: true });
-      let dataQuery = supabase.from('manufacturers').select('*').order('created_at', { ascending: false });
+      let dataQuery = supabase.from('manufacturers').select('*').order('updated_at', { ascending: false });
 
       if (status) { countQuery = countQuery.eq('status', status); dataQuery = dataQuery.eq('status', status); }
       if (search) { countQuery = countQuery.ilike('name', `%${search}%`); dataQuery = dataQuery.ilike('name', `%${search}%`); }

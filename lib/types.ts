@@ -22,6 +22,7 @@ export interface StaticPage {
   slug: string;
   title: string;
   content: string;
+  content_blocks: ContentBlock[];
   seo_title?: string;
   seo_description?: string;
   is_active: boolean;
@@ -161,6 +162,17 @@ export interface PopularComparison {
   vehicle1_slug: string;
   vehicle2_slug: string;
   title: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
   sort_order: number;
   is_active: boolean;
   created_at: string;
