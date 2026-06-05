@@ -7,19 +7,33 @@ import { FAQItem } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
+const DEFAULT_HOMEPAGE_LIMIT = 6;
+
 export default function HomePageFAQ() {
   const [items, setItems] = useState<FAQItem[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [limit, setLimit] = useState(DEFAULT_HOMEPAGE_LIMIT);
 
   useEffect(() => {
+    // Fetch the configured limit from site_config
+    supabase
+      .from('site_config')
+      .select('faq_homepage_limit')
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.[0]?.faq_homepage_limit) {
+          setLimit(data[0].faq_homepage_limit);
+        }
+      });
+
     supabase
       .from('faq_items')
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
-      .limit(6)
+      .limit(limit)
       .then(({ data }) => setItems((data as FAQItem[]) || []));
-  }, []);
+  }, [limit]);
 
   if (items.length === 0) return null;
 
@@ -34,7 +48,7 @@ export default function HomePageFAQ() {
   };
 
   return (
-    <section className="py-14 md:py-20">
+    <section className="py-14 md:py-20 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
         <div className="text-center mb-10">

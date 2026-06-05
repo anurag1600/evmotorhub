@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  MapPin, Phone, Mail, Clock, Send, MessageSquare,
-  Zap, Shield, Users, CheckCircle, Loader2, ChevronDown, ChevronUp
-} from 'lucide-react';
-import { SiteConfig } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { MapPin, Phone, Mail, Clock, Send, MessageSquare, Zap, Shield, Users, CircleCheck as CheckCircle, Loader as Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { SiteConfig, FAQItem } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 
 interface ContactPageClientProps {
   siteConfig: SiteConfig | null;
@@ -19,17 +17,10 @@ const defaultContactInfo = {
   whatsapp: '',
 };
 
-const defaultFaq = [
-  { question: 'How do I find the best EV for my budget?', answer: 'Use our comparison tool and price filters on the Vehicles page to find EVs within your budget. You can filter by price range, vehicle type, and features.' },
-  { question: 'Are the prices shown on EVMotorHub accurate?', answer: 'We update our prices regularly from official manufacturer sources. All prices are ex-showroom and subject to change. We recommend confirming with your nearest dealership.' },
-  { question: 'Can I contribute a charging station location?', answer: 'Yes! Visit our Charging Stations page and use the "Suggest a Station" feature to submit new charging locations for our community.' },
-  { question: 'How can I list my EV brand on EVMotorHub?', answer: 'Contact us through this form or email us directly at hello@evmotorhub.in with details about your brand and models.' },
-  { question: 'Do you offer EV financing or loan services?', answer: 'We do not offer direct financing, but our EMI Calculator tool helps you estimate monthly payments, and we provide bank rate comparisons to help you find the best loan.' },
-];
+const DEFAULT_CONTACT_FAQ_LIMIT = 4;
 
 export default function ContactPageClient({ siteConfig }: ContactPageClientProps) {
   const contactInfo = siteConfig?.contact_info || defaultContactInfo;
-  const faq = siteConfig?.contact_faq?.length ? siteConfig.contact_faq : defaultFaq;
   const heroTitle = siteConfig?.contact_hero_title || 'Get in Touch';
   const heroSubtitle = siteConfig?.contact_hero_subtitle || "We'd love to hear from you";
   const mapEmbedUrl = siteConfig?.map_embed_url;
@@ -38,7 +29,19 @@ export default function ContactPageClient({ siteConfig }: ContactPageClientProps
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
+  const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
+
+  useEffect(() => {
+    const limit = (siteConfig as any)?.faq_contact_limit || DEFAULT_CONTACT_FAQ_LIMIT;
+    supabase
+      .from('faq_items')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .limit(limit)
+      .then(({ data }) => setFaqItems((data as FAQItem[]) || []));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,35 +279,36 @@ export default function ContactPageClient({ siteConfig }: ContactPageClientProps
           </div>
         )}
 
-        {/* FAQ */}
-        <div className="mt-10">
-          <div className="text-center mb-8">
-            <p className="text-sm font-semibold text-green-600 uppercase tracking-wider mb-1">FAQ</p>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Frequently Asked Questions</h2>
-          </div>
-          <div className="max-w-3xl mx-auto space-y-3">
-            {faq.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <button
-                  onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left"
-                >
-                  <span className="text-sm font-semibold text-gray-900 pr-4">{item.question}</span>
-                  {openFaq === idx ? (
-                    <ChevronUp size={18} className="text-gray-400 flex-shrink-0" />
-                  ) : (
-                    <ChevronDown size={18} className="text-gray-400 flex-shrink-0" />
+        {/* FAQ - pulled from database */}
+        {faqItems.length > 0 && (
+          <div className="mt-10">
+            <div className="text-center mb-8">
+              <p className="text-sm font-semibold text-green-600 uppercase tracking-wider mb-1">FAQ</p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Frequently Asked Questions</h2>
+            </div>
+            <div className="max-w-3xl mx-auto space-y-3">
+              {faqItems.map((item) => (
+                <div key={item.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                  <button
+                    onClick={() => setOpenFaq(openFaq === item.id ? null : item.id)}
+                    className="w-full flex items-center justify-between px-5 py-4 text-left"
+                  >
+                    <span className="text-sm font-semibold text-gray-900 pr-4">{item.question}</span>
+                    <ChevronDown
+                      size={18}
+                      className={cn('text-gray-400 flex-shrink-0 transition-transform', openFaq === item.id && 'rotate-180')}
+                    />
+                  </button>
+                  {openFaq === item.id && (
+                    <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
+                      {item.answer}
+                    </div>
                   )}
-                </button>
-                {openFaq === idx && (
-                  <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed">
-                    {item.answer}
-                  </div>
-                )}
-              </div>
-            ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

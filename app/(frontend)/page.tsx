@@ -52,7 +52,6 @@ async function getData() {
     .eq('is_upcoming', true)
     .limit(4);
 
-  // Enrich comparisons with vehicle data
   const comparisons = await Promise.all(
     (comparisonsRes.data || []).map(async (comp) => {
       const [v1Res, v2Res] = await Promise.all([
@@ -73,6 +72,13 @@ async function getData() {
     comparisons: comparisons.filter(Boolean) as any[],
   };
 }
+
+const defaultStats = [
+  { value: '50+', label: 'EV Models', icon: Database },
+  { value: '8+', label: 'Brands', icon: Award },
+  { value: '12K+', label: 'Charging Stations', icon: Zap },
+  { value: '2M+', label: 'Monthly Visitors', icon: Users },
+];
 
 const categories = [
   {
@@ -114,9 +120,17 @@ export default async function HomePage() {
   const bikes = vehicles.filter(v => v.type === 'bike');
   const cars = vehicles.filter(v => v.type === 'car');
 
+  const homepageStats = siteConfig?.homepage_stats as any || {};
+  const stats = homepageStats?.total_vehicles ? [
+    { value: `${homepageStats.total_vehicles}+`, label: 'EV Models', icon: Database },
+    { value: `${homepageStats.total_manufacturers}+`, label: 'Brands', icon: Award },
+    { value: `${Math.round(homepageStats.total_charging_stations / 1000)}K+`, label: 'Charging Stations', icon: Zap },
+    { value: `${Math.round(homepageStats.monthly_visitors / 1000000)}M+`, label: 'Monthly Visitors', icon: Users },
+  ] : defaultStats;
+
   return (
     <div className="bg-white">
-      {/* Hero Section (includes search bar and stats) */}
+      {/* Hero Section */}
       <HeroSection
         heroTitle={siteConfig?.hero_title || "Find Your Perfect Electric Vehicle in India"}
         heroSubtitle={siteConfig?.hero_subtitle || "India's EV Revolution is Here"}
@@ -128,8 +142,24 @@ export default async function HomePage() {
         heroCta2Url={(siteConfig as any)?.hero_cta2_url || ""}
         heroRightMainImage={(siteConfig as any)?.hero_right_main_image || ""}
         heroRightSecondaryImages={(siteConfig as any)?.hero_right_secondary_images || []}
-        homepageStats={siteConfig?.homepage_stats as any || {}}
       />
+
+      {/* Stats Strip - full-width below hero */}
+      <section className="bg-[#0a2e14] border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+            {stats.map(({ value, label, icon: Icon }) => (
+              <div key={label} className="flex items-center gap-3 px-4 sm:px-6 py-5">
+                <Icon size={20} className="text-green-400 flex-shrink-0" />
+                <div>
+                  <div className="text-xl sm:text-2xl font-bold text-white">{value}</div>
+                  <div className="text-xs text-gray-400">{label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Browse by Category */}
       <section className="py-14 md:py-20 bg-gray-50">

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation } from '@/lib/types';
 import { Zap, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
@@ -56,7 +57,11 @@ export default function ChargingStationsPage() {
       await supabase.from('charging_stations').delete().eq('id', id);
       setStations(stations.filter(s => s.id !== id));
       setTotal(t => t - 1);
-    } catch (err) { console.error('Delete failed:', err); }
+      toast.success('Charging station deleted successfully');
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      toast.error(err.message || 'Failed to delete charging station');
+    }
     finally { setDeleting(null); }
   };
 

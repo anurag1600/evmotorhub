@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { FileSliders as Sliders, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Plus, X, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface FooterConfig {
   id: string;
@@ -80,8 +81,11 @@ export default function FooterSettingsPage() {
       if (err) throw err;
       setSuccess('Footer settings saved!');
       setTimeout(() => setSuccess(''), 3000);
+      toast.success('Footer settings saved successfully');
     } catch (err: any) {
-      setError(err.message || 'Failed to save');
+      const errorMessage = err.message || 'Failed to save';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

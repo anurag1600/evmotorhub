@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { StaticPage, ContentBlock } from '@/lib/types';
-import { FileText, Loader as Loader2, Plus, Save, X, CircleAlert as AlertCircle } from 'lucide-react';
+import { FileText, Loader as Loader2, Plus, Save, X, CircleAlert as AlertCircle, Pencil, Trash2 } from 'lucide-react';
+import { timeAgo } from '@/lib/format';
 import ContentBlockEditor from '@/components/admin/ContentBlockEditor';
+import { toast } from 'sonner';
 
 export default function AdminCMSPage() {
   const [pages, setPages] = useState<StaticPage[]>([]);
@@ -79,9 +81,11 @@ export default function AdminCMSPage() {
 
       if (error) throw error;
       setMessage('Saved successfully');
+      toast.success('Item saved successfully');
       setTimeout(() => { setEditingId(null); fetchPages(); }, 1000);
     } catch (error: any) {
       setMessage('Error: ' + error.message);
+      toast.error(error.message);
     } finally {
       setSaving(false);
     }
@@ -105,9 +109,11 @@ export default function AdminCMSPage() {
 
       if (error) throw error;
       setMessage('Page created successfully');
+      toast.success('Item saved successfully');
       setTimeout(() => { setShowAdd(false); setEditData({ content_blocks: [], use_block_editor: false }); fetchPages(); }, 1000);
     } catch (error: any) {
       setMessage('Error: ' + error.message);
+      toast.error(error.message);
     } finally {
       setSaving(false);
     }
@@ -118,8 +124,9 @@ export default function AdminCMSPage() {
     try {
       await supabase.from('static_pages').delete().eq('id', id);
       setPages(pages.filter(p => p.id !== id));
+      toast.success('Item deleted successfully');
     } catch (error: any) {
-      alert('Failed to delete: ' + error.message);
+      toast.error('Failed to delete');
     }
   };
 
@@ -216,14 +223,14 @@ export default function AdminCMSPage() {
                           {page.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="text-sm text-gray-500">{new Date(page.updated_at || page.created_at).toLocaleDateString()}</td>
+                      <td className="text-sm text-gray-500">{timeAgo(page.updated_at || page.created_at)}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => startEditing(page)} className="text-[#145a2c] hover:underline font-medium text-sm">
-                            Edit
+                          <button onClick={() => startEditing(page)} className="text-[#145a2c] hover:text-[#0f4020]">
+                            <Pencil size={14} />
                           </button>
-                          <button onClick={() => deletePage(page.id)} className="text-red-500 hover:text-red-700 text-sm">
-                            Delete
+                          <button onClick={() => deletePage(page.id)} className="text-red-600 hover:text-red-700">
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>

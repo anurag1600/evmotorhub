@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
 import { Car, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
-import { formatPrice, getVehicleTypeLabel } from '@/lib/format';
+import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
+import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
   draft: 'bg-amber-100 text-amber-700',
@@ -59,7 +60,11 @@ export default function VehiclesManagementPage() {
       await supabase.from('vehicles').delete().eq('id', id);
       setVehicles(vehicles.filter(v => v.id !== id));
       setTotal(t => t - 1);
-    } catch (err) { console.error('Delete failed:', err); }
+      toast.success('Item deleted successfully');
+    } catch (err) {
+      console.error('Delete failed:', err);
+      toast.error('Failed to delete');
+    }
     finally { setDeleting(null); }
   };
 
@@ -160,6 +165,7 @@ export default function VehiclesManagementPage() {
                       <th>Price</th>
                       <th>Status</th>
                       <th>Featured</th>
+                      <th>Updated</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -175,6 +181,7 @@ export default function VehiclesManagementPage() {
                           </span>
                         </td>
                         <td>{vehicle.is_featured ? '✓' : '—'}</td>
+                        <td className="text-xs text-gray-500">{timeAgo(vehicle.updated_at || vehicle.created_at)}</td>
                         <td>
                           <div className="flex items-center gap-2">
                             <Link href={`/admin/vehicles/${vehicle.id}/edit`} className="text-[#145a2c] hover:text-[#0f4020]">

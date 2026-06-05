@@ -5,7 +5,9 @@ import { supabase } from '@/lib/supabase';
 import { FAQItem } from '@/lib/types';
 import { CircleHelp as HelpCircle, Plus, CreditCard as Edit2, Trash2, Loader as Loader2, CircleAlert as AlertCircle, ChevronUp, ChevronDown, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { timeAgo } from '@/lib/format';
 import Pagination from '@/components/admin/Pagination';
+import { toast } from 'sonner';
 
 const categories = [
   { value: 'general', label: 'General' },
@@ -25,6 +27,10 @@ export default function AdminFAQPage() {
   const [message, setMessage] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newItem, setNewItem] = useState({ question: '', answer: '', category: 'general' });
+  const [homepageLimit, setHomepageLimit] = useState(6);
+  const [contactLimit, setContactLimit] = useState(4);
+  const [limitSaving, setLimitSaving] = useState(false);
+  const [limitMessage, setLimitMessage] = useState('');
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -43,6 +49,38 @@ export default function AdminFAQPage() {
   }, []);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Fetch FAQ display limits
+  useEffect(() => {
+    supabase.from('site_config').select('faq_homepage_limit, faq_contact_limit').limit(1).then(({ data }) => {
+      if (data?.[0]) {
+        setHomepageLimit(data[0].faq_homepage_limit || 6);
+        setContactLimit(data[0].faq_contact_limit || 4);
+      }
+    });
+  }, []);
+
+  const saveLimits = async () => {
+    setLimitSaving(true);
+    setLimitMessage('');
+    try {
+      const { data: configData } = await supabase.from('site_config').select('id').limit(1);
+      const id = configData?.[0]?.id;
+      const update = { faq_homepage_limit: homepageLimit, faq_contact_limit: contactLimit };
+      const { error } = id
+        ? await supabase.from('site_config').update(update).eq('id', id)
+        : await supabase.from('site_config').insert([update]);
+      if (error) throw error;
+      setLimitMessage('Limits saved successfully!');
+      toast.success('Item saved successfully');
+      setTimeout(() => setLimitMessage(''), 2000);
+    } catch (err: any) {
+      setLimitMessage('Error: ' + err.message);
+      toast.error(err.message);
+    } finally {
+      setLimitSaving(false);
+    }
+  };
 
   const toggleActive = async (id: string, isActive: boolean) => {
     try {
@@ -72,7 +110,11 @@ export default function AdminFAQPage() {
     try {
       await supabase.from('faq_items').delete().eq('id', id);
       setItems(items.filter(i => i.id !== id));
-    } catch (error) { console.error('Delete failed:', error); }
+      toast.success('Item deleted successfully');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      toast.error('Failed to delete');
+    }
     finally { setDeleting(null); }
   };
 
@@ -98,12 +140,14 @@ export default function AdminFAQPage() {
         .eq('id', editingId);
       if (error) throw error;
       setMessage('FAQ updated successfully!');
+      toast.success('Item saved successfully');
       setEditingId(null);
       setEditData({});
       fetchItems();
       setTimeout(() => setMessage(''), 2000);
     } catch (err: any) {
       setMessage('Error: ' + err.message);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -124,12 +168,14 @@ export default function AdminFAQPage() {
       }]);
       if (error) throw error;
       setMessage('FAQ created successfully!');
+      toast.success('Item saved successfully');
       setNewItem({ question: '', answer: '', category: 'general' });
       setShowAdd(false);
       fetchItems();
       setTimeout(() => setMessage(''), 2000);
     } catch (err: any) {
       setMessage('Error: ' + err.message);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
@@ -244,6 +290,7 @@ export default function AdminFAQPage() {
                     <th>Question</th>
                     <th>Category</th>
                     <th>Status</th>
+                    <th>Updated</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -272,6 +319,7 @@ export default function AdminFAQPage() {
                           {item.is_active ? 'Active' : 'Hidden'}
                         </button>
                       </td>
+                      <td className="text-xs text-gray-500">{timeAgo(item.updated_at || item.created_at)}</td>
                       <td>
                         <div className="flex items-center gap-2">
                           <button onClick={() => startEditing(item)} className="text-[#145a2c] hover:text-[#0f4020]">
@@ -288,6 +336,47 @@ export default function AdminFAQPage() {
               </table>
             </div>
           )}
+        </div>
+
+        {/* FAQ Display Limits */}
+        <div className="admin-card p-6 mt-6 space-y-4">
+          <h2 className="text-lg font-bold border-b pb-3">Display Settings</h2>
+          <p className="text-sm text-gray-500">Configure how many FAQs appear on different pages</p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Homepage FAQ Limit</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={homepageLimit}
+                onChange={(e) => setHomepageLimit(parseInt(e.target.value) || 6)}
+                className="admin-input"
+              />
+              <p className="text-xs text-gray-400 mt-1">Number of FAQs shown on the homepage</p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Contact Page FAQ Limit</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={contactLimit}
+                onChange={(e) => setContactLimit(parseInt(e.target.value) || 4)}
+                className="admin-input"
+              />
+              <p className="text-xs text-gray-400 mt-1">Number of FAQs shown on the contact page</p>
+            </div>
+          </div>
+          {limitMessage && (
+            <div className={cn('p-3 rounded-lg text-sm', limitMessage.includes('Error') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200')}>
+              {limitMessage}
+            </div>
+          )}
+          <button onClick={saveLimits} disabled={limitSaving} className="admin-btn-primary flex items-center gap-2">
+            {limitSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {limitSaving ? 'Saving...' : 'Save Display Settings'}
+          </button>
         </div>
       </div>
     </div>

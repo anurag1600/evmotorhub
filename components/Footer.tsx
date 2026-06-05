@@ -21,13 +21,6 @@ const defaultFooterLinks = {
     { label: 'EMI Calculator', href: '/emi-calculator' },
     { label: 'Charging Stations', href: '/charging-stations' },
   ],
-  brands: [
-    { label: 'Ola Electric', href: '/manufacturers/ola-electric' },
-    { label: 'Ather Energy', href: '/manufacturers/ather-energy' },
-    { label: 'Tata Motors', href: '/manufacturers/tata-motors' },
-    { label: 'TVS Motor', href: '/manufacturers/tvs-motor' },
-    { label: 'All Brands', href: '/manufacturers' },
-  ],
   company: [
     { label: 'About Us', href: '/about' },
     { label: 'Contact Us', href: '/contact' },
@@ -110,140 +103,152 @@ export default function Footer() {
   const contactInfo = config?.contact_info || {};
   const socialMedia = config?.social_media || {};
 
+  // Count visible sections for dynamic grid
+  const visibleSections: React.ReactNode[] = [];
+
+  // Brand column is always shown
+  const brandColumn = (
+    <div className="lg:col-span-2">
+      <Link href="/" className="inline-block mb-4">
+        <Image
+          src="/EV_logo_White.png"
+          alt="EVMotorHub"
+          width={180}
+          height={45}
+          className="h-10 w-auto"
+        />
+      </Link>
+      <p className="text-gray-400 text-sm leading-relaxed mb-5 max-w-xs">
+        India&apos;s most trusted EV marketplace. Research, compare, and discover the best electric vehicles for your lifestyle and budget.
+      </p>
+
+      {showContact && (
+        <div className="space-y-2 text-sm text-gray-400 mb-6">
+          {contactInfo.address && (
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-green-400 flex-shrink-0" />
+              <span>{contactInfo.address}</span>
+            </div>
+          )}
+          {contactInfo.email && (
+            <div className="flex items-center gap-2">
+              <Mail size={14} className="text-green-400 flex-shrink-0" />
+              <a href={`mailto:${contactInfo.email}`} className="hover:text-green-400 transition-colors">{contactInfo.email}</a>
+            </div>
+          )}
+          {contactInfo.phone && (
+            <div className="flex items-center gap-2">
+              <Phone size={14} className="text-green-400 flex-shrink-0" />
+              <span>{contactInfo.phone}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showSocial && (
+        <div className="flex items-center gap-3">
+          {socialLinks.map(({ icon: Icon, key, label }) => {
+            const href = socialMedia[key];
+            if (!href) return null;
+            return (
+              <a key={key} href={href} aria-label={label} target="_blank" rel="noopener noreferrer"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-green-600 transition-colors">
+                <Icon size={15} />
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+  visibleSections.push(brandColumn);
+
+  if (showQuickLinks) {
+    const quickLinksColumn = (
+      <>
+        {/* Vehicles */}
+        <div>
+          <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Vehicles</h3>
+          <ul className="space-y-2.5">
+            {defaultFooterLinks.vehicles.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Resources */}
+        <div>
+          <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Resources</h3>
+          <ul className="space-y-2.5">
+            {defaultFooterLinks.resources.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Company */}
+        <div>
+          <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Company</h3>
+          <ul className="space-y-2.5">
+            {defaultFooterLinks.company.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </>
+    );
+    visibleSections.push(quickLinksColumn);
+  }
+
+  if (showNewsletter) {
+    const newsletterColumn = (
+      <div>
+        <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Stay Updated</h3>
+        <p className="text-sm text-gray-400 mb-4">New launches, price drops, subsidies - delivered weekly.</p>
+        {subscribed ? (
+          <div className="bg-green-500/20 text-green-300 px-4 py-3 rounded-lg text-sm">
+            Subscribed! Check your inbox.
+          </div>
+        ) : (
+          <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter email"
+              required
+              className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-400"
+            />
+            <button type="submit" className="bg-[#145a2c] hover:bg-[#0f4020] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+              Subscribe
+            </button>
+          </form>
+        )}
+        {config?.footer_custom_links && config.footer_custom_links.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {config.footer_custom_links.map((link, i) => (
+              <li key={i}>
+                <Link href={link.url} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+    visibleSections.push(newsletterColumn);
+  }
+
   return (
     <footer className="bg-[#0a2e14] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-10">
-          {/* Brand Column */}
-          <div className="lg:col-span-2">
-            <Link href="/" className="inline-block mb-4">
-              <Image
-                src="/EV_logo_White.png"
-                alt="EVMotorHub"
-                width={180}
-                height={45}
-                className="h-10 w-auto"
-              />
-            </Link>
-            <p className="text-gray-400 text-sm leading-relaxed mb-5 max-w-xs">
-              India&apos;s most trusted EV marketplace. Research, compare, and discover the best electric vehicles for your lifestyle and budget.
-            </p>
-
-            {showContact && (
-              <div className="space-y-2 text-sm text-gray-400 mb-6">
-                {contactInfo.address && (
-                  <div className="flex items-center gap-2">
-                    <MapPin size={14} className="text-green-400 flex-shrink-0" />
-                    <span>{contactInfo.address}</span>
-                  </div>
-                )}
-                {contactInfo.email && (
-                  <div className="flex items-center gap-2">
-                    <Mail size={14} className="text-green-400 flex-shrink-0" />
-                    <a href={`mailto:${contactInfo.email}`} className="hover:text-green-400 transition-colors">{contactInfo.email}</a>
-                  </div>
-                )}
-                {contactInfo.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone size={14} className="text-green-400 flex-shrink-0" />
-                    <span>{contactInfo.phone}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {showSocial && (
-              <div className="flex items-center gap-3">
-                {socialLinks.map(({ icon: Icon, key, label }) => {
-                  const href = socialMedia[key];
-                  if (!href) return null;
-                  return (
-                    <a key={key} href={href} aria-label={label} target="_blank" rel="noopener noreferrer"
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-green-600 transition-colors">
-                      <Icon size={15} />
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {showQuickLinks && (
-            <>
-              {/* Vehicles */}
-              <div>
-                <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Vehicles</h3>
-                <ul className="space-y-2.5">
-                  {defaultFooterLinks.vehicles.map((link) => (
-                    <li key={link.href}>
-                      <Link href={link.href} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Resources */}
-              <div>
-                <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Resources</h3>
-                <ul className="space-y-2.5">
-                  {defaultFooterLinks.resources.map((link) => (
-                    <li key={link.href}>
-                      <Link href={link.href} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Company */}
-              <div>
-                <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Company</h3>
-                <ul className="space-y-2.5">
-                  {defaultFooterLinks.company.map((link) => (
-                    <li key={link.href}>
-                      <Link href={link.href} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
-
-          {/* Newsletter */}
-          {showNewsletter && (
-            <div className={showQuickLinks ? '' : 'lg:col-span-2'}>
-              <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wider mb-4">Stay Updated</h3>
-              <p className="text-sm text-gray-400 mb-4">New launches, price drops, subsidies - delivered weekly.</p>
-              {subscribed ? (
-                <div className="bg-green-500/20 text-green-300 px-4 py-3 rounded-lg text-sm">
-                  Subscribed! Check your inbox.
-                </div>
-              ) : (
-                <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter email"
-                    required
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/10 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-400"
-                  />
-                  <button type="submit" className="bg-[#145a2c] hover:bg-[#0f4020] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                    Subscribe
-                  </button>
-                </form>
-              )}
-              {/* Custom Links */}
-              {config?.footer_custom_links && config.footer_custom_links.length > 0 && (
-                <ul className="mt-4 space-y-2">
-                  {config.footer_custom_links.map((link, i) => (
-                    <li key={i}>
-                      <Link href={link.url} className="text-sm text-gray-400 hover:text-green-300 transition-colors">{link.label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          {visibleSections.map((section, i) => section)}
         </div>
 
         {/* City Links */}

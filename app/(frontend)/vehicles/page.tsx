@@ -6,20 +6,13 @@ import { Search, SlidersHorizontal, X, ChevronDown, Car, Bike, Radio } from 'luc
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
 import VehicleCard from '@/components/VehicleCard';
+import { formatPrice } from '@/lib/format';
 
 const vehicleTypes = [
   { value: '', label: 'All Types', icon: null },
   { value: 'scooter', label: 'Scooters', icon: Radio },
   { value: 'bike', label: 'Bikes', icon: Bike },
   { value: 'car', label: 'Cars', icon: Car },
-];
-
-const priceRanges = [
-  { value: '', label: 'All Budgets', min: null, max: null },
-  { value: 'under-1l', label: 'Budget (Under ₹1L)', min: 0, max: 100000 },
-  { value: '1l-3l', label: 'Mid Range (₹1L–₹3L)', min: 100000, max: 300000 },
-  { value: '3l-10l', label: 'Premium (₹3L–₹10L)', min: 300000, max: 1000000 },
-  { value: '10l-plus', label: 'Luxury (₹10L+)', min: 1000000, max: null },
 ];
 
 const sortOptions = [
@@ -29,6 +22,14 @@ const sortOptions = [
   { value: 'range_km', label: 'Range: High to Low' },
 ];
 
+function formatLakh(price: number): string {
+  if (price >= 100000) {
+    const lakh = price / 100000;
+    return lakh % 1 === 0 ? `${lakh}L` : `${lakh.toFixed(1)}L`;
+  }
+  return `${(price / 1000).toFixed(0)}K`;
+}
+
 export default function VehiclesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +38,7 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [total, setTotal] = useState(0);
+  const [priceRanges, setPriceRanges] = useState<{ value: string; label: string; min: number | null; max: number | null }[]>([]);
 
   const typeParam = searchParams.get('type') || '';
   const priceParam = searchParams.get('price') || '';
@@ -49,6 +51,64 @@ export default function VehiclesPage() {
   const [selectedPrice, setSelectedPrice] = useState(priceParam);
   const [showUpcoming, setShowUpcoming] = useState(upcomingParam === 'true');
   const [sort, setSort] = useState(sortParam);
+
+  // Generate dynamic price ranges from actual vehicle data
+  useEffect(() => {
+    const generatePriceRanges = async () => {
+      const { data } = await supabase
+        .from('vehicles')
+        .select('price_min')
+        .gt('price_min', 0)
+        .order('price_min', { ascending: true });
+
+      if (!data || data.length === 0) {
+        setPriceRanges([{ value: '', label: 'All Budgets', min: null, max: null }]);
+        return;
+      }
+
+      const prices = data.map(v => v.price_min).filter(Boolean).sort((a, b) => a - b);
+      const minPrice = prices[0];
+      const maxPrice = prices[prices.length - 1];
+
+      // Generate bucket boundaries at 1L, 3L, 5L, 10L, 15L, 20L based on data
+      const boundaries = [100000, 300000, 500000, 1000000, 1500000, 2000000, 3000000, 5000000];
+      const relevantBoundaries = boundaries.filter(b => b > minPrice && b < maxPrice);
+
+      const ranges: { value: string; label: string; min: number | null; max: number | null }[] = [
+        { value: '', label: 'All Budgets', min: null, max: null },
+      ];
+
+      // Under first boundary
+      if (relevantBoundaries.length > 0) {
+        ranges.push({ value: `0-${relevantBoundaries[0]}`, label: `Under ${formatLakh(relevantBoundaries[0])}`, min: 0, max: relevantBoundaries[0] });
+      }
+
+      // Between boundaries
+      for (let i = 0; i < relevantBoundaries.length - 1; i++) {
+        const lo = relevantBoundaries[i];
+        const hi = relevantBoundaries[i + 1];
+        ranges.push({
+          value: `${lo}-${hi}`,
+          label: `${formatLakh(lo)} - ${formatLakh(hi)}`,
+          min: lo,
+          max: hi,
+        });
+      }
+
+      // Above last boundary
+      if (relevantBoundaries.length > 0) {
+        ranges.push({
+          value: `${relevantBoundaries[relevantBoundaries.length - 1]}-plus`,
+          label: `${formatLakh(relevantBoundaries[relevantBoundaries.length - 1])}+`,
+          min: relevantBoundaries[relevantBoundaries.length - 1],
+          max: null,
+        });
+      }
+
+      setPriceRanges(ranges);
+    };
+    generatePriceRanges();
+  }, []);
 
   const getPriceRange = (priceValue: string) => {
     const range = priceRanges.find(r => r.value === priceValue);
@@ -63,7 +123,6 @@ export default function VehiclesPage() {
 
     if (selectedType) query = query.eq('type', selectedType);
 
-    // Apply price range filtering
     if (selectedPrice) {
       const { min, max } = getPriceRange(selectedPrice);
       if (min !== null) query = query.gte('price_min', min);
@@ -84,10 +143,10 @@ export default function VehiclesPage() {
       setTotal(data.length);
     }
     setLoading(false);
-  }, [selectedType, selectedPrice, showUpcoming, sort, search]);
+  }, [selectedType, selectedPrice, showUpcoming, sort, search, priceRanges]);
 
   useEffect(() => {
-    fetchVehicles();
+    if (priceRanges.length > 0) fetchVehicles();
   }, [fetchVehicles]);
 
   const clearFilters = () => {

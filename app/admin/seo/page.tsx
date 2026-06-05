@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Search, Save, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SeoSettings {
   id: string;
@@ -81,8 +82,11 @@ export default function SEOSettingsPage() {
 
       setSuccess('SEO settings saved!');
       setTimeout(() => setSuccess(''), 3000);
+      toast.success('SEO settings saved successfully');
     } catch (err: any) {
-      setError(err.message || 'Failed to save SEO settings');
+      const errorMessage = err.message || 'Failed to save SEO settings';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

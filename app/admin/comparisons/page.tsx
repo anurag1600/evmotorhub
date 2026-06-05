@@ -4,9 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { PopularComparison } from '@/lib/types';
-import { Scale, Plus, Edit2, Trash2, Search, Loader2, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Scale, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { timeAgo } from '@/lib/format';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
+import { toast } from 'sonner';
 
 const EXPORT_COLS = ['id', 'vehicle1_slug', 'vehicle2_slug', 'title', 'sort_order', 'is_active'];
 const IMPORT_COLS = ['vehicle1_slug', 'vehicle2_slug', 'title', 'sort_order', 'is_active'];
@@ -57,7 +59,11 @@ export default function ComparisonsManagementPage() {
       await supabase.from('popular_comparisons').delete().eq('id', id);
       setItems(items.filter(i => i.id !== id));
       setTotal(t => t - 1);
-    } catch (err) { console.error('Delete failed:', err); }
+      toast.success('Item deleted successfully');
+    } catch (err) {
+      console.error('Delete failed:', err);
+      toast.error('Failed to delete');
+    }
     finally { setDeleting(null); }
   };
 
@@ -92,14 +98,17 @@ export default function ComparisonsManagementPage() {
       if (editingId) {
         const { error } = await supabase.from('popular_comparisons').update(form).eq('id', editingId);
         if (error) throw error;
+        toast.success('Item saved successfully');
       } else {
         const { error } = await supabase.from('popular_comparisons').insert([form]);
         if (error) throw error;
+        toast.success('Item saved successfully');
       }
       setShowForm(false);
       fetchItems();
     } catch (err: any) {
       setFormError(err.message || 'Save failed');
+      toast.error(err.message || 'Save failed');
     } finally {
       setFormSaving(false);
     }
@@ -222,6 +231,7 @@ export default function ComparisonsManagementPage() {
                       <th>Title</th>
                       <th>Order</th>
                       <th>Active</th>
+                      <th>Updated</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -237,6 +247,7 @@ export default function ComparisonsManagementPage() {
                             {item.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} className="text-gray-300" />}
                           </button>
                         </td>
+                        <td className="text-xs text-gray-500">{timeAgo(item.updated_at || item.created_at)}</td>
                         <td>
                           <div className="flex items-center gap-2">
                             <button onClick={() => openEdit(item)} className="text-[#145a2c] hover:text-[#0f4020]"><Edit2 size={14} /></button>

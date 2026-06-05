@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, Mail, MapPin, MessageSquare, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { Phone, Mail, MapPin, MessageSquare, Save, Loader as Loader2, CircleHelp as HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import { SiteConfig } from '@/lib/types';
-
-interface FaqItem {
-  question: string;
-  answer: string;
-}
 
 export default function ContactSettingsPage() {
   const [config, setConfig] = useState<SiteConfig | null>(null);
@@ -21,7 +18,6 @@ export default function ContactSettingsPage() {
   const [heroTitle, setHeroTitle] = useState('Get in Touch');
   const [heroSubtitle, setHeroSubtitle] = useState("We'd love to hear from you");
   const [mapEmbedUrl, setMapEmbedUrl] = useState('');
-  const [faq, setFaq] = useState<FaqItem[]>([]);
 
   useEffect(() => {
     async function fetchConfig() {
@@ -33,7 +29,6 @@ export default function ContactSettingsPage() {
         setHeroTitle(c.contact_hero_title || 'Get in Touch');
         setHeroSubtitle(c.contact_hero_subtitle || "We'd love to hear from you");
         setMapEmbedUrl(c.map_embed_url || '');
-        setFaq(c.contact_faq || []);
       }
       setLoading(false);
     }
@@ -52,24 +47,18 @@ export default function ContactSettingsPage() {
           contact_hero_title: heroTitle,
           contact_hero_subtitle: heroSubtitle,
           map_embed_url: mapEmbedUrl,
-          contact_faq: faq,
         })
         .eq('id', config.id);
       if (error) throw error;
       setMessage({ type: 'success', text: 'Contact settings saved successfully!' });
+      toast.success('Contact settings saved successfully');
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to save settings' });
+      const errorMessage = err.message || 'Failed to save settings';
+      setMessage({ type: 'error', text: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
-  };
-
-  const addFaq = () => setFaq([...faq, { question: '', answer: '' }]);
-  const removeFaq = (idx: number) => setFaq(faq.filter((_, i) => i !== idx));
-  const updateFaq = (idx: number, field: 'question' | 'answer', value: string) => {
-    const updated = [...faq];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setFaq(updated);
   };
 
   if (loading) {
@@ -161,44 +150,21 @@ export default function ContactSettingsPage() {
           </div>
         </div>
 
-        {/* FAQ */}
+        {/* FAQ - managed from FAQ admin page */}
         <div className="admin-card p-6 mt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">FAQ Section</h3>
-            <button onClick={addFaq} className="admin-btn-secondary text-xs">
-              <Plus size={14} /> Add FAQ
-            </button>
           </div>
-          <div className="space-y-4">
-            {faq.map((item, idx) => (
-              <div key={idx} className="border border-gray-100 rounded-lg p-4 bg-gray-50/50">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 space-y-3">
-                    <input
-                      type="text"
-                      value={item.question}
-                      onChange={(e) => updateFaq(idx, 'question', e.target.value)}
-                      className="admin-input"
-                      placeholder="Question"
-                    />
-                    <textarea
-                      value={item.answer}
-                      onChange={(e) => updateFaq(idx, 'answer', e.target.value)}
-                      className="admin-input resize-none"
-                      rows={2}
-                      placeholder="Answer"
-                    />
-                  </div>
-                  <button onClick={() => removeFaq(idx)} className="text-red-400 hover:text-red-600 p-1">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {faq.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No FAQ items yet. Click &quot;Add FAQ&quot; to create one.</p>
-            )}
-          </div>
+          <p className="text-sm text-gray-500 mb-3">
+            FAQs displayed on the Contact page are managed centrally from the FAQ Management section. The number of FAQs shown on the contact page is configurable from there.
+          </p>
+          <Link
+            href="/admin/faq"
+            className="inline-flex items-center gap-2 text-[#145a2c] text-sm font-medium hover:underline"
+          >
+            <HelpCircle size={14} />
+            Manage FAQs
+          </Link>
         </div>
       </div>
     </div>

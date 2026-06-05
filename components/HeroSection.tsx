@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Zap, Search, ArrowRight, Shield, Award, Database, Users } from 'lucide-react';
+import { Zap, Search, ArrowRight, Shield } from 'lucide-react';
 
 interface HeroSectionProps {
   heroTitle: string;
@@ -16,20 +16,7 @@ interface HeroSectionProps {
   heroCta2Url: string;
   heroRightMainImage: string;
   heroRightSecondaryImages: string[];
-  homepageStats: {
-    total_vehicles: number;
-    total_manufacturers: number;
-    total_charging_stations: number;
-    monthly_visitors: number;
-  };
 }
-
-const defaultStats = [
-  { value: '50+', label: 'EV Models', icon: Database },
-  { value: '8+', label: 'Top Brands', icon: Award },
-  { value: '12K+', label: 'Charging Stations', icon: Zap },
-  { value: '2M+', label: 'Monthly Visitors', icon: Users },
-];
 
 const PLACEHOLDER_MAIN = 'https://images.pexels.com/photos/3422964/pexels-photo-3422964.jpeg?auto=compress&cs=tinysrgb&w=800';
 const PLACEHOLDER_SECONDARY = [
@@ -48,16 +35,8 @@ export default function HeroSection({
   heroCta2Url,
   heroRightMainImage,
   heroRightSecondaryImages,
-  homepageStats,
 }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
-
-  const stats = homepageStats?.total_vehicles ? [
-    { value: `${homepageStats.total_vehicles}+`, label: 'EV Models', icon: Database },
-    { value: `${homepageStats.total_manufacturers}+`, label: 'Top Brands', icon: Award },
-    { value: `${Math.round(homepageStats.total_charging_stations / 1000)}K+`, label: 'Charging Stations', icon: Zap },
-    { value: `${Math.round(homepageStats.monthly_visitors / 1000000)}M+`, label: 'Monthly Visitors', icon: Users },
-  ] : defaultStats;
 
   const mainImg = heroRightMainImage || PLACEHOLDER_MAIN;
   const secondaryImgs = heroRightSecondaryImages?.length
@@ -72,30 +51,30 @@ export default function HeroSection({
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-300 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 lg:py-24">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-18 lg:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Column - Content */}
           <div className="order-2 lg:order-1">
             {/* Badge */}
             {(heroBadgeText || heroSubtitle) && (
-              <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-300 text-sm font-medium px-4 py-2 rounded-full mb-6 border border-green-500/30 backdrop-blur-sm">
+              <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-300 text-sm font-medium px-4 py-2 rounded-full mb-5 border border-green-500/30 backdrop-blur-sm">
                 <Zap size={14} />
                 {heroBadgeText || heroSubtitle}
               </div>
             )}
 
             {/* Heading */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-[3.4rem] font-extrabold text-white leading-tight mb-5">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-[3.4rem] font-extrabold text-white leading-tight mb-4">
               {heroTitle}
             </h1>
 
             {/* Description */}
-            <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-8 max-w-lg">
+            <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-7 max-w-lg">
               {heroDescription}
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-3 mb-8">
+            <div className="flex flex-wrap gap-3 mb-7">
               <Link
                 href={heroCtaUrl || '/vehicles'}
                 className="inline-flex items-center gap-2 bg-white text-[#145a2c] px-6 py-3 rounded-xl font-bold text-sm hover:bg-green-50 transition-colors shadow-lg"
@@ -114,7 +93,7 @@ export default function HeroSection({
             </div>
 
             {/* Search Bar */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-1.5 flex items-center gap-2 border border-white/10 max-w-md mb-8">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-1.5 flex items-center gap-2 border border-white/10 max-w-md">
               <Search className="ml-3 text-gray-300 flex-shrink-0" size={18} />
               <input
                 type="text"
@@ -135,25 +114,12 @@ export default function HeroSection({
                 Search
               </Link>
             </div>
-
-            {/* Stats Row */}
-            <div className="grid grid-cols-4 gap-3">
-              {stats.map(({ value, label, icon: Icon }) => (
-                <div key={label} className="text-center">
-                  <div className="flex items-center justify-center gap-1.5 mb-1">
-                    <Icon size={14} className="text-green-400" />
-                    <span className="text-lg sm:text-xl font-bold text-white">{value}</span>
-                  </div>
-                  <span className="text-xs text-gray-400">{label}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Right Column - Image Cards */}
           <div className="order-1 lg:order-2 relative">
             {/* Main EV Image */}
-            <div className="relative h-64 sm:h-72 lg:h-96 rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+            <div className="relative h-64 sm:h-72 lg:h-[340px] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
               <Image
                 src={mainImg}
                 alt="Electric Vehicle"
@@ -173,7 +139,7 @@ export default function HeroSection({
             {/* Secondary Images */}
             <div className="grid grid-cols-2 gap-3 mt-3">
               {secondaryImgs.map((img, i) => (
-                <div key={i} className="relative h-32 sm:h-36 rounded-xl overflow-hidden shadow-lg border border-white/10">
+                <div key={i} className="relative h-28 sm:h-32 lg:h-36 rounded-xl overflow-hidden shadow-lg border border-white/10">
                   <Image
                     src={img}
                     alt={`EV Category ${i + 1}`}

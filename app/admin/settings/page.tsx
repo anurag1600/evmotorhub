@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Chrome as Home, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import ImageUpload from '@/components/ImageUpload';
 
 interface SiteConfig {
@@ -167,8 +168,11 @@ export default function HomepageSettingsPage() {
       if (err) throw err;
       setSuccess('Settings saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
+      toast.success('Settings saved successfully');
     } catch (err: any) {
-      setError(err.message || 'Failed to save settings');
+      const errorMessage = err.message || 'Failed to save settings';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
