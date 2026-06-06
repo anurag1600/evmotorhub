@@ -274,7 +274,7 @@ export default async function HomePage() {
                 Compare all <ArrowRight size={14} />
               </Link>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-5">
               {comparisons.map((comp: any) => (
                 <Link
                   key={comp.id}

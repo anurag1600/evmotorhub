@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://evmotorhub.in';
+  const baseUrl = 'https://evmotorhub.com';
 
   const staticRoutes = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily' as const, priority: 1 },
