@@ -113,10 +113,20 @@ export default function AdminNav() {
               <div className="text-xs text-gray-500 mb-1">Logged in as</div>
               <div className="text-sm font-semibold text-gray-900 truncate">{adminUser.email}</div>
               <div className="text-xs text-green-600 mt-1 capitalize">
-                {adminUser.role === 'super_admin' ? '🔓 Super Admin' : '✏️ Editor'}
+                {adminUser.role === 'super_admin' ? 'Super Admin' : 'Editor'}
               </div>
             </div>
           )}
+          <Link
+            href="/admin/change-password"
+            className={cn(
+              'w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors',
+              pathname === '/admin/change-password' && 'bg-[#145a2c] text-white'
+            )}
+          >
+            <Settings size={14} />
+            Change Password
+          </Link>
           <button
             onClick={handleLogout}
             disabled={loggingOut}

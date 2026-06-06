@@ -1,14 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Phone, Mail, Clock, Send, MessageSquare, Zap, Shield, Users, CircleCheck as CheckCircle, Loader as Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Send, MessageSquare, Zap, Shield, Users, CircleCheck as CheckCircle, Loader as Loader2, ChevronDown } from 'lucide-react';
 import { SiteConfig, FAQItem } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
-
-interface ContactPageClientProps {
-  siteConfig: SiteConfig | null;
-}
 
 const defaultContactInfo = {
   email: 'hello@evmotorhub.in',
@@ -19,7 +15,9 @@ const defaultContactInfo = {
 
 const DEFAULT_CONTACT_FAQ_LIMIT = 4;
 
-export default function ContactPageClient({ siteConfig }: ContactPageClientProps) {
+export default function ContactPageClient() {
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
+
   const contactInfo = siteConfig?.contact_info || defaultContactInfo;
   const heroTitle = siteConfig?.contact_hero_title || 'Get in Touch';
   const heroSubtitle = siteConfig?.contact_hero_subtitle || "We'd love to hear from you";
@@ -33,7 +31,13 @@ export default function ContactPageClient({ siteConfig }: ContactPageClientProps
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
 
   useEffect(() => {
-    const limit = (siteConfig as any)?.faq_contact_limit || DEFAULT_CONTACT_FAQ_LIMIT;
+    supabase.from('site_config').select('*').limit(1).then(({ data }) => {
+      if (data && data.length > 0) setSiteConfig(data[0] as SiteConfig);
+    });
+
+    const limit = siteConfig
+      ? (siteConfig as any).faq_contact_limit || DEFAULT_CONTACT_FAQ_LIMIT
+      : DEFAULT_CONTACT_FAQ_LIMIT;
     supabase
       .from('faq_items')
       .select('*')

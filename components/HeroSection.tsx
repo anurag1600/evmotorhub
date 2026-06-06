@@ -51,8 +51,8 @@ export default function HeroSection({
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-300 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-18 lg:py-20">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 lg:py-24">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
           {/* Left Column - Content */}
           <div className="order-2 lg:order-1">
             {/* Badge */}
@@ -63,18 +63,18 @@ export default function HeroSection({
               </div>
             )}
 
-            {/* Heading */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-[3.4rem] font-extrabold text-white leading-tight mb-4">
+            {/* Heading - improved line-height (1.15) and spacing */}
+            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] xl:text-5xl font-extrabold text-white leading-[1.15] mb-5 tracking-tight">
               {heroTitle}
             </h1>
 
-            {/* Description */}
-            <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-7 max-w-lg">
+            {/* Description - improved line-height (1.7) and spacing */}
+            <p className="text-gray-300 text-base sm:text-lg leading-[1.7] mb-8 max-w-lg">
               {heroDescription}
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-3 mb-7">
+            <div className="flex flex-wrap gap-3 mb-8">
               <Link
                 href={heroCtaUrl || '/vehicles'}
                 className="inline-flex items-center gap-2 bg-white text-[#145a2c] px-6 py-3 rounded-xl font-bold text-sm hover:bg-green-50 transition-colors shadow-lg"
@@ -92,15 +92,15 @@ export default function HeroSection({
               )}
             </div>
 
-            {/* Search Bar */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-1.5 flex items-center gap-2 border border-white/10 max-w-md">
-              <Search className="ml-3 text-gray-300 flex-shrink-0" size={18} />
+            {/* Search Bar - improved with visible white button */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-1.5 sm:p-2 flex items-center gap-2 border border-white/10 max-w-lg">
+              <Search className="ml-2 sm:ml-3 text-gray-300 flex-shrink-0" size={18} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search scooters, bikes, cars..."
-                className="flex-1 py-2.5 bg-transparent text-white text-sm placeholder-gray-400 focus:outline-none"
+                className="flex-1 py-2.5 bg-transparent text-white text-sm placeholder-gray-400 focus:outline-none min-w-0"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && searchQuery.trim()) {
                     window.location.href = `/vehicles?q=${encodeURIComponent(searchQuery.trim())}`;
@@ -109,7 +109,7 @@ export default function HeroSection({
               />
               <Link
                 href={searchQuery.trim() ? `/vehicles?q=${encodeURIComponent(searchQuery.trim())}` : '/vehicles'}
-                className="bg-[#145a2c] text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#0f4020] transition-colors flex-shrink-0"
+                className="bg-white text-[#145a2c] px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors flex-shrink-0 whitespace-nowrap"
               >
                 Search
               </Link>
@@ -119,7 +119,7 @@ export default function HeroSection({
           {/* Right Column - Image Cards */}
           <div className="order-1 lg:order-2 relative">
             {/* Main EV Image */}
-            <div className="relative h-64 sm:h-72 lg:h-[340px] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+            <div className="relative h-56 sm:h-64 lg:h-[340px] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
               <Image
                 src={mainImg}
                 alt="Electric Vehicle"
@@ -139,7 +139,7 @@ export default function HeroSection({
             {/* Secondary Images */}
             <div className="grid grid-cols-2 gap-3 mt-3">
               {secondaryImgs.map((img, i) => (
-                <div key={i} className="relative h-28 sm:h-32 lg:h-36 rounded-xl overflow-hidden shadow-lg border border-white/10">
+                <div key={i} className="relative h-24 sm:h-28 lg:h-36 rounded-xl overflow-hidden shadow-lg border border-white/10">
                   <Image
                     src={img}
                     alt={`EV Category ${i + 1}`}
