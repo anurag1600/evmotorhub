@@ -16,8 +16,8 @@ const statusColors: Record<string, string> = {
   coming_soon: 'bg-amber-100 text-amber-700',
 };
 
-const EXPORT_COLS = ['id', 'name', 'address', 'city', 'state', 'operator', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'operating_hours'];
-const IMPORT_COLS = ['name', 'address', 'city', 'state', 'operator', 'total_chargers', 'available_chargers', 'power_kw', 'status'];
+const EXPORT_COLS = ['id', 'name', 'address', 'city', 'state', 'lat', 'lng', 'operator', 'connector_types', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'amenities', 'operating_hours', 'map_embed_url'];
+const IMPORT_COLS = ['name', 'address', 'city', 'state', 'lat', 'lng', 'operator', 'connector_types', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'amenities', 'operating_hours', 'map_embed_url'];
 
 export default function ChargingStationsPage() {
   const [stations, setStations] = useState<ChargingStation[]>([]);

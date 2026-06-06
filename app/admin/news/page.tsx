@@ -17,8 +17,8 @@ const statusColors: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-700',
 };
 
-const EXPORT_COLS = ['id', 'title', 'slug', 'category', 'status', 'is_featured', 'author', 'published_at', 'excerpt'];
-const IMPORT_COLS = ['title', 'slug', 'category', 'status', 'author', 'excerpt', 'content', 'is_featured'];
+const EXPORT_COLS = ['id', 'title', 'slug', 'category', 'status', 'is_featured', 'author', 'image_url', 'published_at', 'excerpt', 'content', 'tags', 'read_time_mins', 'seo_title', 'seo_description'];
+const IMPORT_COLS = ['title', 'slug', 'category', 'status', 'author', 'image_url', 'excerpt', 'content', 'is_featured', 'published_at', 'tags', 'read_time_mins', 'seo_title', 'seo_description'];
 
 export default function NewsManagementPage() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);

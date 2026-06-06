@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation } from '@/lib/types';
-import { Save, Loader2, AlertCircle } from 'lucide-react';
+import { Save, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ChargingStationFormProps {
   id?: string;
@@ -30,6 +31,7 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
     power_kw: 50,
     amenities: [] as string[],
     operating_hours: '',
+    map_embed_url: '',
   });
 
   useEffect(() => {
@@ -71,16 +73,19 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
       if (id) {
         const { error: err } = await supabase
           .from('charging_stations')
-          .update(form)
+          .update({ ...form, updated_at: new Date().toISOString() })
           .eq('id', id);
         if (err) throw err;
+        toast.success('Charging station updated successfully');
       } else {
         const { error: err } = await supabase.from('charging_stations').insert([form]);
         if (err) throw err;
+        toast.success('Charging station created successfully');
       }
-      router.push('/admin/charging');
+      setTimeout(() => router.push('/admin/charging'), 1000);
     } catch (err: any) {
       setError(err.message || 'Save failed');
+      toast.error(err.message || 'Failed to save charging station');
     } finally {
       setSaving(false);
     }
@@ -181,6 +186,7 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
                   value={form.lat}
                   onChange={(e) => setForm({ ...form, lat: parseFloat(e.target.value) || 0 })}
                   className="admin-input"
+                  placeholder="12.9716"
                 />
               </div>
               <div>
@@ -191,8 +197,21 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
                   value={form.lng}
                   onChange={(e) => setForm({ ...form, lng: parseFloat(e.target.value) || 0 })}
                   className="admin-input"
+                  placeholder="77.5946"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Google Maps Embed URL</label>
+              <input
+                type="text"
+                value={form.map_embed_url}
+                onChange={(e) => setForm({ ...form, map_embed_url: e.target.value })}
+                className="admin-input"
+                placeholder="https://www.google.com/maps/embed?pb=..."
+              />
+              <p className="text-xs text-gray-400 mt-1">Paste the full embed URL from Google Maps Share &gt; Embed a map</p>
             </div>
           </div>
 

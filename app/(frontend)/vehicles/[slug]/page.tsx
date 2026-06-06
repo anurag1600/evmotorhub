@@ -10,7 +10,7 @@ import VehicleCard from '@/components/VehicleCard';
 import VehicleGallery from '@/components/VehicleGallery';
 import { cn } from '@/lib/utils';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const { data } = await supabase

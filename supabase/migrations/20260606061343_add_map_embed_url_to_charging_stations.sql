@@ -1,0 +1,1 @@
+ALTER TABLE charging_stations ADD COLUMN IF NOT EXISTS map_embed_url text DEFAULT '';

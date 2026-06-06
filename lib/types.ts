@@ -140,7 +140,13 @@ export interface ChargingStation {
   power_kw: number;
   amenities: string[];
   operating_hours: string;
+  map_embed_url: string;
+  booking_available?: boolean;
+  price_per_kwh?: number;
+  fast_charging?: boolean;
+  phone_support?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface EMIParams {

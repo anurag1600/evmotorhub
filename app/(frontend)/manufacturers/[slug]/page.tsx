@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Manufacturer, Vehicle } from '@/lib/types';
 import VehicleCard from '@/components/VehicleCard';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const { data } = await supabase

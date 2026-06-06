@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Manufacturer } from '@/lib/types';
-import { Save, Loader2, AlertCircle } from 'lucide-react';
+import { Save, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
+import { toast } from 'sonner';
 
 interface ManufacturerFormProps {
   manufacturerId?: string;
@@ -98,6 +99,7 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
 
         if (error) throw error;
         setSuccess('Manufacturer updated successfully!');
+        toast.success('Manufacturer updated successfully');
       } else {
         const { error } = await supabase.from('manufacturers').insert([{
           name,
@@ -119,11 +121,13 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
 
         if (error) throw error;
         setSuccess('Manufacturer created successfully!');
+        toast.success('Manufacturer created successfully');
       }
 
-      setTimeout(() => router.push('/admin/brands'), 1500);
+      setTimeout(() => router.push('/admin/manufacturers'), 1500);
     } catch (err: any) {
       setError(err.message);
+      toast.error(err.message || 'Failed to save manufacturer');
     } finally {
       setSaving(false);
     }

@@ -17,8 +17,8 @@ const statusColors: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-700',
 };
 
-const EXPORT_COLS = ['id', 'name', 'slug', 'type', 'segment', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'status', 'is_featured', 'is_latest', 'is_upcoming'];
-const IMPORT_COLS = ['name', 'slug', 'type', 'segment', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'status', 'is_featured'];
+const EXPORT_COLS = ['id', 'name', 'slug', 'type', 'segment', 'manufacturer_id', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs', 'image_url', 'description', 'is_upcoming', 'is_featured', 'is_latest', 'status'];
+const IMPORT_COLS = ['name', 'slug', 'type', 'segment', 'manufacturer_id', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs', 'image_url', 'description', 'is_upcoming', 'is_featured', 'is_latest', 'status'];
 
 export default function VehiclesManagementPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);

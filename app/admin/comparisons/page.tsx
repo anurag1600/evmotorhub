@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { PopularComparison } from '@/lib/types';
+import { PopularComparison, Vehicle } from '@/lib/types';
 import { Scale, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { timeAgo } from '@/lib/format';
 import Pagination from '@/components/admin/Pagination';
@@ -21,6 +20,7 @@ export default function ComparisonsManagementPage() {
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [vehicles, setVehicles] = useState<Pick<Vehicle, 'id' | 'name' | 'slug'>[]>([]);
 
   // Form state for add/edit
   const [showForm, setShowForm] = useState(false);
@@ -51,6 +51,11 @@ export default function ComparisonsManagementPage() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { setPage(1); }, [search]);
+
+  useEffect(() => {
+    supabase.from('vehicles').select('id, name, slug').order('name').limit(200)
+      .then(({ data }) => setVehicles((data || []) as any));
+  }, []);
 
   const deleteItem = async (id: string) => {
     if (!confirm('Delete this comparison?')) return;
@@ -170,12 +175,18 @@ export default function ComparisonsManagementPage() {
             <h3 className="text-base font-bold text-gray-900 mb-4">{editingId ? 'Edit' : 'Add'} Comparison</h3>
             <div className="grid sm:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="admin-label">Vehicle 1 Slug *</label>
-                <input type="text" value={form.vehicle1_slug} onChange={(e) => setForm({ ...form, vehicle1_slug: e.target.value })} className="admin-input" placeholder="e.g. ather-450x" />
+                <label className="admin-label">Vehicle 1 *</label>
+                <select value={form.vehicle1_slug} onChange={(e) => setForm({ ...form, vehicle1_slug: e.target.value })} className="admin-input">
+                  <option value="">Select vehicle...</option>
+                  {vehicles.map((v) => <option key={v.slug} value={v.slug}>{v.name} ({v.slug})</option>)}
+                </select>
               </div>
               <div>
-                <label className="admin-label">Vehicle 2 Slug *</label>
-                <input type="text" value={form.vehicle2_slug} onChange={(e) => setForm({ ...form, vehicle2_slug: e.target.value })} className="admin-input" placeholder="e.g. ola-s1-pro" />
+                <label className="admin-label">Vehicle 2 *</label>
+                <select value={form.vehicle2_slug} onChange={(e) => setForm({ ...form, vehicle2_slug: e.target.value })} className="admin-input">
+                  <option value="">Select vehicle...</option>
+                  {vehicles.map((v) => <option key={v.slug} value={v.slug}>{v.name} ({v.slug})</option>)}
+                </select>
               </div>
               <div>
                 <label className="admin-label">Title (optional)</label>

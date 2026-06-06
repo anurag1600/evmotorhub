@@ -16,8 +16,8 @@ const statusColors: Record<string, string> = {
   inactive: 'bg-gray-100 text-gray-700',
 };
 
-const EXPORT_COLS = ['id', 'name', 'slug', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'status', 'is_featured'];
-const IMPORT_COLS = ['name', 'slug', 'country', 'founded_year', 'headquarters', 'website', 'status', 'is_featured'];
+const EXPORT_COLS = ['id', 'name', 'slug', 'logo_url', 'hero_image_url', 'description', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'is_featured', 'contact_email', 'support_phone', 'model_year_start', 'status'];
+const IMPORT_COLS = ['name', 'slug', 'logo_url', 'hero_image_url', 'description', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'is_featured', 'contact_email', 'support_phone', 'model_year_start', 'status'];
 
 export default function ManufacturersManagementPage() {
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);

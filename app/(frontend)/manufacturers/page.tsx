@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: 'Explore all electric vehicle manufacturers in India — Ola Electric, Ather Energy, Tata Motors, TVS, Bajaj, MG, BYD and more.',
 };
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 async function getManufacturers() {
   const { data } = await supabase

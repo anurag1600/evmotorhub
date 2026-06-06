@@ -199,19 +199,34 @@ export default function ChargingStationsPage() {
           {selectedStation && (
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm sticky top-4 overflow-hidden">
-                {/* Map Placeholder */}
-                <div className="h-48 sm:h-64 bg-gradient-to-br from-green-100 to-emerald-50 relative flex items-center justify-center border-b border-gray-100">
-                  <div className="text-center">
-                    <MapPin size={40} className="text-[#145a2c] mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-700">Interactive Map</p>
-                    <p className="text-xs text-gray-500">Coming Soon</p>
-                    {selectedStation.lat && selectedStation.lng && (
-                      <p className="text-xs text-gray-400 mt-1">{selectedStation.lat}°N, {selectedStation.lng}°E</p>
-                    )}
-                  </div>
+                {/* Map */}
+                <div className="h-48 sm:h-64 relative border-b border-gray-100">
+                  {selectedStation.map_embed_url ? (
+                    <iframe
+                      src={selectedStation.map_embed_url}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title={`${selectedStation.name} location`}
+                      className="absolute inset-0"
+                    />
+                  ) : (
+                    <div className="h-full bg-gradient-to-br from-green-100 to-emerald-50 flex items-center justify-center">
+                      <div className="text-center">
+                        <MapPin size={40} className="text-[#145a2c] mx-auto mb-2" />
+                        <p className="text-sm font-medium text-gray-700">Map not available</p>
+                        {selectedStation.lat && selectedStation.lng && (
+                          <p className="text-xs text-gray-400 mt-1">{selectedStation.lat}°N, {selectedStation.lng}°E</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <button
                     onClick={() => setSelectedStation(null)}
-                    className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow"
+                    className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:shadow-md transition-shadow z-10"
                   >
                     <X size={14} />
                   </button>
