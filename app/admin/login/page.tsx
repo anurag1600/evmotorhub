@@ -18,13 +18,7 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showForgot, setShowForgot] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotSuccess, setForgotSuccess] = useState('');
-  const [forgotError, setForgotError] = useState('');
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (!adminLoading && isAdmin) {
       router.replace(redirect);
@@ -76,26 +70,6 @@ export default function AdminLogin() {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setForgotLoading(true);
-    setForgotError('');
-    setForgotSuccess('');
-
-    try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/admin/login`,
-      });
-      if (resetError) throw resetError;
-      setForgotSuccess('Password reset email sent. Check your inbox.');
-    } catch (err: any) {
-      setForgotError(err.message || 'Failed to send reset email.');
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
-  // Show loading while checking existing auth
   if (adminLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a2e14] to-[#145a2c] flex items-center justify-center">
@@ -104,7 +78,6 @@ export default function AdminLogin() {
     );
   }
 
-  // Don't render login form if already authenticated
   if (isAdmin) {
     return null;
   }
@@ -146,21 +119,12 @@ export default function AdminLogin() {
 
             {/* Password */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-700">Password</label>
-                <button
-                  type="button"
-                  onClick={() => setShowForgot(true)}
-                  className="text-xs text-[#145a2c] hover:underline font-medium"
-                >
-                  Forgot Password?
-                </button>
-              </div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 required
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c] focus:border-transparent"
               />
@@ -195,7 +159,7 @@ export default function AdminLogin() {
           {/* Help Text */}
           <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-600">
             <p className="font-semibold mb-1">Admin Access:</p>
-            <p>Contact your administrator for access credentials.</p>
+            <p>Contact your administrator for access credentials or password reset.</p>
           </div>
 
           {/* Back to Site */}
@@ -205,57 +169,6 @@ export default function AdminLogin() {
             </Link>
           </div>
         </div>
-
-        {/* Forgot Password Modal */}
-        {showForgot && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Reset Password</h2>
-              <p className="text-sm text-gray-500 mb-4">Enter your admin email and we will send a password reset link.</p>
-              <form onSubmit={handleForgotPassword} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
-                  <input
-                    type="email"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="admin@evmotorhub.in"
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c] focus:border-transparent"
-                  />
-                </div>
-                {forgotError && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
-                    <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs text-red-700">{forgotError}</span>
-                  </div>
-                )}
-                {forgotSuccess && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-700">
-                    {forgotSuccess}
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={forgotLoading}
-                    className="flex-1 bg-[#145a2c] text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#0f4020] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {forgotLoading && <Loader2 size={14} className="animate-spin" />}
-                    {forgotLoading ? 'Sending...' : 'Send Reset Link'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowForgot(false); setForgotSuccess(''); setForgotError(''); }}
-                    className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {/* Footer */}
         <p className="text-center text-green-200 text-xs mt-8">

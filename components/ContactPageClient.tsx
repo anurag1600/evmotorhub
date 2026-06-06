@@ -66,18 +66,6 @@ export default function ContactPageClient() {
       }]);
       if (dbError) throw dbError;
 
-      // Send email notification
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-        await fetch(`${supabaseUrl}/functions/v1/contact-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: form.name, email: form.email, phone: form.phone, subject: form.subject, message: form.message }),
-        });
-      } catch {
-        // Email send failure should not block the user
-      }
-
       setSubmitted(true);
       setForm({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (err: any) {

@@ -1,0 +1,2 @@
+ALTER TABLE contact_submissions DROP CONSTRAINT IF EXISTS contact_submissions_status_check;
+ALTER TABLE contact_submissions ADD CONSTRAINT contact_submissions_status_check CHECK (status IN ('new', 'in_progress', 'responded', 'closed'));

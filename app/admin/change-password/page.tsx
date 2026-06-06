@@ -64,18 +64,6 @@ export default function ChangePasswordPage() {
 
       if (updateError) throw updateError;
 
-      // Send security notification email
-      try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-        await fetch(`${supabaseUrl}/functions/v1/password-change-notify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: session?.user?.email }),
-        });
-      } catch {
-        // Email notification failure should not block the flow
-      }
-
       setSuccess('Password changed successfully.');
       toast.success('Password changed successfully');
       setOldPassword('');

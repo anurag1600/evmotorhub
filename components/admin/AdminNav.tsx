@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAdmin } from '@/lib/admin-context';
-import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders } from 'lucide-react';
+import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const adminMenuItems = [
@@ -19,6 +19,7 @@ const adminMenuItems = [
   { label: 'FAQ', href: '/admin/faq', icon: HelpCircle },
   { label: 'Homepage Settings', href: '/admin/settings', icon: Home },
   { label: 'Contact Settings', href: '/admin/contact', icon: MessageSquare },
+  { label: 'Contact Submissions', href: '/admin/contact-submissions', icon: Mail },
   { label: 'Footer Settings', href: '/admin/footer', icon: Sliders },
   { label: 'SEO Settings', href: '/admin/seo', icon: Search },
 ];
