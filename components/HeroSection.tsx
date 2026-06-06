@@ -159,7 +159,7 @@ export default function HeroSection({
             </div>
 
             {/* Floating Badge */}
-            <div className="absolute -bottom-3 -left-3 lg:bottom-8 lg:-left-6 bg-white rounded-xl shadow-xl p-3 border border-green-100 hidden lg:flex items-center gap-2">
+            {/* <div className="absolute -bottom-3 -left-3 lg:bottom-8 lg:-left-6 bg-white rounded-xl shadow-                  xl p-3 border border-green-100 hidden lg:flex items-center gap-2">
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <Shield size={16} className="text-green-600" />
               </div>
@@ -167,7 +167,7 @@ export default function HeroSection({
                 <div className="text-xs font-bold text-gray-900">Verified Data</div>
                 <div className="text-[10px] text-gray-500">100% Authentic Specs</div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
