@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { StaticPage } from '@/lib/types';
+import ContentBlockRenderer from '@/components/ContentBlockRenderer';
 import { Loader as Loader2 } from 'lucide-react';
 
 interface StaticPageRendererProps {
@@ -64,7 +65,11 @@ export default function StaticPageRenderer({ slug }: StaticPageRendererProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <h1 className="text-4xl font-bold text-gray-900 mb-8">{page.title}</h1>
         <div className="prose prose-lg max-w-none bg-white rounded-lg p-8 shadow-sm">
-          <div dangerouslySetInnerHTML={{ __html: page.content }} />
+          {page.content_blocks && page.content_blocks.length > 0 ? (
+            <ContentBlockRenderer blocks={page.content_blocks} />
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: page.content }} />
+          )}
         </div>
       </div>
     </div>
