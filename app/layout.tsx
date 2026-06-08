@@ -31,9 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const twitterHandle = seo?.twitter_handle || '@evmotorhub';
   const twitterCard = (seo?.twitter_card as 'summary' | 'summary_large_image') || 'summary_large_image';
   const favicon = seo?.favicon_url || '/Fav_(1).png';
+  const canonicalUrl = seo?.canonical_url || 'https://evmotorhub.in';
 
   return {
-    metadataBase: new URL('https://evmotorhub.in'),
+    metadataBase: new URL(canonicalUrl.replace(/\/$/, '')),
     title: {
       default: metaTitle,
       template: `%s | ${siteName}`,
@@ -47,13 +48,16 @@ export async function generateMetadata(): Promise<Metadata> {
       index: true,
       follow: true,
     },
+    alternates: {
+      canonical: canonicalUrl.replace(/\/$/, ''),
+    },
     icons: {
       icon: favicon,
     },
     openGraph: {
       type: 'website',
       locale: 'en_IN',
-      url: 'https://evmotorhub.in',
+      url: canonicalUrl.replace(/\/$/, ''),
       siteName,
       title: ogTitle,
       description: ogDescription,
@@ -73,21 +77,61 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-function OrganizationSchema() {
+function OrganizationSchema({ seo }: { seo: Record<string, any> }) {
+  const siteName = seo?.site_name || 'EVMotorHub';
+  const canonicalUrl = (seo?.canonical_url || 'https://evmotorhub.in').replace(/\/$/, '');
+
+  const sameAs = [
+    seo?.social_facebook,
+    seo?.social_instagram,
+    seo?.social_twitter,
+    seo?.social_linkedin,
+    seo?.social_youtube,
+  ].filter(Boolean);
+
+  const orgData = seo?.schema_organization || {};
+
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    'name': 'EVMotorHub',
-    'url': 'https://evmotorhub.in',
-    'logo': 'https://evmotorhub.in/EV_logo_White.png',
-    'description': "India's most trusted EV marketplace. Compare electric vehicles, find charging stations, calculate EMI.",
-    'sameAs': [],
-    'contactPoint': {
+    'name': orgData.name || siteName,
+    'url': canonicalUrl,
+    'logo': orgData.logo || `${canonicalUrl}/EV_logo_White.png`,
+    'description': orgData.description || seo?.site_description || "India's most trusted EV marketplace. Compare electric vehicles, find charging stations, calculate EMI.",
+    'sameAs': sameAs.length > 0 ? sameAs : undefined,
+    'contactPoint': orgData.contactPoint || {
       '@type': 'ContactPoint',
       'contactType': 'customer service',
       'availableLanguage': 'English',
     },
   };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+function WebsiteSchema({ seo }: { seo: Record<string, any> }) {
+  if (!seo?.schema_website) return null;
+
+  const siteName = seo?.site_name || 'EVMotorHub';
+  const canonicalUrl = (seo?.canonical_url || 'https://evmotorhub.in').replace(/\/$/, '');
+
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    'name': siteName,
+    'url': canonicalUrl,
+    'potentialAction': {
+      '@type': 'SearchAction',
+      'target': `${canonicalUrl}/vehicles?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
   return (
     <script
       type="application/ld+json"
@@ -188,7 +232,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en-IN" className={inter.variable}>
       <head>
-        <OrganizationSchema />
+        <OrganizationSchema seo={seo || {}} />
+        <WebsiteSchema seo={seo || {}} />
         <GoogleAnalyticsScript id={gaId} />
         <GTMHeadScript id={gtmId} />
         <MetaPixelScript id={metaPixelId} />

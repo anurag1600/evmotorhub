@@ -10,21 +10,68 @@ import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import NewsCard from '@/components/NewsCard';
 import ContentBlockRenderer from '@/components/ContentBlockRenderer';
+import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { data } = await supabase
-    .from('news')
-    .select('title, excerpt')
-    .eq('slug', params.slug)
-    .maybeSingle();
+  const [seo, { data }] = await Promise.all([
+    getSeoSettings(),
+    supabase.from('news').select('title, excerpt').eq('slug', params.slug).maybeSingle(),
+  ]);
 
   if (!data) return { title: 'Article Not Found' };
   return {
-    title: `${data.title} | EVMotorHub`,
+    title: `${data.title} - EV News & Reviews`,
     description: data.excerpt,
+    ...buildNoindexMeta('news', seo),
+    ...buildCanonicalUrl(`/news/${params.slug}`, seo),
   };
+}
+
+function ArticleSchema({ article }: { article: NewsArticle }) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    'headline': article.title,
+    'description': article.excerpt,
+    'image': article.image_url,
+    'author': { '@type': 'Person', 'name': article.author, 'image': article.author_image },
+    'datePublished': article.published_at,
+    'publisher': {
+      '@type': 'Organization',
+      'name': 'EVMotorHub',
+      'logo': { '@type': 'ImageObject', 'url': 'https://evmotorhub.in/EV_logo_White.png' },
+    },
+    'mainEntityOfPage': { '@type': 'WebPage', '@id': `https://evmotorhub.in/news/${article.slug}` },
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+function BreadcrumbSchema({ article }: { article: NewsArticle }) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://evmotorhub.in' },
+      { '@type': 'ListItem', 'position': 2, 'name': 'News', 'item': 'https://evmotorhub.in/news' },
+      { '@type': 'ListItem', 'position': 3, 'name': getCategoryLabel(article.category), 'item': `https://evmotorhub.in/news?category=${article.category}` },
+      { '@type': 'ListItem', 'position': 4, 'name': article.title },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
 }
 
 async function getArticle(slug: string) {
@@ -39,7 +86,7 @@ async function getArticle(slug: string) {
 async function getRelated(category: string, id: string) {
   const { data } = await supabase
     .from('news')
-    .select('*')
+    .select('id, title, slug, image_url, category, published_at, author, excerpt')
     .eq('category', category)
     .neq('id', id)
     .order('published_at', { ascending: false })
@@ -51,10 +98,15 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   const article = await getArticle(params.slug);
   if (!article) notFound();
 
-  const related = await getRelated(article.category, article.id);
+  const [related, seo] = await Promise.all([
+    getRelated(article.category, article.id),
+    getSeoSettings(),
+  ]);
 
   return (
     <div className="bg-gray-50 min-h-screen">
+      {seo?.schema_article !== false && <ArticleSchema article={article} />}
+      {seo?.schema_breadcrumb !== false && <BreadcrumbSchema article={article} />}
       {/* Breadcrumb */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">

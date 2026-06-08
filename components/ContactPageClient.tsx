@@ -19,6 +19,14 @@ export default function ContactPageClient() {
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
 
   const contactInfo = siteConfig?.contact_info || defaultContactInfo;
+  const isValidMapUrl = (url: string) => {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        (url.includes('google.com') || url.includes('maps') || url.includes('embed'));
+    } catch { return false; }
+  };
   const heroTitle = siteConfig?.contact_hero_title || 'Get in Touch';
   const heroSubtitle = siteConfig?.contact_hero_subtitle || "We'd love to hear from you";
   const mapEmbedUrl = siteConfig?.map_embed_url;
@@ -263,7 +271,7 @@ export default function ContactPageClient() {
         </div>
 
         {/* Map */}
-        {mapEmbedUrl && (
+        {mapEmbedUrl && isValidMapUrl(mapEmbedUrl) && (
           <div className="mt-10 bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">

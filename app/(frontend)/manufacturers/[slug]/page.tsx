@@ -6,20 +6,22 @@ import { Globe, MapPin, Calendar, Building2, ChevronRight, ArrowRight, ExternalL
 import { supabase } from '@/lib/supabase';
 import { Manufacturer, Vehicle } from '@/lib/types';
 import VehicleCard from '@/components/VehicleCard';
+import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
 
 export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { data } = await supabase
-    .from('manufacturers')
-    .select('name, description')
-    .eq('slug', params.slug)
-    .maybeSingle();
+  const [seo, { data }] = await Promise.all([
+    getSeoSettings(),
+    supabase.from('manufacturers').select('name, description').eq('slug', params.slug).maybeSingle(),
+  ]);
 
   if (!data) return { title: 'Manufacturer Not Found' };
   return {
-    title: `${data.name} EV Models, Prices & Reviews | EVMotorHub`,
+    title: `${data.name} EV Models, Prices & Reviews in India`,
     description: data.description.slice(0, 160),
+    ...buildNoindexMeta('manufacturers', seo),
+    ...buildCanonicalUrl(`/manufacturers/${params.slug}`, seo),
   };
 }
 

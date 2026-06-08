@@ -52,6 +52,12 @@ async function getData() {
     .eq('is_upcoming', true)
     .limit(4);
 
+  const [vehicleCountRes, manufacturerCountRes, newsCountRes] = await Promise.all([
+    supabase.from('vehicles').select('id', { count: 'exact', head: true }),
+    supabase.from('manufacturers').select('id', { count: 'exact', head: true }),
+    supabase.from('news').select('id', { count: 'exact', head: true }),
+  ]);
+
   const comparisons = await Promise.all(
     (comparisonsRes.data || []).map(async (comp) => {
       const [v1Res, v2Res] = await Promise.all([
@@ -70,15 +76,11 @@ async function getData() {
     upcoming: (upcomingRes.data || []) as (Vehicle & { manufacturers: { name: string; slug: string } })[],
     siteConfig: (siteConfigRes.data?.[0] || null) as SiteConfig | null,
     comparisons: comparisons.filter(Boolean) as any[],
+    vehicleCount: vehicleCountRes.count || 0,
+    manufacturerCount: manufacturerCountRes.count || 0,
+    newsCount: newsCountRes.count || 0,
   };
 }
-
-const defaultStats = [
-  { value: '50+', label: 'EV Models', icon: Database },
-  { value: '8+', label: 'Brands', icon: Award },
-  { value: '12K+', label: 'Charging Stations', icon: Zap },
-  { value: '2M+', label: 'Monthly Visitors', icon: Users },
-];
 
 const categories = [
   {
@@ -114,19 +116,18 @@ const tools = [
 ];
 
 export default async function HomePage() {
-  const { vehicles, news, manufacturers, upcoming, siteConfig, comparisons } = await getData();
+  const { vehicles, news, manufacturers, upcoming, siteConfig, comparisons, vehicleCount, manufacturerCount, newsCount } = await getData();
 
   const scooters = vehicles.filter(v => v.type === 'scooter');
   const bikes = vehicles.filter(v => v.type === 'bike');
   const cars = vehicles.filter(v => v.type === 'car');
 
-  const homepageStats = siteConfig?.homepage_stats as any || {};
-  const stats = homepageStats?.total_vehicles ? [
-    { value: `${homepageStats.total_vehicles}+`, label: 'EV Models', icon: Database },
-    { value: `${homepageStats.total_manufacturers}+`, label: 'Brands', icon: Award },
-    { value: `${Math.round(homepageStats.total_charging_stations / 1000)}K+`, label: 'Charging Stations', icon: Zap },
-    { value: `${Math.round(homepageStats.monthly_visitors / 1000000)}M+`, label: 'Monthly Visitors', icon: Users },
-  ] : defaultStats;
+  const stats = [
+    { value: vehicleCount, label: 'EV Models', icon: Database },
+    { value: manufacturerCount, label: 'Brands', icon: Award },
+    { value: vehicleCount, label: 'Variants', icon: Zap },
+    { value: newsCount, label: 'Articles', icon: Users },
+  ];
 
   return (
     <div className="bg-white">

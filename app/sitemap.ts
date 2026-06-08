@@ -4,7 +4,12 @@ import { supabase } from '@/lib/supabase';
 export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://evmotorhub.com';
+  const { data: seo } = await supabase.from('seo_settings').select('*').maybeSingle();
+
+  if (seo && seo.sitemap_enabled === false) return [];
+
+  const canonicalUrl = seo?.canonical_url || 'https://evmotorhub.in';
+  const baseUrl = canonicalUrl.replace(/\/$/, '');
 
   const staticRoutes = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily' as const, priority: 1 },
@@ -23,32 +28,55 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const [vehiclesRes, newsRes, manufacturersRes] = await Promise.all([
-      supabase.from('vehicles').select('slug, updated_at').eq('status', 'published'),
-      supabase.from('news').select('slug, published_at').eq('status', 'published'),
-      supabase.from('manufacturers').select('slug'),
-    ]);
+    const queries = [];
 
-    const vehicleRoutes = (vehiclesRes.data || []).map((v: any) => ({
-      url: `${baseUrl}/vehicles/${v.slug}`,
-      lastModified: v.updated_at ? new Date(v.updated_at) : new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
-    }));
+    if (seo?.sitemap_include_vehicles !== false) {
+      queries.push(supabase.from('vehicles').select('slug, updated_at').eq('status', 'published'));
+    }
+    if (seo?.sitemap_include_news !== false) {
+      queries.push(supabase.from('news').select('slug, published_at').eq('status', 'published'));
+    }
+    if (seo?.sitemap_include_manufacturers !== false) {
+      queries.push(supabase.from('manufacturers').select('slug'));
+    }
 
-    const newsRoutes = (newsRes.data || []).map((n: any) => ({
-      url: `${baseUrl}/news/${n.slug}`,
-      lastModified: n.published_at ? new Date(n.published_at) : new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    }));
+    const results = await Promise.all(queries);
 
-    const manufacturerRoutes = (manufacturersRes.data || []).map((m: any) => ({
-      url: `${baseUrl}/manufacturers/${m.slug}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }));
+    let vehicleRoutes: MetadataRoute.Sitemap = [];
+    let newsRoutes: MetadataRoute.Sitemap = [];
+    let manufacturerRoutes: MetadataRoute.Sitemap = [];
+
+    let resultIdx = 0;
+
+    if (seo?.sitemap_include_vehicles !== false) {
+      const vehiclesRes = results[resultIdx++];
+      vehicleRoutes = (vehiclesRes.data || []).map((v: any) => ({
+        url: `${baseUrl}/vehicles/${v.slug}`,
+        lastModified: v.updated_at ? new Date(v.updated_at) : new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      }));
+    }
+
+    if (seo?.sitemap_include_news !== false) {
+      const newsRes = results[resultIdx++];
+      newsRoutes = (newsRes.data || []).map((n: any) => ({
+        url: `${baseUrl}/news/${n.slug}`,
+        lastModified: n.published_at ? new Date(n.published_at) : new Date(),
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      }));
+    }
+
+    if (seo?.sitemap_include_manufacturers !== false) {
+      const manufacturersRes = results[resultIdx];
+      manufacturerRoutes = (manufacturersRes.data || []).map((m: any) => ({
+        url: `${baseUrl}/manufacturers/${m.slug}`,
+        lastModified: new Date(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.6,
+      }));
+    }
 
     return [...staticRoutes, ...vehicleRoutes, ...newsRoutes, ...manufacturerRoutes];
   } catch {

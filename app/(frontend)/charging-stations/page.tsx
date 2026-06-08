@@ -44,6 +44,15 @@ export default function ChargingStationsPage() {
     return 'text-red-600 bg-red-50';
   };
 
+  const isValidMapUrl = (url: string) => {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url);
+      return (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        (url.includes('google.com') || url.includes('maps') || url.includes('embed'));
+    } catch { return false; }
+  };
+
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Header */}
@@ -73,7 +82,7 @@ export default function ChargingStationsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           {[
             { label: 'Stations Listed', value: stations.length || '12+', color: 'text-green-700 bg-green-50' },
             { label: 'Cities Covered', value: '10+', color: 'text-blue-700 bg-blue-50' },
@@ -127,9 +136,9 @@ export default function ChargingStationsPage() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-5">
+        <div className="grid md:grid-cols-3 gap-5">
           {/* Station List */}
-          <div className={cn('space-y-3', selectedStation ? 'lg:col-span-1' : 'lg:col-span-3')}>
+          <div className={cn('space-y-3', selectedStation ? 'md:col-span-1' : 'md:col-span-3')}>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -197,11 +206,11 @@ export default function ChargingStationsPage() {
 
           {/* Station Detail Panel */}
           {selectedStation && (
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm sticky top-4 overflow-hidden">
+            <div className="md:col-span-2">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm md:sticky md:top-4 overflow-hidden">
                 {/* Map */}
                 <div className="h-48 sm:h-64 relative border-b border-gray-100">
-                  {selectedStation.map_embed_url ? (
+                  {isValidMapUrl(selectedStation.map_embed_url) ? (
                     <iframe
                       src={selectedStation.map_embed_url}
                       width="100%"

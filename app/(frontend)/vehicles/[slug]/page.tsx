@@ -9,28 +9,81 @@ import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel, ge
 import VehicleCard from '@/components/VehicleCard';
 import VehicleGallery from '@/components/VehicleGallery';
 import { cn } from '@/lib/utils';
+import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
 
 export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const { data } = await supabase
-    .from('vehicles')
-    .select('*, manufacturers(name)')
-    .eq('slug', params.slug)
-    .maybeSingle();
+  const [seo, { data }] = await Promise.all([
+    getSeoSettings(),
+    supabase.from('vehicles').select('*, manufacturers(name)').eq('slug', params.slug).maybeSingle(),
+  ]);
 
   if (!data) return { title: 'Vehicle Not Found' };
 
+  const brandName = (data.manufacturers as any)?.name;
   return {
-    title: `${data.name} Price, Specs, Range | EVMotorHub`,
-    description: `${data.name} by ${(data.manufacturers as any)?.name} — Range: ${data.range_km}km, Price: ${formatPrice(data.price_min)}. Full specs, features, colors, and EMI calculator.`,
+    title: `${data.name} Price, Range, Specs & Reviews in India`,
+    description: `${data.name} by ${brandName} — Range: ${data.range_km}km, Price: ${formatPrice(data.price_min)}. Full specs, features, colors, and EMI calculator.`,
+    ...buildNoindexMeta('vehicles', seo),
+    ...buildCanonicalUrl(`/vehicles/${params.slug}`, seo),
   };
+}
+
+function VehicleSchema({ vehicle, manufacturer }: { vehicle: Vehicle & { manufacturers: any }; manufacturer: any }) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    'name': vehicle.name,
+    'brand': { '@type': 'Brand', 'name': manufacturer?.name },
+    'image': vehicle.image_url,
+    'description': vehicle.description,
+    'offers': {
+      '@type': 'Offer',
+      'priceCurrency': 'INR',
+      'price': vehicle.price_min,
+      'availability': vehicle.is_upcoming ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
+    },
+    'additionalProperty': [
+      { '@type': 'PropertyValue', 'name': 'Range', 'value': `${vehicle.range_km} km` },
+      { '@type': 'PropertyValue', 'name': 'Top Speed', 'value': `${vehicle.top_speed_kmh} km/h` },
+      { '@type': 'PropertyValue', 'name': 'Battery Capacity', 'value': `${vehicle.battery_capacity_kwh} kWh` },
+      { '@type': 'PropertyValue', 'name': 'Charging Time', 'value': `${vehicle.charging_time_hrs} hrs` },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+function BreadcrumbSchema({ vehicle, manufacturer }: { vehicle: Vehicle & { manufacturers: any }; manufacturer: any }) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://evmotorhub.in' },
+      { '@type': 'ListItem', 'position': 2, 'name': 'Vehicles', 'item': 'https://evmotorhub.in/vehicles' },
+      { '@type': 'ListItem', 'position': 3, 'name': getVehicleTypeLabel(vehicle.type), 'item': `https://evmotorhub.in/vehicles?type=${vehicle.type}` },
+      { '@type': 'ListItem', 'position': 4, 'name': vehicle.name },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
 }
 
 async function getVehicle(slug: string) {
   const { data } = await supabase
     .from('vehicles')
-    .select('*, manufacturers(*)')
+    .select('id, name, slug, type, segment, price_min, price_max, range_km, top_speed_kmh, charging_time_hrs, battery_capacity_kwh, motor_power_kw, image_url, image_gallery, gallery_urls, description, is_upcoming, is_latest, is_featured, launch_date, colors, specifications, features, pros, cons, manufacturers:id, manufacturers(*)')
     .eq('slug', slug)
     .maybeSingle();
   return data as (Vehicle & { manufacturers: any }) | null;
@@ -39,18 +92,21 @@ async function getVehicle(slug: string) {
 async function getSimilarVehicles(type: string, excludeId: string) {
   const { data } = await supabase
     .from('vehicles')
-    .select('*, manufacturers(name, slug)')
+    .select('id, name, slug, type, segment, price_min, price_max, range_km, image_url, is_upcoming, is_latest, manufacturers(name, slug)')
     .eq('type', type)
     .neq('id', excludeId)
     .limit(4);
-  return (data || []) as (Vehicle & { manufacturers: { name: string; slug: string } })[];
+  return (data || []) as any[];
 }
 
 export default async function VehicleDetailPage({ params }: { params: { slug: string } }) {
   const vehicle = await getVehicle(params.slug);
   if (!vehicle) notFound();
 
-  const similar = await getSimilarVehicles(vehicle.type, vehicle.id);
+  const [similar, seo] = await Promise.all([
+    getSimilarVehicles(vehicle.type, vehicle.id),
+    getSeoSettings(),
+  ]);
   const manufacturer = vehicle.manufacturers;
 
   const specHighlights = [
@@ -64,6 +120,8 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
 
   return (
     <div className="bg-gray-50 min-h-screen">
+      <VehicleSchema vehicle={vehicle} manufacturer={manufacturer} />
+      {seo?.schema_breadcrumb !== false && <BreadcrumbSchema vehicle={vehicle} manufacturer={manufacturer} />}
       {/* Breadcrumb */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -128,7 +186,7 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
               </div>
 
               {/* Spec Highlights */}
-              <div className="grid grid-cols-3 gap-2 mb-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
                 {specHighlights.map(({ label, value, icon: Icon, color }) => (
                   <div key={label} className={`rounded-xl p-3 text-center ${color}`}>
                     {Icon && <Icon size={16} className="mx-auto mb-1" />}

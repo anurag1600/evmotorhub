@@ -203,8 +203,8 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 shadow-lg">
-          <div className="px-4 py-3 space-y-1">
+        <div className="md:hidden bg-white border-t border-gray-100 shadow-lg max-h-[calc(100vh-64px)] overflow-y-auto">
+          <div className="px-4 py-2 space-y-0.5">
             {navLinks.map((link) => (
               <div key={link.label}>
                 <Link
