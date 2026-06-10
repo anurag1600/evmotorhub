@@ -110,12 +110,12 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 flex-shrink-0">
             <Image
-              src="/EV_logo_White.png"
+              src="/EV_Logo_Header.webp"
               alt="EVMotorHub"
               width={160}
               height={40}
               className="h-9 w-auto"
-              style={{ filter: 'invert(1) sepia(1) saturate(2) hue-rotate(95deg) brightness(0.4)' }}
+              // style={{ filter: 'invert(1) sepia(1) saturate(2) hue-rotate(95deg) brightness(0.4)' }}
             />
           </Link>
 

@@ -27,10 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const metaDescription = seo?.meta_description || 'Discover, compare, and research the best electric vehicles in India. EV scooters, bikes, and cars with prices, specs, reviews, and charging station finder.';
   const ogTitle = seo?.og_title || metaTitle;
   const ogDescription = seo?.og_description || metaDescription;
-  const ogImage = seo?.default_og_image || '/EV_logo_White.png';
+  const ogImage = seo?.default_og_image || '/EV_logo_White.webp';
   const twitterHandle = seo?.twitter_handle || '@evmotorhub';
   const twitterCard = (seo?.twitter_card as 'summary' | 'summary_large_image') || 'summary_large_image';
-  const favicon = seo?.favicon_url || '/Fav_(1).png';
+  const favicon = seo?.favicon_url || '/Fav_(1).webp';
   const canonicalUrl = seo?.canonical_url || 'https://evmotorhub.in';
 
   return {
@@ -96,7 +96,7 @@ function OrganizationSchema({ seo }: { seo: Record<string, any> }) {
     '@type': 'Organization',
     'name': orgData.name || siteName,
     'url': canonicalUrl,
-    'logo': orgData.logo || `${canonicalUrl}/EV_logo_White.png`,
+    'logo': orgData.logo || `${canonicalUrl}/EV_logo_White.webp`,
     'description': orgData.description || seo?.site_description || "India's most trusted EV marketplace. Compare electric vehicles, find charging stations, calculate EMI.",
     'sameAs': sameAs.length > 0 ? sameAs : undefined,
     'contactPoint': orgData.contactPoint || {

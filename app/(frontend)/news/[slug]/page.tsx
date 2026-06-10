@@ -41,7 +41,7 @@ function ArticleSchema({ article }: { article: NewsArticle }) {
     'publisher': {
       '@type': 'Organization',
       'name': 'EVMotorHub',
-      'logo': { '@type': 'ImageObject', 'url': 'https://evmotorhub.in/EV_logo_White.png' },
+      'logo': { '@type': 'ImageObject', 'url': 'https://evmotorhub.in/EV_logo_White.webp' },
     },
     'mainEntityOfPage': { '@type': 'WebPage', '@id': `https://evmotorhub.in/news/${article.slug}` },
   };

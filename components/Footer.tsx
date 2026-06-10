@@ -111,7 +111,7 @@ export default function Footer() {
     <div className="lg:col-span-2">
       <Link href="/" className="inline-block mb-4">
         <Image
-          src="/EV_logo_White.png"
+          src="/EV_logo_White.webp"
           alt="EVMotorHub"
           width={180}
           height={45}

@@ -89,7 +89,7 @@ export default function AdminLogin() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-4">
             <Image
-              src="/EV_logo_White.png"
+              src="/EV_logo_White.webp"
               alt="EVMotorHub"
               width={160}
               height={40}

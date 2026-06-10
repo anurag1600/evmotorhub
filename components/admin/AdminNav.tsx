@@ -69,7 +69,7 @@ export default function AdminNav() {
         <div className="p-4 border-b border-gray-100">
           <Link href="/admin/dashboard" className="inline-block">
             <Image
-              src="/EV_logo_White.png"
+              src="/EV_logo_White.webp"
               alt="EVMotorHub Admin"
               width={140}
               height={35}
@@ -143,7 +143,7 @@ export default function AdminNav() {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-40">
         <div className="flex items-center justify-between p-4">
           <Image
-            src="/EV_logo_White.png"
+            src="/EV_logo_White.webp"
             alt="EVMotorHub"
             width={120}
             height={30}
