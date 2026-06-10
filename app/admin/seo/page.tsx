@@ -68,7 +68,7 @@ const defaultSeo: SeoSettings = {
   twitter_card: 'summary_large_image',
   google_analytics_id: '',
   google_search_console_id: '',
-  favicon_url: '/Fav_(1).webp',
+  favicon_url: '/Fav_(1).png',
   robots_txt: 'User-agent: *\nAllow: /',
   gtm_id: '',
   meta_pixel_id: '',

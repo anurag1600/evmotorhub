@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const ogImage = seo?.default_og_image || '/EV_logo_White.webp';
   const twitterHandle = seo?.twitter_handle || '@evmotorhub';
   const twitterCard = (seo?.twitter_card as 'summary' | 'summary_large_image') || 'summary_large_image';
-  const favicon = seo?.favicon_url || '/Fav_(1).webp';
+  const favicon = seo?.favicon_url || '/Fav_(1).png';
   const canonicalUrl = seo?.canonical_url || 'https://evmotorhub.in';
 
   return {
