@@ -273,7 +273,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         </div>
 
         {/* More Articles */}
-        {related.length > 0 && (
+        {(related || []).length > 0 && (
           <div className="mt-10">
             <h2 className="text-xl font-bold text-gray-900 mb-5">More {getCategoryLabel(article.category)} Articles</h2>
             <div className="grid sm:grid-cols-3 gap-4">
