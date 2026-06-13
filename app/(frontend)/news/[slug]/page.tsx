@@ -185,7 +185,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
                 </p>
 
                 {/* Body Content */}
-                {article.content_blocks && article.content_blocks.length > 0 ? (
+                {article.content_blocks?.length > 0 ? (
                   <ContentBlockRenderer blocks={article.content_blocks} />
                 ) : (
                   <div
@@ -195,11 +195,11 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
                 )}
 
                 {/* Tags */}
-                {article.tags.length > 0 && (
+                {article.tags?.length > 0 && (
                   <div className="mt-8 pt-6 border-t border-gray-100">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Tag size={14} className="text-gray-400" />
-                      {article.tags.map((tag) => (
+                      {(article.tags || []).map((tag) => (
                         <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full hover:bg-green-100 hover:text-green-700 cursor-pointer transition-colors">
                           #{tag}
                         </span>
@@ -225,7 +225,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Related Articles</h3>
                 <div className="space-y-4">
-                  {related.map((a) => (
+                  {(related || []).map((a) => (
                     <Link key={a.id} href={`/news/${a.slug}`} className="group flex gap-3 items-start">
                       <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                         <ImageWithFallback src={a.image_url} alt={a.title} fallbackCategory="news" fill className="object-cover" sizes="64px" />
