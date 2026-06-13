@@ -221,7 +221,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           {/* Sidebar */}
           <aside className="space-y-5">
             {/* Related Articles */}
-            {related.length > 0 && (
+            {(related || []).length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-5">
                 <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Related Articles</h3>
                 <div className="space-y-4">
@@ -277,7 +277,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           <div className="mt-10">
             <h2 className="text-xl font-bold text-gray-900 mb-5">More {getCategoryLabel(article.category)} Articles</h2>
             <div className="grid sm:grid-cols-3 gap-4">
-              {related.map((a) => (
+              {(related || []).map((a) => (
                 <NewsCard key={a.id} article={a} />
               ))}
             </div>
