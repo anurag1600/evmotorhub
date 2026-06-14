@@ -96,7 +96,7 @@ export default function NewsCard({ article, featured = false }: NewsCardProps) {
             {article.title}
           </h3>
           <p className="text-xs text-gray-500 line-clamp-2 mb-3">{article.excerpt}</p>
-          {article.tags.length > 0 && (
+          {article.tags?.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap mt-auto">
               <Tag size={11} className="text-gray-400" />
               {article.tags.slice(0, 2).map((tag) => (
