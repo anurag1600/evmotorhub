@@ -197,9 +197,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* EV vs Petrol Comparison */}
-      <EVPetrolComparison />
-
       {/* Featured EVs */}
       <section className="py-14 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -470,6 +467,9 @@ export default async function HomePage() {
           )}
         </div>
       </section>
+
+      {/* EV vs Petrol Comparison - Above FAQ */}
+      <EVPetrolComparison />
 
       {/* FAQ Section */}
       <HomePageFAQ />
