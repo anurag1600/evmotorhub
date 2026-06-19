@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Check, Zap, Gauge, Battery, Clock, Power, ArrowRight } from 'lucide-react';
+import { Check, Zap, Gauge, Battery, Clock, Power, ArrowRight, Square, SquareCheck as CheckSquare, Tag, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { VehicleVariant } from '@/lib/types';
@@ -77,6 +77,15 @@ export default function VehicleVariantSelector({
   const [selectedVariant, setSelectedVariant] = useState<VehicleVariant | null>(
     variants.length > 0 ? variants[0] : null
   );
+  const [compareList, setCompareList] = useState<string[]>([]);
+
+  const toggleCompare = (variantId: string) => {
+    setCompareList(prev =>
+      prev.includes(variantId)
+        ? prev.filter(id => id !== variantId)
+        : [...prev, variantId]
+    );
+  };
 
   // Generate color variants with visual swatches
   const colorVariants = colors.map((color) => ({
@@ -86,122 +95,142 @@ export default function VehicleVariantSelector({
 
   const formatPrice = (price: number) => {
     if (price >= 100000) {
-      return `Rs. ${(price / 100000).toFixed(2)}L`;
+      return `₹${(price / 100000).toFixed(2)} Lakh`;
     }
-    return `Rs. ${price.toLocaleString()}`;
+    return `₹${price.toLocaleString('en-IN')}`;
   };
 
-  const hasVariants = variants.length > 1;
+  const hasVariants = variants.length >= 1;
 
   return (
     <div className="space-y-5">
-      {/* Premium Variant Cards */}
+      {/* Variants Table (BikeDekho-style) */}
       {hasVariants && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Power size={16} className="text-[#145a2c]" />
-            <h3 className="text-sm font-bold text-gray-800">Choose Your Variant</h3>
+            <h3 className="text-sm font-bold text-gray-900">Variants & Prices</h3>
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full ml-auto">
               {variants.length} variants
             </span>
           </div>
 
-          {/* Variant Cards Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {variants.map((variant) => (
-              <button
+          {/* Variants Table */}
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-600 border-b border-gray-100">
+              <div className="col-span-4">Variant</div>
+              <div className="col-span-2 text-right">Price</div>
+              <div className="col-span-2 text-center">Range</div>
+              <div className="col-span-2 text-center">Action</div>
+              <div className="col-span-2 text-center">Compare</div>
+            </div>
+
+            {/* Table Body */}
+            {variants.map((variant, idx) => (
+              <div
                 key={variant.id}
-                onClick={() => setSelectedVariant(variant)}
                 className={cn(
-                  'group relative bg-white rounded-xl border-2 p-4 text-left transition-all duration-200',
-                  selectedVariant?.id === variant.id
-                    ? 'border-[#145a2c] shadow-lg bg-[#145a2c]/5'
-                    : 'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                  'grid grid-cols-12 gap-2 px-4 py-4 items-center transition-colors',
+                  idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50',
+                  selectedVariant?.id === variant.id && 'bg-green-50/50'
                 )}
               >
-                {/* Selected Badge */}
-                {selectedVariant?.id === variant.id && (
-                  <div className="absolute top-2 right-2 w-5 h-5 bg-[#145a2c] rounded-full flex items-center justify-center">
-                    <Check size={12} className="text-white" />
-                  </div>
-                )}
-
-                {/* Variant Image */}
-                {variant.image_url && (
-                  <div className="w-full h-28 rounded-lg overflow-hidden bg-gray-100 mb-3">
-                    <Image
-                      src={variant.image_url}
-                      alt={variant.name}
-                      width={200}
-                      height={120}
-                      className="object-cover w-full h-full group-hover:scale-105 transition-transform"
-                    />
-                  </div>
-                )}
-
-                {/* Variant Name */}
-                <div className="mb-2">
-                  <span className={cn(
-                    'font-semibold text-sm',
-                    selectedVariant?.id === variant.id ? 'text-[#145a2c]' : 'text-gray-900'
-                  )}>
-                    {variant.name}
-                  </span>
-                  {variant.color && (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span
-                        className="w-3 h-3 rounded-full border border-gray-200"
-                        style={{ backgroundColor: variant.color_hex || getColorHex(variant.color) }}
-                      />
-                      <span className="text-xs text-gray-500">{variant.color}</span>
+                {/* Variant Name + Color */}
+                <div className="col-span-4 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900 text-sm truncate">{variant.name}</span>
+                      {variant.color && (
+                        <span
+                          className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0"
+                          style={{ backgroundColor: variant.color_hex || getColorHex(variant.color) }}
+                          title={variant.color}
+                        />
+                      )}
                     </div>
-                  )}
+                    {variant.color && (
+                      <span className="text-xs text-gray-500">{variant.color}</span>
+                    )}
+                    {!variant.is_available && (
+                      <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded ml-2">
+                        Out of stock
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Price */}
-                <div className={cn(
-                  'text-lg font-bold mb-3',
-                  selectedVariant?.id === variant.id ? 'text-[#145a2c]' : 'text-gray-900'
-                )}>
-                  {formatPrice(variant.price)}
+                <div className="col-span-2 text-right">
+                  <div className="font-bold text-gray-900">{formatPrice(variant.price)}</div>
+                  <div className="text-[10px] text-gray-400">Ex-showroom</div>
                 </div>
 
-                {/* Key Specs */}
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                  {variant.range_km && (
-                    <div className="flex items-center gap-1">
-                      <Zap size={10} className="text-green-500" />
-                      <span>{variant.range_km} km</span>
+                {/* Range */}
+                <div className="col-span-2 text-center">
+                  {variant.range_km ? (
+                    <div className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-sm font-semibold">
+                      <Zap size={12} />
+                      {variant.range_km} km
                     </div>
-                  )}
-                  {variant.top_speed_kmh && (
-                    <div className="flex items-center gap-1">
-                      <Gauge size={10} className="text-blue-500" />
-                      <span>{variant.top_speed_kmh} km/h</span>
-                    </div>
-                  )}
-                  {variant.battery_capacity_kwh && (
-                    <div className="flex items-center gap-1">
-                      <Battery size={10} className="text-amber-500" />
-                      <span>{variant.battery_capacity_kwh} kWh</span>
-                    </div>
-                  )}
-                  {variant.charging_time_hrs && (
-                    <div className="flex items-center gap-1">
-                      <Clock size={10} className="text-teal-500" />
-                      <span>{variant.charging_time_hrs} hrs</span>
-                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-sm">—</span>
                   )}
                 </div>
 
-                {/* Unavailable Badge */}
-                {!variant.is_available && (
-                  <div className="mt-2 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full inline-block">
-                    Out of stock
-                  </div>
-                )}
-              </button>
+                {/* Action Button */}
+                <div className="col-span-2 text-center">
+                  <button
+                    onClick={() => setSelectedVariant(variant)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                      selectedVariant?.id === variant.id
+                        ? 'bg-[#145a2c] text-white shadow-md'
+                        : 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm'
+                    )}
+                  >
+                    <Sparkles size={12} />
+                    {selectedVariant?.id === variant.id ? 'Selected' : 'Get Offer'}
+                  </button>
+                </div>
+
+                {/* Compare Checkbox */}
+                <div className="col-span-2 flex justify-center">
+                  <button
+                    onClick={() => toggleCompare(variant.id)}
+                    className={cn(
+                      'p-1.5 rounded-lg transition-colors',
+                      compareList.includes(variant.id)
+                        ? 'text-[#145a2c] bg-green-50'
+                        : 'text-gray-300 hover:text-gray-400 hover:bg-gray-50'
+                    )}
+                    title={compareList.includes(variant.id) ? 'Remove from compare' : 'Add to compare'}
+                  >
+                    {compareList.includes(variant.id) ? (
+                      <CheckSquare size={18} />
+                    ) : (
+                      <Square size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
             ))}
+
+            {/* Compare Bar */}
+            {compareList.length > 0 && (
+              <div className="px-4 py-3 bg-gradient-to-r from-[#0a2e14] to-[#145a2c] flex items-center justify-between">
+                <div className="text-white text-sm">
+                  <span className="font-semibold">{compareList.length}</span> variant{compareList.length > 1 ? 's' : ''} selected for comparison
+                </div>
+                <Link
+                  href={`/compare?vehicles=${vehicleSlug}&variants=${compareList.join(',')}`}
+                  className="inline-flex items-center gap-2 bg-white text-[#145a2c] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-50 transition-colors"
+                >
+                  Compare Now
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Manufacturer } from '@/lib/types';
-import { Package, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { timeAgo } from '@/lib/format';
 import Pagination from '@/components/admin/Pagination';
@@ -170,11 +170,28 @@ export default function ManufacturersManagementPage() {
                         <td>{m.is_featured ? '✓' : '—'}</td>
                         <td className="text-xs text-gray-500">{timeAgo(m.updated_at || m.created_at)}</td>
                         <td>
-                          <div className="flex items-center gap-2">
-                            <Link href={`/admin/manufacturers/${m.id}/edit`} className="text-[#145a2c] hover:text-[#0f4020]">
-                              <Edit2 size={14} />
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/manufacturers/${m.slug}`}
+                              target="_blank"
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View"
+                            >
+                              <Eye size={14} />
                             </Link>
-                            <button onClick={() => deleteManufacturer(m.id)} disabled={deleting === m.id} className="text-red-600 hover:text-red-700">
+                            <Link
+                              href={`/admin/manufacturers/${m.id}/edit`}
+                              className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
+                            </Link>
+                            <button
+                              onClick={() => deleteManufacturer(m.id)}
+                              disabled={deleting === m.id}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Delete"
+                            >
                               {deleting === m.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                             </button>
                           </div>

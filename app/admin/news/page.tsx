@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle } from '@/lib/types';
-import { FileText, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye } from 'lucide-react';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -198,14 +198,27 @@ export default function NewsManagementPage() {
                         <td className="text-xs text-gray-500">{timeAgo(article.published_at)}</td>
                         <td className="text-xs text-gray-500">{timeAgo(article.updated_at || article.created_at)}</td>
                         <td>
-                          <div className="flex items-center gap-2">
-                            <Link href={`/admin/news/${article.id}/edit`} className="text-[#145a2c] hover:text-[#0f4020]">
-                              <Edit2 size={14} />
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/news/${article.slug}`}
+                              target="_blank"
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View"
+                            >
+                              <Eye size={14} />
+                            </Link>
+                            <Link
+                              href={`/admin/news/${article.id}/edit`}
+                              className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
                             </Link>
                             <button
                               onClick={() => deleteArticle(article.id)}
                               disabled={deleting === article.id}
-                              className="text-red-600 hover:text-red-700"
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Delete"
                             >
                               {deleting === article.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                             </button>

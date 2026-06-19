@@ -71,21 +71,27 @@ export function getCategoryLabel(category: string): string {
     news: 'News',
     review: 'Review',
     launch: 'Launch',
-    comparison: 'Comparison',
-    guide: 'Guide',
+    comparison: 'Compare',
+    guide: 'Buying Guide',
+    industry: 'Industry',
+    tips: 'Tips',
+    blog: 'Blog',
   };
   return labels[category] || category;
 }
 
 export function getCategoryColor(category: string): string {
   const colors: Record<string, string> = {
-    news: 'bg-blue-100 text-blue-700',
-    review: 'bg-green-100 text-green-700',
-    launch: 'bg-amber-100 text-amber-700',
-    comparison: 'bg-purple-100 text-purple-700',
-    guide: 'bg-teal-100 text-teal-700',
+    news: 'bg-blue-500 text-white shadow-blue-200',
+    review: 'bg-emerald-500 text-white shadow-emerald-200',
+    launch: 'bg-amber-500 text-white shadow-amber-200',
+    comparison: 'bg-violet-500 text-white shadow-violet-200',
+    guide: 'bg-teal-500 text-white shadow-teal-200',
+    industry: 'bg-slate-500 text-white shadow-slate-200',
+    tips: 'bg-rose-500 text-white shadow-rose-200',
+    blog: 'bg-indigo-500 text-white shadow-indigo-200',
   };
-  return colors[category] || 'bg-gray-100 text-gray-700';
+  return colors[category] || 'bg-gray-500 text-white shadow-gray-200';
 }
 
 export function timeAgo(dateStr: string): string {

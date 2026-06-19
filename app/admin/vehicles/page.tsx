@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
-import { Car, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Power } from 'lucide-react';
+import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Layers } from 'lucide-react';
 import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
+import VehicleVariantsModal from '@/components/admin/VehicleVariantsModal';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
@@ -42,6 +43,15 @@ export default function VehiclesManagementPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
+
+  // Variants modal state
+  const [variantsModalOpen, setVariantsModalOpen] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<{ id: string; name: string } | null>(null);
+
+  const openVariantsModal = (vehicle: Vehicle) => {
+    setSelectedVehicle({ id: vehicle.id, name: vehicle.name });
+    setVariantsModalOpen(true);
+  };
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
@@ -232,18 +242,35 @@ export default function VehiclesManagementPage() {
                         <td>{vehicle.is_featured ? '✓' : '—'}</td>
                         <td className="text-xs text-gray-500">{timeAgo(vehicle.updated_at || vehicle.created_at)}</td>
                         <td>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Link
-                              href={`/admin/variants?vehicle=${vehicle.id}`}
-                              className="text-teal-600 hover:text-teal-700"
-                              title="Manage Variants"
+                              href={`/vehicles/${vehicle.slug}`}
+                              target="_blank"
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View"
                             >
-                              <Power size={14} />
+                              <Eye size={14} />
                             </Link>
-                            <Link href={`/admin/vehicles/${vehicle.id}/edit`} className="text-[#145a2c] hover:text-[#0f4020]">
-                              <Edit2 size={14} />
+                            <button
+                              onClick={() => openVariantsModal(vehicle)}
+                              className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
+                              title="Variants"
+                            >
+                              <Layers size={14} />
+                            </button>
+                            <Link
+                              href={`/admin/vehicles/${vehicle.id}/edit`}
+                              className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
                             </Link>
-                            <button onClick={() => deleteVehicle(vehicle.id)} disabled={deleting === vehicle.id} className="text-red-600 hover:text-red-700">
+                            <button
+                              onClick={() => deleteVehicle(vehicle.id)}
+                              disabled={deleting === vehicle.id}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="Delete"
+                            >
                               {deleting === vehicle.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                             </button>
                           </div>
@@ -258,6 +285,14 @@ export default function VehiclesManagementPage() {
           )}
         </div>
       </div>
+
+      {/* Variants Modal */}
+      <VehicleVariantsModal
+        vehicleId={selectedVehicle?.id || null}
+        vehicleName={selectedVehicle?.name || ''}
+        open={variantsModalOpen}
+        onOpenChange={setVariantsModalOpen}
+      />
     </div>
   );
 }
