@@ -8,6 +8,7 @@ import { Vehicle } from '@/lib/types';
 import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
 import VehicleCard from '@/components/VehicleCard';
 import VehicleGallery from '@/components/VehicleGallery';
+import VehicleVariantSelector from '@/components/VehicleVariantSelector';
 import { cn } from '@/lib/utils';
 import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
 
@@ -196,17 +197,15 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
                 ))}
               </div>
 
-              {/* Colors */}
+              {/* Variant Selector */}
               {vehicle.colors && vehicle.colors.length > 0 && (
                 <div className="mb-5">
-                  <div className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Available Colors</div>
-                  <div className="flex flex-wrap gap-2">
-                    {vehicle.colors.map((color) => (
-                      <span key={color} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
-                        {color}
-                      </span>
-                    ))}
-                  </div>
+                  <VehicleVariantSelector
+                    colors={vehicle.colors}
+                    priceMin={vehicle.price_min}
+                    priceMax={vehicle.price_max}
+                    vehicleName={vehicle.name}
+                  />
                 </div>
               )}
 
