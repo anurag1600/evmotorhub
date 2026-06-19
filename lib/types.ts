@@ -185,6 +185,42 @@ export interface FAQItem {
   updated_at: string;
 }
 
+export interface VehicleVariant {
+  id: string;
+  vehicle_id: string;
+  name: string;
+  slug: string;
+  price: number;
+  range_km: number | null;
+  battery_capacity_kwh: number | null;
+  motor_power_kw: number | null;
+  top_speed_kmh: number | null;
+  charging_time_hrs: number | null;
+  image_url: string | null;
+  color: string | null;
+  color_hex: string | null;
+  specifications: Record<string, string>;
+  features: string[];
+  is_available: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HomepageCategory {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  image_url: string;
+  link_url: string;
+  vehicle_type: string | null;
+  sort_order: number;
+  is_active: boolean;
+  vehicle_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SiteConfig {
   id: string;
   homepage_stats: Record<string, any>;
@@ -208,6 +244,7 @@ export interface SiteConfig {
   contact_hero_subtitle: string;
   news_settings: Record<string, any>;
   vehicle_settings: Record<string, any>;
+  ev_petrol_comparison: Record<string, any>;
   created_at: string;
   updated_at: string;
 }

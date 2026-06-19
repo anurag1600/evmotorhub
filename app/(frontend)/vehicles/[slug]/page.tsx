@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { Zap, Gauge, Battery, Clock, ChevronRight, Scale, CircleCheck as CheckCircle2, Circle as XCircle, ArrowRight, Calendar, ExternalLink, Share2, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Vehicle } from '@/lib/types';
+import { Vehicle, VehicleVariant } from '@/lib/types';
 import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
 import VehicleCard from '@/components/VehicleCard';
 import VehicleGallery from '@/components/VehicleGallery';
@@ -90,6 +90,15 @@ async function getVehicle(slug: string) {
   return data as (Vehicle & { manufacturers: any }) | null;
 }
 
+async function getVehicleVariants(vehicleId: string) {
+  const { data } = await supabase
+    .from('vehicle_variants')
+    .select('*')
+    .eq('vehicle_id', vehicleId)
+    .order('sort_order', { ascending: true });
+  return (data || []) as VehicleVariant[];
+}
+
 async function getSimilarVehicles(type: string, excludeId: string) {
   const { data } = await supabase
     .from('vehicles')
@@ -104,9 +113,10 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
   const vehicle = await getVehicle(params.slug);
   if (!vehicle) notFound();
 
-  const [similar, seo] = await Promise.all([
+  const [similar, seo, variants] = await Promise.all([
     getSimilarVehicles(vehicle.type, vehicle.id),
     getSeoSettings(),
+    getVehicleVariants(vehicle.id),
   ]);
   const manufacturer = vehicle.manufacturers;
 
@@ -198,13 +208,14 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
               </div>
 
               {/* Variant Selector */}
-              {vehicle.colors && vehicle.colors.length > 0 && (
+              {(vehicle.colors && vehicle.colors.length > 0 || variants.length > 0) && (
                 <div className="mb-5">
                   <VehicleVariantSelector
-                    colors={vehicle.colors}
+                    colors={vehicle.colors || []}
                     priceMin={vehicle.price_min}
                     priceMax={vehicle.price_max}
                     vehicleName={vehicle.name}
+                    variants={variants}
                   />
                 </div>
               )}

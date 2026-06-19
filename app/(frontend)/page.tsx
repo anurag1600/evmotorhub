@@ -6,17 +6,18 @@ import {
   Database, Award, Users, Radio
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { Vehicle, NewsArticle, Manufacturer, SiteConfig } from '@/lib/types';
+import { Vehicle, NewsArticle, Manufacturer, SiteConfig, HomepageCategory } from '@/lib/types';
 import VehicleCard from '@/components/VehicleCard';
 import NewsCard from '@/components/NewsCard';
 import HeroSection from '@/components/HeroSection';
 import HomePageFAQ from '@/components/HomePageFAQ';
+import EVPetrolComparison from '@/components/EVPetrolComparison';
 import ImageWithFallback from '@/components/ImageWithFallback';
 
 export const revalidate = 3600;
 
 async function getData() {
-  const [vehiclesRes, newsRes, manufacturersRes, siteConfigRes, comparisonsRes] = await Promise.all([
+  const [vehiclesRes, newsRes, manufacturersRes, siteConfigRes, comparisonsRes, categoriesRes] = await Promise.all([
     supabase
       .from('vehicles')
       .select('*, manufacturers(name, slug)')
@@ -44,6 +45,11 @@ async function getData() {
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .limit(6),
+    supabase
+      .from('homepage_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true }),
   ]);
 
   const upcomingRes = await supabase
@@ -58,6 +64,17 @@ async function getData() {
     supabase.from('news').select('id', { count: 'exact', head: true }),
   ]);
 
+  // Get vehicle counts per type for categories
+  const scooterCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'scooter');
+  const bikeCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'bike');
+  const carCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'car');
+
+  const vehicleCounts: Record<string, number> = {
+    scooter: scooterCountRes.count || 0,
+    bike: bikeCountRes.count || 0,
+    car: carCountRes.count || 0,
+  };
+
   const comparisons = await Promise.all(
     (comparisonsRes.data || []).map(async (comp) => {
       const [v1Res, v2Res] = await Promise.all([
@@ -69,6 +86,12 @@ async function getData() {
     })
   );
 
+  // Enrich categories with vehicle counts
+  const categories = (categoriesRes.data || []).map((cat) => ({
+    ...cat,
+    vehicle_count: cat.vehicle_type ? vehicleCounts[cat.vehicle_type] || 0 : 0,
+  })) as (HomepageCategory & { vehicle_count: number })[];
+
   return {
     vehicles: (vehiclesRes.data || []) as (Vehicle & { manufacturers: { name: string; slug: string } })[],
     news: (newsRes.data || []) as NewsArticle[],
@@ -76,38 +99,12 @@ async function getData() {
     upcoming: (upcomingRes.data || []) as (Vehicle & { manufacturers: { name: string; slug: string } })[],
     siteConfig: (siteConfigRes.data?.[0] || null) as SiteConfig | null,
     comparisons: comparisons.filter(Boolean) as any[],
+    categories,
     vehicleCount: vehicleCountRes.count || 0,
     manufacturerCount: manufacturerCountRes.count || 0,
     newsCount: newsCountRes.count || 0,
   };
 }
-
-const categories = [
-  {
-    label: 'Electric Scooters',
-    href: '/vehicles?type=scooter',
-    icon: Radio,
-    desc: 'Best for city commute',
-    count: '20+ models',
-    image: 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-  {
-    label: 'Electric Bikes',
-    href: '/vehicles?type=bike',
-    icon: Bike,
-    desc: 'Performance meets efficiency',
-    count: '10+ models',
-    image: 'https://images.pexels.com/photos/1544463/pexels-photo-1544463.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-  {
-    label: 'Electric Cars',
-    href: '/vehicles?type=car',
-    icon: Car,
-    desc: 'Family & long-distance EVs',
-    count: '15+ models',
-    image: 'https://images.pexels.com/photos/3422964/pexels-photo-3422964.jpeg?auto=compress&cs=tinysrgb&w=400',
-  },
-];
 
 const tools = [
   { label: 'Compare EVs', href: '/compare', icon: Scale, desc: 'Side-by-side comparison of any two vehicles', color: 'bg-green-50 text-green-700 border-green-100' },
@@ -116,7 +113,7 @@ const tools = [
 ];
 
 export default async function HomePage() {
-  const { vehicles, news, manufacturers, upcoming, siteConfig, comparisons, vehicleCount, manufacturerCount, newsCount } = await getData();
+  const { vehicles, news, manufacturers, upcoming, siteConfig, comparisons, categories, vehicleCount, manufacturerCount, newsCount } = await getData();
 
   const scooters = vehicles.filter(v => v.type === 'scooter');
   const bikes = vehicles.filter(v => v.type === 'bike');
@@ -163,38 +160,45 @@ export default async function HomePage() {
       </section>
 
       {/* Browse by Category */}
-      <section className="py-14 md:py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <p className="text-sm font-semibold text-green-600 uppercase tracking-wider mb-1">Browse by Category</p>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Find Your EV Type</h2>
+      {categories.length > 0 && (
+        <section className="py-14 md:py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <p className="text-sm font-semibold text-green-600 uppercase tracking-wider mb-1">Browse by Category</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Find Your EV Type</h2>
+              </div>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4 md:gap-6">
+              {categories.map((cat) => (
+                <Link key={cat.id} href={cat.link_url} className="group relative rounded-2xl overflow-hidden h-52 sm:h-64 block">
+                  <Image
+                    src={cat.image_url}
+                    alt={cat.title}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 640px) 100vw, 33vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e14]/90 via-[#145a2c]/50 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <div className="text-xs font-medium text-green-300 mb-1">
+                      {cat.vehicle_count > 0 ? `${cat.vehicle_count}+ models` : 'Explore'}
+                    </div>
+                    <h3 className="text-white font-bold text-xl mb-1">{cat.title}</h3>
+                    {cat.subtitle && <p className="text-gray-300 text-sm">{cat.subtitle}</p>}
+                    <div className="mt-3 flex items-center gap-1 text-green-300 text-sm font-medium group-hover:gap-2 transition-all">
+                      Explore <ArrowRight size={14} />
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
-          <div className="grid sm:grid-cols-3 gap-4 md:gap-6">
-            {categories.map((cat) => (
-              <Link key={cat.href} href={cat.href} className="group relative rounded-2xl overflow-hidden h-52 sm:h-64 block">
-                <Image
-                  src={cat.image}
-                  alt={cat.label}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  sizes="(max-width: 640px) 100vw, 33vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a2e14]/90 via-[#145a2c]/50 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <div className="text-xs font-medium text-green-300 mb-1">{cat.count}</div>
-                  <h3 className="text-white font-bold text-xl mb-1">{cat.label}</h3>
-                  <p className="text-gray-300 text-sm">{cat.desc}</p>
-                  <div className="mt-3 flex items-center gap-1 text-green-300 text-sm font-medium group-hover:gap-2 transition-all">
-                    Explore <ArrowRight size={14} />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* EV vs Petrol Comparison */}
+      <EVPetrolComparison />
 
       {/* Featured EVs */}
       <section className="py-14 md:py-20">

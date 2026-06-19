@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
-import { Car, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
+import { Car, Plus, CreditCard as Edit2, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Power } from 'lucide-react';
 import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -17,8 +17,20 @@ const statusColors: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-700',
 };
 
-const EXPORT_COLS = ['id', 'name', 'slug', 'type', 'segment', 'manufacturer_id', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs', 'image_url', 'description', 'is_upcoming', 'is_featured', 'is_latest', 'status'];
-const IMPORT_COLS = ['name', 'slug', 'type', 'segment', 'manufacturer_id', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs', 'image_url', 'description', 'is_upcoming', 'is_featured', 'is_latest', 'status'];
+const EXPORT_COLS = [
+  'id', 'name', 'slug', 'type', 'segment', 'manufacturer_id',
+  'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
+  'image_url', 'image_gallery', 'gallery_urls', 'description',
+  'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date',
+  'colors', 'features', 'pros', 'cons', 'specifications'
+];
+const IMPORT_COLS = [
+  'name', 'slug', 'type', 'segment', 'manufacturer_id',
+  'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
+  'image_url', 'image_gallery', 'gallery_urls', 'description',
+  'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date',
+  'colors', 'features', 'pros', 'cons', 'specifications'
+];
 
 export default function VehiclesManagementPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -76,18 +88,55 @@ export default function VehiclesManagementPage() {
       if (!row.name) { errors.push(`Row ${i + 1}: name is required`); continue; }
       if (!['scooter', 'bike', 'car'].includes(row.type)) { errors.push(`Row ${i + 1}: type must be scooter, bike, or car`); continue; }
       const slug = row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+      // Parse array fields (semicolon-separated)
+      const parseArray = (val: string | undefined) =>
+        val ? val.split(';').map(s => s.trim()).filter(Boolean) : [];
+
+      // Parse JSON fields
+      const parseJson = (val: string | undefined): Record<string, string> => {
+        if (!val) return {};
+        try {
+          return JSON.parse(val);
+        } catch {
+          // Try key:value format
+          const obj: Record<string, string> = {};
+          val.split(';').forEach(pair => {
+            const [k, v] = pair.split(':').map(s => s.trim());
+            if (k && v) obj[k] = v;
+          });
+          return obj;
+        }
+      };
+
       try {
         const { error } = await supabase.from('vehicles').insert([{
           name: row.name,
           slug,
           type: row.type,
           segment: row.segment || 'budget',
+          manufacturer_id: row.manufacturer_id || null,
           price_min: Number(row.price_min) || 0,
           price_max: Number(row.price_max) || 0,
           range_km: Number(row.range_km) || 0,
           top_speed_kmh: Number(row.top_speed_kmh) || 0,
-          status: row.status || 'draft',
+          battery_capacity_kwh: Number(row.battery_capacity_kwh) || 0,
+          motor_power_kw: Number(row.motor_power_kw) || 0,
+          charging_time_hrs: Number(row.charging_time_hrs) || 0,
+          image_url: row.image_url || null,
+          image_gallery: parseArray(row.image_gallery),
+          gallery_urls: parseArray(row.gallery_urls),
+          description: row.description || null,
+          is_upcoming: row.is_upcoming === 'true',
           is_featured: row.is_featured === 'true',
+          is_latest: row.is_latest === 'true',
+          status: row.status || 'draft',
+          launch_date: row.launch_date || null,
+          colors: parseArray(row.colors),
+          features: parseArray(row.features),
+          pros: parseArray(row.pros),
+          cons: parseArray(row.cons),
+          specifications: parseJson(row.specifications),
         }]);
         if (error) throw error;
         success++;
@@ -184,6 +233,13 @@ export default function VehiclesManagementPage() {
                         <td className="text-xs text-gray-500">{timeAgo(vehicle.updated_at || vehicle.created_at)}</td>
                         <td>
                           <div className="flex items-center gap-2">
+                            <Link
+                              href={`/admin/variants?vehicle=${vehicle.id}`}
+                              className="text-teal-600 hover:text-teal-700"
+                              title="Manage Variants"
+                            >
+                              <Power size={14} />
+                            </Link>
                             <Link href={`/admin/vehicles/${vehicle.id}/edit`} className="text-[#145a2c] hover:text-[#0f4020]">
                               <Edit2 size={14} />
                             </Link>
