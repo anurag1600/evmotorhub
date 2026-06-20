@@ -71,14 +71,14 @@ export default function Footer() {
             <Link href="/" className="inline-block mb-4">
               <Image
                 src="/EV_logo_White.webp"
-                alt="EVMotorHub"
+                alt={config?.footer_company_name || 'EVMotorHub'}
                 width={160}
                 height={40}
                 className="h-9 w-auto"
               />
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed mb-5">
-              India&apos;s trusted EV marketplace. Research, compare, and find your perfect electric vehicle.
+              {config?.footer_description || 'India\'s trusted EV marketplace. Research, compare, and find your perfect electric vehicle.'}
             </p>
 
             {/* Social Icons */}
@@ -213,7 +213,7 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <Zap size={12} className="text-green-400" />
-              <span>Powered by clean energy data</span>
+              <span>{config?.footer_powered_by_text || 'Powered by clean energy data'}</span>
             </div>
           </div>
         </div>

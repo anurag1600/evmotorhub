@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle, ContentBlock } from '@/lib/types';
-import { Image as ImageIcon, Save, Loader2, X, AlertCircle } from 'lucide-react';
+import { Image as ImageIcon, Save, Loader as Loader2, X, CircleAlert as AlertCircle } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
 import ContentBlockEditor from '@/components/admin/ContentBlockEditor';
@@ -40,7 +40,7 @@ export default function NewsForm({ articleId }: NewsFormProps) {
     seo_keywords: '' as any,
   });
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
-  const [useBlockEditor, setUseBlockEditor] = useState(false);
+  const [useBlockEditor, setUseBlockEditor] = useState(true);
 
   const [tagInput, setTagInput] = useState('');
 
@@ -80,8 +80,13 @@ export default function NewsForm({ articleId }: NewsFormProps) {
     try {
       const { title, slug, content, excerpt, image_url, category, author, tags, read_time_mins, is_featured, status, seo_title, seo_description, seo_keywords } = formData;
 
-      if (!title || !slug || !content) {
-        throw new Error('Title, slug, and content are required');
+      if (!title || !slug) {
+        throw new Error('Title and slug are required');
+      }
+
+      // Content can be either in the content field or in content_blocks
+      if (!content && contentBlocks.length === 0) {
+        throw new Error('Please add content or content blocks');
       }
 
       if (articleId) {

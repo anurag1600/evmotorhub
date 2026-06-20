@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAdmin } from '@/lib/admin-context';
-import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders, Mail } from 'lucide-react';
+import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders, Mail, Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const adminMenuItems = [
@@ -14,9 +14,11 @@ const adminMenuItems = [
   { label: 'Vehicles', href: '/admin/vehicles', icon: Car },
   { label: 'Manufacturers', href: '/admin/manufacturers', icon: Package },
   { label: 'Charging Stations', href: '/admin/charging', icon: Zap },
+  { label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
   { label: 'Popular Comparisons', href: '/admin/comparisons', icon: Scale },
   { label: 'CMS Pages', href: '/admin/cms', icon: Globe },
   { label: 'FAQ', href: '/admin/faq', icon: HelpCircle },
+  { label: 'Advertisements', href: '/admin/advertisements', icon: Megaphone },
   { label: 'Homepage Settings', href: '/admin/settings', icon: Home },
   { label: 'Contact Settings', href: '/admin/contact', icon: MessageSquare },
   { label: 'Contact Submissions', href: '/admin/contact-submissions', icon: Mail },

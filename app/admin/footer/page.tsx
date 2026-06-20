@@ -14,6 +14,10 @@ interface FooterConfig {
   footer_show_copyright: boolean;
   footer_show_newsletter: boolean;
   footer_copyright_text: string;
+  footer_company_name: string;
+  footer_tagline: string;
+  footer_description: string;
+  footer_powered_by_text: string;
   footer_custom_links: { label: string; url: string }[];
   social_media: Record<string, string>;
   contact_info: Record<string, string>;
@@ -28,6 +32,10 @@ const defaultConfig: FooterConfig = {
   footer_show_copyright: true,
   footer_show_newsletter: true,
   footer_copyright_text: '',
+  footer_company_name: 'EVMotorHub',
+  footer_tagline: "India's trusted EV marketplace",
+  footer_description: "India's trusted EV marketplace. Research, compare, and find your perfect electric vehicle.",
+  footer_powered_by_text: 'Powered by clean energy data',
   footer_custom_links: [],
   social_media: {},
   contact_info: {},
@@ -165,16 +173,58 @@ export default function FooterSettingsPage() {
 
           {/* Copyright Text */}
           <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Copyright</h2>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Copyright Text</label>
-              <input
-                type="text"
-                value={config.footer_copyright_text}
-                onChange={(e) => setConfig({ ...config, footer_copyright_text: e.target.value })}
-                className="admin-input"
-                placeholder="Leave empty for default: © 2024 EVMotorHub. All rights reserved."
-              />
+            <h2 className="text-lg font-bold border-b pb-3">Brand & Copyright</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Name</label>
+                <input
+                  type="text"
+                  value={config.footer_company_name}
+                  onChange={(e) => setConfig({ ...config, footer_company_name: e.target.value })}
+                  className="admin-input"
+                  placeholder="EVMotorHub"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tagline</label>
+                <input
+                  type="text"
+                  value={config.footer_tagline}
+                  onChange={(e) => setConfig({ ...config, footer_tagline: e.target.value })}
+                  className="admin-input"
+                  placeholder="India's trusted EV marketplace"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Footer Description</label>
+                <textarea
+                  value={config.footer_description}
+                  onChange={(e) => setConfig({ ...config, footer_description: e.target.value })}
+                  className="admin-input"
+                  rows={2}
+                  placeholder="Description shown below the logo in the footer"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Copyright Text</label>
+                <input
+                  type="text"
+                  value={config.footer_copyright_text}
+                  onChange={(e) => setConfig({ ...config, footer_copyright_text: e.target.value })}
+                  className="admin-input"
+                  placeholder="© 2024 EVMotorHub. All rights reserved."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Powered By Text</label>
+                <input
+                  type="text"
+                  value={config.footer_powered_by_text}
+                  onChange={(e) => setConfig({ ...config, footer_powered_by_text: e.target.value })}
+                  className="admin-input"
+                  placeholder="Powered by clean energy data"
+                />
+              </div>
             </div>
           </div>
 
