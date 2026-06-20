@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Zap, Gauge, Battery, Clock, ChevronRight, Scale, CircleCheck as CheckCircle2, Circle as XCircle, ArrowRight, Calendar, ExternalLink, Share2, ChevronLeft as ChevronLeftIcon } from 'lucide-react';
+import { Zap, Gauge, Battery, Clock, ChevronRight, Scale, CircleCheck as CheckCircle2, Circle as XCircle, ArrowRight, Calendar, ExternalLink, Share2, ChevronLeft as ChevronLeftIcon, Layers, Power } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, VehicleVariant } from '@/lib/types';
 import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
@@ -207,19 +207,6 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
                 ))}
               </div>
 
-              {/* Variant Selector */}
-              {(vehicle.colors && vehicle.colors.length > 0 || variants.length > 0) && (
-                <div className="mb-5">
-                  <VehicleVariantSelector
-                    colors={vehicle.colors || []}
-                    priceMin={vehicle.price_min}
-                    priceMax={vehicle.price_max}
-                    vehicleName={vehicle.name}
-                    variants={variants}
-                  />
-                </div>
-              )}
-
               {/* CTAs */}
               <div className="flex gap-3">
                 <Link
@@ -239,6 +226,32 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
           </div>
         </div>
       </div>
+
+      {/* Variants Section - BikeDekho Style */}
+      {(vehicle.colors && vehicle.colors.length > 0 || variants.length > 0) && (
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Layers size={20} className="text-[#145a2c]" />
+                Variants & Prices
+              </h2>
+              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {variants.length > 0 ? `${variants.length} variants` : `${vehicle.colors?.length || 0} colors`}
+              </span>
+            </div>
+
+            <VehicleVariantSelector
+              colors={vehicle.colors || []}
+              priceMin={vehicle.price_min}
+              priceMax={vehicle.price_max}
+              vehicleName={vehicle.name}
+              vehicleSlug={vehicle.slug}
+              variants={variants}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Spec Details */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

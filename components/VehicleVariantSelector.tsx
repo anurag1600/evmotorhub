@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Check, Zap, Gauge, Battery, Clock, Power, ArrowRight, Square, SquareCheck as CheckSquare, Tag, Sparkles } from 'lucide-react';
+import { Check, Zap, Gauge, Battery, Clock, Power, ArrowRight, Square, SquareCheck as CheckSquare, Tag, Sparkles, Info } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { VehicleVariant } from '@/lib/types';
+import VariantDetailPanel from '@/components/VariantDetailPanel';
 
 // Color swatch mapping for common vehicle colors
 const colorSwatchMap: Record<string, string> = {
@@ -78,6 +79,8 @@ export default function VehicleVariantSelector({
     variants.length > 0 ? variants[0] : null
   );
   const [compareList, setCompareList] = useState<string[]>([]);
+  const [detailVariant, setDetailVariant] = useState<VehicleVariant | null>(null);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
 
   const toggleCompare = (variantId: string) => {
     setCompareList(prev =>
@@ -179,7 +182,17 @@ export default function VehicleVariantSelector({
                 </div>
 
                 {/* Action Button */}
-                <div className="col-span-2 text-center">
+                <div className="col-span-2 text-center flex items-center justify-center gap-1">
+                  <button
+                    onClick={() => {
+                      setDetailVariant(variant);
+                      setDetailPanelOpen(true);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
+                    title="View Details"
+                  >
+                    <Info size={16} />
+                  </button>
                   <button
                     onClick={() => setSelectedVariant(variant)}
                     className={cn(
@@ -352,6 +365,15 @@ export default function VehicleVariantSelector({
           )}
         </div>
       )}
+
+      {/* Variant Detail Slide-over Panel */}
+      <VariantDetailPanel
+        variant={detailVariant}
+        vehicleName={vehicleName}
+        vehicleSlug={vehicleSlug || ''}
+        open={detailPanelOpen}
+        onOpenChange={setDetailPanelOpen}
+      />
     </div>
   );
 }
