@@ -13,6 +13,7 @@ import HeroSection from '@/components/HeroSection';
 import HomePageFAQ from '@/components/HomePageFAQ';
 import EVPetrolComparison from '@/components/EVPetrolComparison';
 import ImageWithFallback from '@/components/ImageWithFallback';
+import AdBanner from '@/components/AdBanner';
 
 export const revalidate = 3600;
 
@@ -196,6 +197,11 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* Ad Banner - Below Hero */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <AdBanner position="homepage_below_hero" className="mx-auto" />
+      </div>
 
       {/* Featured EVs */}
       <section className="py-14 md:py-20">
@@ -471,8 +477,18 @@ export default async function HomePage() {
       {/* EV vs Petrol Comparison - Above FAQ */}
       <EVPetrolComparison />
 
+      {/* Ad Banner - Before FAQ */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <AdBanner position="homepage_before_faq" className="mx-auto" />
+      </div>
+
       {/* FAQ Section */}
       <HomePageFAQ />
+
+      {/* Ad Banner - Above Footer */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-8">
+        <AdBanner position="homepage_above_footer" className="mx-auto" />
+      </div>
     </div>
   );
 }

@@ -25,7 +25,6 @@ export default function NewsForm({ articleId }: NewsFormProps) {
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
-    content: '',
     excerpt: '',
     image_url: '',
     category: 'news',
@@ -40,7 +39,6 @@ export default function NewsForm({ articleId }: NewsFormProps) {
     seo_keywords: '' as any,
   });
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
-  const [useBlockEditor, setUseBlockEditor] = useState(true);
 
   const [tagInput, setTagInput] = useState('');
 
@@ -59,10 +57,12 @@ export default function NewsForm({ articleId }: NewsFormProps) {
         .maybeSingle();
 
       if (error || !data) throw new Error('Article not found');
-      setFormData(data);
+      setFormData({
+        ...data,
+        seo_keywords: data.seo_keywords?.join(', ') || '',
+      });
       if (data.content_blocks && data.content_blocks.length > 0) {
         setContentBlocks(data.content_blocks);
-        setUseBlockEditor(true);
       }
     } catch (err: any) {
       setError(err.message);
@@ -78,15 +78,14 @@ export default function NewsForm({ articleId }: NewsFormProps) {
     setSuccess('');
 
     try {
-      const { title, slug, content, excerpt, image_url, category, author, tags, read_time_mins, is_featured, status, seo_title, seo_description, seo_keywords } = formData;
+      const { title, slug, excerpt, image_url, category, author, tags, read_time_mins, is_featured, status, seo_title, seo_description, seo_keywords } = formData;
 
       if (!title || !slug) {
         throw new Error('Title and slug are required');
       }
 
-      // Content can be either in the content field or in content_blocks
-      if (!content && contentBlocks.length === 0) {
-        throw new Error('Please add content or content blocks');
+      if (contentBlocks.length === 0) {
+        throw new Error('Please add content blocks to the article');
       }
 
       if (articleId) {
@@ -95,8 +94,8 @@ export default function NewsForm({ articleId }: NewsFormProps) {
           .update({
             title,
             slug,
-            content,
-            content_blocks: useBlockEditor ? contentBlocks : [],
+            content: '',
+            content_blocks: contentBlocks,
             excerpt,
             image_url,
             category,
@@ -119,8 +118,8 @@ export default function NewsForm({ articleId }: NewsFormProps) {
         const { error } = await supabase.from('news').insert([{
           title,
           slug,
-          content,
-          content_blocks: useBlockEditor ? contentBlocks : [],
+          content: '',
+          content_blocks: contentBlocks,
           excerpt,
           image_url,
           category,
@@ -231,29 +230,8 @@ export default function NewsForm({ articleId }: NewsFormProps) {
               />
             </div>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-700">Content *</label>
-                <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={useBlockEditor}
-                    onChange={(e) => setUseBlockEditor(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded accent-[#145a2c]"
-                  />
-                  Use Block Editor
-                </label>
-              </div>
-              {useBlockEditor ? (
-                <ContentBlockEditor blocks={contentBlocks} onChange={setContentBlocks} />
-              ) : (
-                <textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  placeholder="Article content (supports HTML)"
-                  rows={12}
-                  className="admin-textarea"
-                />
-              )}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Content *</label>
+              <ContentBlockEditor blocks={contentBlocks} onChange={setContentBlocks} />
             </div>
           </div>
         </div>

@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, Manufacturer } from '@/lib/types';
-import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2, Power } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
+import VariantsInlineEditor from './VariantsInlineEditor';
 
 interface VehicleFormProps {
   vehicleId?: string;
@@ -572,6 +573,22 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
               </div>
             </div>
           </div>
+
+          {/* Variants Section - only for existing vehicles */}
+          {vehicleId && (
+            <div className="admin-card p-6">
+              <VariantsInlineEditor vehicleId={vehicleId} />
+            </div>
+          )}
+
+          {/* Placeholder for new vehicles */}
+          {!vehicleId && (
+            <div className="admin-card p-6 text-center">
+              <Power size={32} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-sm text-gray-500 mb-2">Variants can be added after creating the vehicle</p>
+              <p className="text-xs text-gray-400">Save this vehicle first, then edit to add variants</p>
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}
