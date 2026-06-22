@@ -78,11 +78,7 @@ export default function FooterSettingsPage() {
     setError('');
     setSuccess('');
     try {
-      const { id, social_media, contact_info, ...footerData } = config;
-      const updateData = {
-        ...footerData,
-        footer_custom_links: config.footer_custom_links,
-      };
+      const { id, ...updateData } = config;
       const { error: err } = id
         ? await supabase.from('site_config').update(updateData).eq('id', id)
         : await supabase.from('site_config').update(updateData);

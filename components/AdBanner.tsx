@@ -19,8 +19,8 @@ interface Ad {
   end_date: string | null;
   sort_order: number;
   is_active: boolean;
-  impressions: number;
-  clicks: number;
+  impression_count: number;
+  click_count: number;
 }
 
 interface AdBannerProps {
@@ -67,7 +67,7 @@ export default function AdBanner({ position, className }: AdBannerProps) {
         // Track impression
         await supabase
           .from('advertisements')
-          .update({ impressions: (data.impressions || 0) + 1 })
+          .update({ impression_count: (data.impression_count || 0) + 1 })
           .eq('id', data.id);
       }
     } catch (err) {
@@ -81,7 +81,7 @@ export default function AdBanner({ position, className }: AdBannerProps) {
     if (ad) {
       await supabase
         .from('advertisements')
-        .update({ clicks: (ad.clicks || 0) + 1 })
+        .update({ click_count: (ad.click_count || 0) + 1 })
         .eq('id', ad.id);
     }
   };
@@ -174,7 +174,7 @@ export function AdBannerMultiple({ position, limit = 3 }: { position: string; li
         for (const ad of data) {
           await supabase
             .from('advertisements')
-            .update({ impressions: (ad.impressions || 0) + 1 })
+            .update({ impression_count: (ad.impression_count || 0) + 1 })
             .eq('id', ad.id);
         }
       }
@@ -208,7 +208,7 @@ export function AdBannerMultiple({ position, limit = 3 }: { position: string; li
                 onClick={async () => {
                   await supabase
                     .from('advertisements')
-                    .update({ clicks: (ad.clicks || 0) + 1 })
+                    .update({ click_count: (ad.click_count || 0) + 1 })
                     .eq('id', ad.id);
                 }}
                 className="block w-full h-full"

@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import VehicleGallery from '@/components/VehicleGallery';
 import VehicleVariantSelector from '@/components/VehicleVariantSelector';
 import VehicleCard from '@/components/VehicleCard';
+import PriceBreakdown from '@/components/PriceBreakdown';
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle & { manufacturers: any };
@@ -199,6 +200,12 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Price Breakdown */}
+            <PriceBreakdown
+              exShowroomPrice={displayValues.price_min}
+              vehicleName={vehicle.name}
+            />
+
             {/* Vehicle Overview / Description */}
             {vehicle.description && (
               <div className="bg-white rounded-2xl border border-gray-100 p-5">

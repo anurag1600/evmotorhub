@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { VehicleVariant } from '@/lib/types';
-import { Power, Plus, Pencil, Trash2, X, Save, Loader as Loader2, Image as ImageIcon, GripVertical, Copy, Star, Info } from 'lucide-react';
+import { Power, Plus, Pencil, Trash2, X, Save, Loader as Loader2, Image as ImageIcon, GripVertical, Copy, Star, Info, CircleAlert as AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import ImageUpload from '@/components/ImageUpload';
@@ -36,14 +36,37 @@ const emptyForm = {
 
 const statusOptions = ['active', 'discontinued', 'upcoming'] as const;
 
+// Common colors for quick selection
+const colorPresets = [
+  { name: 'Black', hex: '#1a1a1a' },
+  { name: 'White', hex: '#f5f5f5' },
+  { name: 'Silver', hex: '#c0c0c0' },
+  { name: 'Grey', hex: '#808080' },
+  { name: 'Red', hex: '#dc2626' },
+  { name: 'Blue', hex: '#1e40af' },
+  { name: 'Green', hex: '#16a34a' },
+  { name: 'Yellow', hex: '#eab308' },
+  { name: 'Orange', hex: '#ea580c' },
+  { name: 'Brown', hex: '#78350f' },
+  { name: 'Gold', hex: '#ffd700' },
+  { name: 'Teal', hex: '#0d9488' },
+];
+
 export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: VariantsInlineEditorProps) {
   const [variants, setVariants] = useState<VehicleVariant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  // Use ref for callback to avoid infinite loops
+  const onVariantsChangeRef = useRef(onVariantsChange);
+  useEffect(() => {
+    onVariantsChangeRef.current = onVariantsChange;
+  }, [onVariantsChange]);
 
   const fetchVariants = useCallback(async () => {
     if (!vehicleId) {
@@ -51,16 +74,24 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
       return;
     }
     setLoading(true);
-    const { data } = await supabase
-      .from('vehicle_variants')
-      .select('*')
-      .eq('vehicle_id', vehicleId)
-      .order('sort_order');
-    const variantData = (data || []) as VehicleVariant[];
-    setVariants(variantData);
-    onVariantsChange?.(variantData);
-    setLoading(false);
-  }, [vehicleId, onVariantsChange]);
+    setError(null);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('vehicle_variants')
+        .select('*')
+        .eq('vehicle_id', vehicleId)
+        .order('sort_order');
+      if (fetchError) throw fetchError;
+      const variantData = (data || []) as VehicleVariant[];
+      setVariants(variantData);
+      onVariantsChangeRef.current?.(variantData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load variants');
+      toast.error('Failed to load variants');
+    } finally {
+      setLoading(false);
+    }
+  }, [vehicleId]);
 
   useEffect(() => {
     fetchVariants();
@@ -180,24 +211,32 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
   };
 
   const toggleFeatured = async (id: string, isFeatured: boolean) => {
-    if (!isFeatured) {
-      // If setting as featured, remove featured from all other variants first
-      await supabase
-        .from('vehicle_variants')
-        .update({ is_featured: false })
-        .eq('vehicle_id', vehicleId);
+    try {
+      if (!isFeatured) {
+        // If setting as featured, remove featured from all other variants first
+        await supabase
+          .from('vehicle_variants')
+          .update({ is_featured: false })
+          .eq('vehicle_id', vehicleId);
 
-      await supabase
-        .from('vehicle_variants')
-        .update({ is_featured: true })
-        .eq('id', id);
-    } else {
-      await supabase
-        .from('vehicle_variants')
-        .update({ is_featured: false })
-        .eq('id', id);
+        const { error } = await supabase
+          .from('vehicle_variants')
+          .update({ is_featured: true })
+          .eq('id', id);
+        if (error) throw error;
+        toast.success('Featured variant updated');
+      } else {
+        const { error } = await supabase
+          .from('vehicle_variants')
+          .update({ is_featured: false })
+          .eq('id', id);
+        if (error) throw error;
+        toast.success('Featured removed');
+      }
+      fetchVariants();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update featured status');
     }
-    fetchVariants();
   };
 
   const moveVariant = async (id: string, direction: 'up' | 'down') => {
@@ -212,9 +251,15 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
 
     setVariants(newVariants);
 
-    const updates = newVariants.map((v, i) => ({ id: v.id, sort_order: i }));
-    for (const u of updates) {
-      await supabase.from('vehicle_variants').update({ sort_order: u.sort_order }).eq('id', u.id);
+    try {
+      const updates = newVariants.map((v, i) => ({ id: v.id, sort_order: i }));
+      for (const u of updates) {
+        const { error } = await supabase.from('vehicle_variants').update({ sort_order: u.sort_order }).eq('id', u.id);
+        if (error) throw error;
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reorder');
+      fetchVariants(); // Revert on error
     }
   };
 
@@ -398,19 +443,42 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
                 className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Color Hex</label>
-              <div className="flex gap-1.5">
+            <div className="col-span-full">
+              <label className="block text-xs font-medium text-gray-600 mb-2">Color Selection</label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {colorPresets.map((preset) => (
+                  <button
+                    key={preset.hex}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, color_hex: preset.hex, color: f.color || preset.name }))}
+                    className={cn(
+                      'w-8 h-8 rounded-lg border-2 transition-all',
+                      form.color_hex === preset.hex
+                        ? 'border-[#145a2c] ring-2 ring-[#145a2c]/30 scale-110'
+                        : 'border-gray-200 hover:border-gray-400'
+                    )}
+                    style={{ backgroundColor: preset.hex }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={form.color_hex || '#1a1a1a'}
+                  onChange={(e) => setForm(f => ({ ...f, color_hex: e.target.value }))}
+                  className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200"
+                />
                 <input
                   type="text"
                   value={form.color_hex}
                   onChange={(e) => setForm(f => ({ ...f, color_hex: e.target.value }))}
                   placeholder="#1a1a1a"
-                  className="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                  className="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c] font-mono"
                 />
                 {form.color_hex && (
                   <div
-                    className="w-9 h-9 rounded-lg border border-gray-200 flex-shrink-0"
+                    className="w-10 h-10 rounded-lg border border-gray-200 flex-shrink-0"
                     style={{ backgroundColor: form.color_hex }}
                   />
                 )}
@@ -506,6 +574,18 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
         <div className="flex items-center justify-center py-8 text-gray-500">
           <Loader2 size={20} className="animate-spin mr-2" />
           Loading variants...
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-500 bg-red-50 rounded-xl border border-red-200">
+          <AlertCircle size={32} className="mx-auto text-red-400 mb-3" />
+          <p className="mb-3">{error}</p>
+          <button
+            type="button"
+            onClick={fetchVariants}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       ) : variants.length === 0 && !isAdding ? (
         <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">

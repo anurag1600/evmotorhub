@@ -251,3 +251,28 @@ export interface SiteConfig {
   created_at: string;
   updated_at: string;
 }
+
+export interface PricingState {
+  id: string;
+  name: string;
+  code: string;
+  rto_percentage: number;
+  road_tax_percentage: number;
+  other_charges: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PricingCity {
+  id: string;
+  state_id: string;
+  name: string;
+  rto_charge: number;
+  insurance_charge: number;
+  other_charges: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  state?: PricingState;
+}
