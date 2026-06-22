@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Vehicle, Manufacturer } from '@/lib/types';
+import { Vehicle, Manufacturer, VehicleVariant } from '@/lib/types';
 import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2, Power } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
@@ -24,6 +24,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [variants, setVariants] = useState<VehicleVariant[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,13 +32,6 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     manufacturer_id: '',
     type: 'scooter' as typeof vehicleTypes[number],
     segment: 'budget' as typeof segments[number],
-    price_min: 0,
-    price_max: 0,
-    range_km: 0,
-    top_speed_kmh: 0,
-    charging_time_hrs: 0,
-    battery_capacity_kwh: 0,
-    motor_power_kw: 0,
     image_url: '',
     gallery_urls: [] as string[],
     image_gallery: [] as string[],
@@ -97,6 +91,21 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     }
   };
 
+  const handleVariantsChange = (updatedVariants: VehicleVariant[]) => {
+    setVariants(updatedVariants);
+  };
+
+  // Auto-calculate price range from variants
+  const getPriceRange = () => {
+    if (variants.length === 0) return { price_min: 0, price_max: 0 };
+    const prices = variants.filter(v => v.status === 'active').map(v => v.price);
+    if (prices.length === 0) return { price_min: 0, price_max: 0 };
+    return {
+      price_min: Math.min(...prices),
+      price_max: Math.max(...prices),
+    };
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -104,11 +113,14 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     setSuccess('');
 
     try {
-      const { name, slug, manufacturer_id, type, segment, price_min, price_max, range_km, top_speed_kmh, charging_time_hrs, battery_capacity_kwh, motor_power_kw, image_url, gallery_urls, image_gallery, description, is_upcoming, is_featured, is_latest, launch_date, colors, specifications, features, pros, cons, status, seo_title, seo_description, seo_keywords } = formData;
+      const { name, slug, manufacturer_id, type, segment, image_url, gallery_urls, image_gallery, description, is_upcoming, is_featured, is_latest, launch_date, colors, specifications, features, pros, cons, status, seo_title, seo_description, seo_keywords } = formData;
 
       if (!name || !slug || !manufacturer_id) {
         throw new Error('Name, slug, and manufacturer are required');
       }
+
+      // Auto-calculate price range from active variants
+      const { price_min, price_max } = getPriceRange();
 
       const vehicleData = {
         name,
@@ -118,11 +130,6 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         segment,
         price_min,
         price_max,
-        range_km,
-        top_speed_kmh,
-        charging_time_hrs,
-        battery_capacity_kwh,
-        motor_power_kw,
         image_url,
         gallery_urls,
         image_gallery,
@@ -272,26 +279,19 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
                 </select>
               </div>
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (₹)</label>
-                <input
-                  type="number"
-                  value={formData.price_min}
-                  onChange={(e) => setFormData({ ...formData, price_min: Number(e.target.value) })}
-                  className="admin-input"
-                />
+            {variants.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-100">
+                <div className="text-xs font-semibold text-green-800 mb-1">Auto-calculated Price Range</div>
+                <div className="text-sm text-green-700">
+                  {(() => {
+                    const { price_min, price_max } = getPriceRange();
+                    if (price_min === 0 && price_max === 0) return 'Add variants to auto-calculate prices';
+                    if (price_min === price_max) return `${price_min.toLocaleString('en-IN')}`;
+                    return `${price_min.toLocaleString('en-IN')} - ${price_max.toLocaleString('en-IN')}`;
+                  })()}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (₹)</label>
-                <input
-                  type="number"
-                  value={formData.price_max}
-                  onChange={(e) => setFormData({ ...formData, price_max: Number(e.target.value) })}
-                  className="admin-input"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Description */}
@@ -304,61 +304,6 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
               className="admin-input resize-none"
               placeholder="Write a detailed description of this vehicle..."
             />
-          </div>
-
-          {/* Specifications */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold">Core Specifications</h2>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Range (km)</label>
-                <input
-                  type="number"
-                  value={formData.range_km}
-                  onChange={(e) => setFormData({ ...formData, range_km: Number(e.target.value) })}
-                  className="admin-input"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Top Speed (km/h)</label>
-                <input
-                  type="number"
-                  value={formData.top_speed_kmh}
-                  onChange={(e) => setFormData({ ...formData, top_speed_kmh: Number(e.target.value) })}
-                  className="admin-input"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Charging Time (hrs)</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={formData.charging_time_hrs}
-                  onChange={(e) => setFormData({ ...formData, charging_time_hrs: Number(e.target.value) })}
-                  className="admin-input"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Battery (kWh)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={formData.battery_capacity_kwh}
-                  onChange={(e) => setFormData({ ...formData, battery_capacity_kwh: Number(e.target.value) })}
-                  className="admin-input"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Motor Power (kW)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={formData.motor_power_kw}
-                  onChange={(e) => setFormData({ ...formData, motor_power_kw: Number(e.target.value) })}
-                  className="admin-input"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Additional Specifications */}
@@ -577,7 +522,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
           {/* Variants Section - only for existing vehicles */}
           {vehicleId && (
             <div className="admin-card p-6">
-              <VariantsInlineEditor vehicleId={vehicleId} />
+              <VariantsInlineEditor vehicleId={vehicleId} onVariantsChange={handleVariantsChange} />
             </div>
           )}
 

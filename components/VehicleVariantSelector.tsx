@@ -64,6 +64,8 @@ interface VehicleVariantSelectorProps {
   vehicleName: string;
   vehicleSlug?: string;
   variants?: VehicleVariant[];
+  onVariantChange?: (variant: VehicleVariant | null) => void;
+  selectedVariantId?: string;
 }
 
 export default function VehicleVariantSelector({
@@ -73,11 +75,19 @@ export default function VehicleVariantSelector({
   vehicleName,
   vehicleSlug,
   variants = [],
+  onVariantChange,
+  selectedVariantId,
 }: VehicleVariantSelectorProps) {
   const [selectedColor, setSelectedColor] = useState(colors[0] || null);
-  const [selectedVariant, setSelectedVariant] = useState<VehicleVariant | null>(
-    variants.length > 0 ? variants[0] : null
-  );
+  const [selectedVariant, setSelectedVariant] = useState<VehicleVariant | null>(() => {
+    if (selectedVariantId) {
+      return variants.find(v => v.id === selectedVariantId) || null;
+    }
+    // Default to featured variant, then first active, then first
+    const featured = variants.find(v => v.is_featured && v.status === 'active');
+    const firstActive = variants.find(v => v.status === 'active');
+    return featured || firstActive || (variants.length > 0 ? variants[0] : null);
+  });
   const [compareList, setCompareList] = useState<string[]>([]);
   const [detailVariant, setDetailVariant] = useState<VehicleVariant | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
@@ -194,7 +204,10 @@ export default function VehicleVariantSelector({
                     <Info size={16} />
                   </button>
                   <button
-                    onClick={() => setSelectedVariant(variant)}
+                    onClick={() => {
+                      setSelectedVariant(variant);
+                      onVariantChange?.(variant);
+                    }}
                     className={cn(
                       'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
                       selectedVariant?.id === variant.id

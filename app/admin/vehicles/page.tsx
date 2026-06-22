@@ -4,12 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Vehicle } from '@/lib/types';
-import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Layers } from 'lucide-react';
+import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye } from 'lucide-react';
 import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
-import VehicleVariantsModal from '@/components/admin/VehicleVariantsModal';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
@@ -43,15 +42,6 @@ export default function VehiclesManagementPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
-
-  // Variants modal state
-  const [variantsModalOpen, setVariantsModalOpen] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState<{ id: string; name: string } | null>(null);
-
-  const openVariantsModal = (vehicle: Vehicle) => {
-    setSelectedVehicle({ id: vehicle.id, name: vehicle.name });
-    setVariantsModalOpen(true);
-  };
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
@@ -251,17 +241,10 @@ export default function VehiclesManagementPage() {
                             >
                               <Eye size={14} />
                             </Link>
-                            <button
-                              onClick={() => openVariantsModal(vehicle)}
-                              className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
-                              title="Variants"
-                            >
-                              <Layers size={14} />
-                            </button>
                             <Link
                               href={`/admin/vehicles/${vehicle.id}/edit`}
                               className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
-                              title="Edit"
+                              title="Edit (including variants)"
                             >
                               <Pencil size={14} />
                             </Link>
@@ -285,14 +268,6 @@ export default function VehiclesManagementPage() {
           )}
         </div>
       </div>
-
-      {/* Variants Modal */}
-      <VehicleVariantsModal
-        vehicleId={selectedVehicle?.id || null}
-        vehicleName={selectedVehicle?.name || ''}
-        open={variantsModalOpen}
-        onOpenChange={setVariantsModalOpen}
-      />
     </div>
   );
 }

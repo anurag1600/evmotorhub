@@ -186,27 +186,6 @@ export default function VariantDetailPanel({
             );
           })}
 
-          {/* Features */}
-          {variant.features && variant.features.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Cog size={14} className="text-[#145a2c]" />
-                Features
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                {variant.features.map((feature) => (
-                  <div
-                    key={feature}
-                    className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2"
-                  >
-                    <Check size={12} className="text-green-500 flex-shrink-0" />
-                    <span className="text-xs text-gray-700">{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Specifications JSON (extra specs) */}
           {variant.specifications && Object.keys(variant.specifications).length > 0 && (
             <div>
