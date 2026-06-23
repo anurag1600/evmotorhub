@@ -20,16 +20,20 @@ const statusColors: Record<string, string> = {
 const EXPORT_COLS = [
   'id', 'name', 'slug', 'type', 'segment', 'manufacturer_id',
   'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
-  'image_url', 'image_gallery', 'gallery_urls', 'description',
+  'image_url', 'image_gallery', 'gallery_urls', 'video_url', 'description',
   'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date',
-  'colors', 'features', 'pros', 'cons', 'specifications'
+  'colors', 'features', 'pros', 'cons', 'specifications',
+  'related_news_ids', 'similar_vehicle_ids',
+  'seo_title', 'seo_description', 'seo_keywords'
 ];
 const IMPORT_COLS = [
   'name', 'slug', 'type', 'segment', 'manufacturer_id',
   'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
-  'image_url', 'image_gallery', 'gallery_urls', 'description',
+  'image_url', 'image_gallery', 'gallery_urls', 'video_url', 'description',
   'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date',
-  'colors', 'features', 'pros', 'cons', 'specifications'
+  'colors', 'features', 'pros', 'cons', 'specifications',
+  'related_news_ids', 'similar_vehicle_ids',
+  'seo_title', 'seo_description', 'seo_keywords'
 ];
 
 export default function VehiclesManagementPage() {
@@ -126,6 +130,7 @@ export default function VehiclesManagementPage() {
           image_url: row.image_url || null,
           image_gallery: parseArray(row.image_gallery),
           gallery_urls: parseArray(row.gallery_urls),
+          video_url: row.video_url || null,
           description: row.description || null,
           is_upcoming: row.is_upcoming === 'true',
           is_featured: row.is_featured === 'true',
@@ -137,6 +142,11 @@ export default function VehiclesManagementPage() {
           pros: parseArray(row.pros),
           cons: parseArray(row.cons),
           specifications: parseJson(row.specifications),
+          related_news_ids: parseArray(row.related_news_ids),
+          similar_vehicle_ids: parseArray(row.similar_vehicle_ids),
+          seo_title: row.seo_title || null,
+          seo_description: row.seo_description || null,
+          seo_keywords: row.seo_keywords ? parseArray(row.seo_keywords) : null,
         }]);
         if (error) throw error;
         success++;

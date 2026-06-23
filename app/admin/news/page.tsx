@@ -17,8 +17,8 @@ const statusColors: Record<string, string> = {
   archived: 'bg-gray-100 text-gray-700',
 };
 
-const EXPORT_COLS = ['id', 'title', 'slug', 'category', 'status', 'is_featured', 'author', 'image_url', 'published_at', 'excerpt', 'content', 'tags', 'read_time_mins', 'seo_title', 'seo_description'];
-const IMPORT_COLS = ['title', 'slug', 'category', 'status', 'author', 'image_url', 'excerpt', 'content', 'is_featured', 'published_at', 'tags', 'read_time_mins', 'seo_title', 'seo_description'];
+const EXPORT_COLS = ['id', 'title', 'slug', 'category', 'status', 'is_featured', 'author', 'author_image', 'image_url', 'published_at', 'excerpt', 'content', 'content_blocks', 'tags', 'read_time_mins', 'seo_title', 'seo_description', 'seo_keywords'];
+const IMPORT_COLS = ['title', 'slug', 'category', 'status', 'author', 'author_image', 'image_url', 'excerpt', 'content', 'is_featured', 'published_at', 'tags', 'read_time_mins', 'seo_title', 'seo_description', 'seo_keywords'];
 
 export default function NewsManagementPage() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -81,6 +81,11 @@ export default function NewsManagementPage() {
   const handleImport = async (rows: Record<string, string>[]) => {
     const errors: string[] = [];
     let success = 0;
+
+    // Parse array fields (semicolon-separated)
+    const parseArray = (val: string | undefined) =>
+      val ? val.split(';').map(s => s.trim()).filter(Boolean) : [];
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (!row.title) { errors.push(`Row ${i + 1}: title is required`); continue; }
@@ -91,10 +96,18 @@ export default function NewsManagementPage() {
           slug,
           category: row.category || 'news',
           status: row.status || 'draft',
-          author: row.author || '',
+          author: row.author || 'EVMotorHub Team',
+          author_image: row.author_image || null,
+          image_url: row.image_url || null,
           excerpt: row.excerpt || '',
           content: row.content || '',
           is_featured: row.is_featured === 'true',
+          published_at: row.published_at || new Date().toISOString(),
+          tags: parseArray(row.tags),
+          read_time_mins: parseInt(row.read_time_mins) || 5,
+          seo_title: row.seo_title || null,
+          seo_description: row.seo_description || null,
+          seo_keywords: row.seo_keywords ? parseArray(row.seo_keywords) : null,
         }]);
         if (error) throw error;
         success++;
