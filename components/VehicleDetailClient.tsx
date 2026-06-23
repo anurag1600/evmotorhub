@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import VehicleGallery from '@/components/VehicleGallery';
 import VehicleCard from '@/components/VehicleCard';
+import OfferEnquiryModal from '@/components/OfferEnquiryModal';
 
 interface VehicleDetailClientProps {
   vehicle: Vehicle & { manufacturers: any };
@@ -51,6 +52,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [showCityModal, setShowCityModal] = useState(false);
   const [showEMIModal, setShowEMIModal] = useState(false);
   const [showColorsModal, setShowColorsModal] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
 
   // Data state
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
@@ -137,32 +139,72 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   // Load default location
   useEffect(() => {
     const loadDefaultLocation = async () => {
-      const { data: state } = await supabase.from('pricing_states').select('*').eq('code', 'DL').maybeSingle();
-      if (state) {
-        setSelectedState(state as PricingState);
-        const { data: city } = await supabase.from('pricing_cities').select('*').eq('state_id', state.id).maybeSingle();
-        if (city) setSelectedCity(city as PricingCity);
+      // Check if user has a stored city preference
+      if (typeof window !== 'undefined') {
+        const storedCity = localStorage.getItem('selectedCity');
+        if (storedCity) {
+          try {
+            const parsed = JSON.parse(storedCity);
+            if (parsed && parsed.id) {
+              setSelectedCity(parsed);
+              if (parsed.state) setSelectedState(parsed.state as PricingState);
+            }
+          } catch {
+            // Invalid stored data, proceed with default
+          }
+        }
       }
-      const { data: allCities } = await supabase.from('pricing_cities').select('*, state:pricing_states(*)').eq('is_active', true).order('name');
+
+      // Set default Delhi if no stored preference
+      if (!selectedCity) {
+        const { data: state } = await supabase.from('pricing_states').select('*').eq('code', 'DL').maybeSingle();
+        if (state) {
+          setSelectedState(state as PricingState);
+          const { data: city } = await supabase.from('pricing_cities').select('*').eq('state_id', state.id).eq('is_popular', true).maybeSingle();
+          if (city) setSelectedCity(city as PricingCity);
+        }
+      }
+
+      // Load all cities, popular first
+      const { data: allCities } = await supabase
+        .from('pricing_cities')
+        .select('*, state:pricing_states(*)')
+        .eq('is_active', true)
+        .order('is_popular', { ascending: false })
+        .order('name', { ascending: true });
       setCities((allCities || []) as PricingCity[]);
     };
     loadDefaultLocation();
   }, []);
+
+  // Persist city selection
+  useEffect(() => {
+    if (selectedCity && typeof window !== 'undefined') {
+      localStorage.setItem('selectedCity', JSON.stringify(selectedCity));
+    }
+  }, [selectedCity]);
 
   // Update EMI down payment
   useEffect(() => {
     setEmiDownPayment(Math.round(priceBreakdown.onRoadPrice * 0.1));
   }, [priceBreakdown.onRoadPrice]);
 
-  // City filter
+  // Popular cities from database (is_popular = true)
+  const popularCities = useMemo(() => {
+    return cities.filter(c => c.is_popular).slice(0, 8);
+  }, [cities]);
+
+  // City filter - improved search
   const filteredCities = useMemo(() => {
     if (!citySearch.trim()) return cities.slice(0, 20);
-    const searchLower = citySearch.toLowerCase();
-    return cities.filter(c =>
-      c.name.toLowerCase().includes(searchLower) ||
-      c.pincode?.includes(citySearch) ||
-      c.state?.name?.toLowerCase().includes(searchLower)
-    ).slice(0, 20);
+    const searchLower = citySearch.toLowerCase().trim();
+    return cities.filter(c => {
+      const nameMatch = c.name.toLowerCase().includes(searchLower);
+      const pincodeMatch = c.pincode?.includes(searchLower);
+      const stateNameMatch = c.state?.name?.toLowerCase().includes(searchLower);
+      const stateCodeMatch = c.state?.code?.toLowerCase() === searchLower;
+      return nameMatch || pincodeMatch || stateNameMatch || stateCodeMatch;
+    }).slice(0, 20);
   }, [cities, citySearch]);
 
   const handleSelectCity = useCallback((city: PricingCity) => {
@@ -631,7 +673,10 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white">
                 <h3 className="font-bold text-lg mb-2">Get Best Offers</h3>
                 <p className="text-sm text-orange-100 mb-4">Get exclusive deals from authorized dealers</p>
-                <button className="w-full bg-white text-orange-600 rounded-xl py-3 font-bold hover:bg-orange-50 transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowOfferModal(true)}
+                  className="w-full bg-white text-orange-600 rounded-xl py-3 font-bold hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"
+                >
                   <ShoppingBag size={18} />
                   Get Offers
                 </button>
@@ -847,7 +892,10 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
             >
               EMI {formatPrice(emiResult.emi)}/mo
             </button>
-            <button className="px-4 py-2.5 bg-orange-500 rounded-xl text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
+            <button
+              onClick={() => setShowOfferModal(true)}
+              className="px-4 py-2.5 bg-orange-500 rounded-xl text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+            >
               Get Offer
             </button>
           </div>
@@ -926,18 +974,24 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               <div className="mb-4">
                 <h4 className="text-xs font-semibold text-gray-500 mb-3 uppercase">Popular Cities</h4>
                 <div className="flex flex-wrap gap-2">
-                  {POPULAR_CITIES.map((city) => {
-                    const cityData = cities.find(c => c.name.toLowerCase() === city.name.toLowerCase() || c.pincode === city.pincode);
-                    return (
+                  {popularCities.length > 0 ? (
+                    popularCities.map((city) => (
                       <button
-                        key={city.name}
-                        onClick={() => cityData && handleSelectCity(cityData)}
-                        className="px-4 py-2 bg-gray-100 hover:bg-green-50 hover:text-[#145a2c] rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                        key={city.id}
+                        onClick={() => handleSelectCity(city)}
+                        className={cn(
+                          'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                          selectedCity?.id === city.id
+                            ? 'bg-[#145a2c] text-white'
+                            : 'bg-gray-100 hover:bg-green-50 hover:text-[#145a2c] text-gray-700'
+                        )}
                       >
                         {city.name}
                       </button>
-                    );
-                  })}
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-400">Loading popular cities...</p>
+                  )}
                 </div>
               </div>
               {citySearch && (
@@ -1097,6 +1151,17 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
 
       {/* Bottom spacing for mobile CTA bar */}
       <div className="h-20 lg:hidden" />
+
+      {/* Offer Enquiry Modal */}
+      <OfferEnquiryModal
+        vehicleId={vehicle.id}
+        vehicleName={vehicle.name}
+        vehiclePrice={priceBreakdown.onRoadPrice}
+        variantName={selectedVariant?.short_name || selectedVariant?.name || undefined}
+        selectedCity={selectedCity?.name}
+        isOpen={showOfferModal}
+        onClose={() => setShowOfferModal(false)}
+      />
     </div>
   );
 }

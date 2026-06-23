@@ -274,11 +274,38 @@ export interface PricingCity {
   state_id: string;
   name: string;
   pincode: string | null;
+  state_code: string | null;
+  ex_showroom_price_modifier: number;
   rto_charge: number;
   insurance_charge: number;
   other_charges: number;
   is_active: boolean;
+  is_popular: boolean;
   created_at: string;
   updated_at: string;
   state?: PricingState;
+}
+
+export interface OfferEnquiry {
+  id: string;
+  vehicle_id: string;
+  vehicle_name: string;
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  state?: string;
+  pincode?: string;
+  vehicle_price?: number;
+  variant_name?: string;
+  message?: string;
+  ip_address?: string;
+  ip_city?: string;
+  ip_state?: string;
+  ip_country?: string;
+  user_agent?: string;
+  status: 'pending' | 'contacted' | 'converted' | 'closed';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PricingState, PricingCity } from '@/lib/types';
-import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, ChevronDown, Building, X } from 'lucide-react';
+import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, ChevronDown, Building, X, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -35,9 +35,11 @@ export default function PricingManagementPage() {
   const [cityForm, setCityForm] = useState({
     state_id: '',
     name: '',
+    pincode: '',
     rto_charge: '50000',
     insurance_charge: '15000',
     other_charges: '2000',
+    is_popular: false,
   });
 
   useEffect(() => {
@@ -111,9 +113,11 @@ export default function PricingManagementPage() {
       const payload = {
         state_id: cityForm.state_id,
         name: cityForm.name,
+        pincode: cityForm.pincode || null,
         rto_charge: parseInt(cityForm.rto_charge) || 0,
         insurance_charge: parseInt(cityForm.insurance_charge) || 0,
         other_charges: parseInt(cityForm.other_charges) || 0,
+        is_popular: cityForm.is_popular,
       };
 
       if (editingCity) {
@@ -131,7 +135,7 @@ export default function PricingManagementPage() {
 
       setShowCityForm(false);
       setEditingCity(null);
-      setCityForm({ state_id: '', name: '', rto_charge: '50000', insurance_charge: '15000', other_charges: '2000' });
+      setCityForm({ state_id: '', name: '', pincode: '', rto_charge: '50000', insurance_charge: '15000', other_charges: '2000', is_popular: false });
       fetchData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save city');
@@ -179,9 +183,11 @@ export default function PricingManagementPage() {
     setCityForm({
       state_id: city.state_id,
       name: city.name,
+      pincode: city.pincode || '',
       rto_charge: city.rto_charge.toString(),
       insurance_charge: city.insurance_charge.toString(),
       other_charges: city.other_charges.toString(),
+      is_popular: city.is_popular || false,
     });
     setShowCityForm(true);
   };
@@ -353,7 +359,7 @@ export default function PricingManagementPage() {
                     onClick={() => {
                       setShowCityForm(true);
                       setEditingCity(null);
-                      setCityForm({ state_id: states[0]?.id || '', name: '', rto_charge: '50000', insurance_charge: '15000', other_charges: '2000' });
+                      setCityForm({ state_id: states[0]?.id || '', name: '', pincode: '', rto_charge: '50000', insurance_charge: '15000', other_charges: '2000', is_popular: false });
                     }}
                     className="admin-btn-primary flex items-center gap-2"
                   >
@@ -389,6 +395,13 @@ export default function PricingManagementPage() {
                         className="admin-input"
                       />
                       <input
+                        type="text"
+                        value={cityForm.pincode}
+                        onChange={(e) => setCityForm({ ...cityForm, pincode: e.target.value })}
+                        placeholder="Pincode (e.g., 110001)"
+                        className="admin-input"
+                      />
+                      <input
                         type="number"
                         value={cityForm.rto_charge}
                         onChange={(e) => setCityForm({ ...cityForm, rto_charge: e.target.value })}
@@ -409,6 +422,15 @@ export default function PricingManagementPage() {
                         placeholder="Other Charges (₹)"
                         className="admin-input"
                       />
+                      <label className="flex items-center gap-2 col-span-2 sm:col-span-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={cityForm.is_popular}
+                          onChange={(e) => setCityForm({ ...cityForm, is_popular: e.target.checked })}
+                          className="w-4 h-4 rounded accent-[#145a2c]"
+                        />
+                        <span className="text-sm text-gray-700">Popular City (shown first)</span>
+                      </label>
                     </div>
                     <div className="flex justify-end mt-4">
                       <button onClick={handleSaveCity} disabled={saving} className="admin-btn-primary">
@@ -424,10 +446,12 @@ export default function PricingManagementPage() {
                     <thead>
                       <tr>
                         <th>City</th>
+                        <th>Pincode</th>
                         <th>State</th>
                         <th>RTO Charge</th>
                         <th>Insurance</th>
                         <th>Other</th>
+                        <th>Popular</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -435,10 +459,19 @@ export default function PricingManagementPage() {
                       {cities.map((city) => (
                         <tr key={city.id}>
                           <td className="font-medium">{city.name}</td>
+                          <td><span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{city.pincode || '-'}</span></td>
                           <td>{city.state?.name || '-'}</td>
                           <td>{formatCurrency(city.rto_charge)}</td>
                           <td>{formatCurrency(city.insurance_charge)}</td>
                           <td>{formatCurrency(city.other_charges)}</td>
+                          <td>
+                            {city.is_popular && (
+                              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
+                                <Star size={10} />
+                                Popular
+                              </span>
+                            )}
+                          </td>
                           <td>
                             <div className="flex gap-1">
                               <button onClick={() => startEditCity(city)} className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg">
