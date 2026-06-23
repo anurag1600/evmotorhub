@@ -32,6 +32,7 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
     website: '',
     total_models: 0,
     is_featured: false,
+    show_on_homepage: true,
     contact_email: '',
     support_phone: '',
     model_year_start: new Date().getFullYear() - 5,
@@ -68,7 +69,7 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
     setSuccess('');
 
     try {
-      const { name, slug, logo_url, hero_image_url, description, country, founded_year, headquarters, website, total_models, is_featured, contact_email, support_phone, model_year_start, status } = formData;
+      const { name, slug, logo_url, hero_image_url, description, country, founded_year, headquarters, website, total_models, is_featured, show_on_homepage, contact_email, support_phone, model_year_start, status } = formData;
 
       if (!name || !slug || !country) {
         throw new Error('Name, slug, and country are required');
@@ -89,6 +90,7 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
             website,
             total_models,
             is_featured,
+            show_on_homepage,
             contact_email,
             support_phone,
             model_year_start,
@@ -113,6 +115,7 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
           website,
           total_models,
           is_featured,
+          show_on_homepage,
           contact_email,
           support_phone,
           model_year_start,
@@ -332,6 +335,15 @@ export default function ManufacturerForm({ manufacturerId }: ManufacturerFormPro
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.show_on_homepage}
+                  onChange={(e) => setFormData({ ...formData, show_on_homepage: e.target.checked })}
+                  className="w-4 h-4 rounded accent-[#145a2c]"
+                />
+                <span className="text-sm font-medium text-gray-700">Show on Homepage</span>
+              </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"

@@ -185,7 +185,7 @@ export default function NewsManagementPage() {
                       <tr key={article.id}>
                         <td className="font-medium text-gray-900">{article.title}</td>
                         <td>
-                          <span className={cn('admin-badge', getCategoryColor(article.category))}>
+                          <span className={cn('admin-badge', getCategoryColor(article.category, true))}>
                             {getCategoryLabel(article.category)}
                           </span>
                         </td>

@@ -45,11 +45,16 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     features: [] as string[],
     pros: [] as string[],
     cons: [] as string[],
+    related_news_ids: [] as string[],
+    similar_vehicle_ids: [] as string[],
     status: 'draft' as typeof statuses[number],
     seo_title: '',
     seo_description: '',
     seo_keywords: '' as any,
   });
+
+  const [allNews, setAllNews] = useState<{id: string; title: string}[]>([]);
+  const [allVehicles, setAllVehicles] = useState<{id: string; name: string; type: string}[]>([]);
 
   const [colorInput, setColorInput] = useState('');
   const [featureInput, setFeatureInput] = useState('');
@@ -61,6 +66,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
 
   useEffect(() => {
     fetchManufacturers();
+    fetchRelatedOptions();
     if (vehicleId) {
       fetchVehicle();
     }
@@ -69,6 +75,15 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
   const fetchManufacturers = async () => {
     const { data } = await supabase.from('manufacturers').select('*').order('name');
     if (data) setManufacturers(data as Manufacturer[]);
+  };
+
+  const fetchRelatedOptions = async () => {
+    const [newsRes, vehiclesRes] = await Promise.all([
+      supabase.from('news').select('id, title').eq('status', 'published').order('published_at', { ascending: false }).limit(50),
+      supabase.from('vehicles').select('id, name, type').eq('status', 'published').order('name').limit(100),
+    ]);
+    if (newsRes.data) setAllNews(newsRes.data);
+    if (vehiclesRes.data) setAllVehicles(vehiclesRes.data as any);
   };
 
   const fetchVehicle = async () => {
@@ -83,6 +98,8 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
       setFormData({
         ...data,
         seo_keywords: data.seo_keywords?.join(', ') || '',
+        related_news_ids: data.related_news_ids || [],
+        similar_vehicle_ids: data.similar_vehicle_ids || [],
       } as any);
     } catch (err: any) {
       setError(err.message);
@@ -143,6 +160,8 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         features,
         pros,
         cons,
+        related_news_ids: formData.related_news_ids,
+        similar_vehicle_ids: formData.similar_vehicle_ids,
         status,
         seo_title,
         seo_description,
@@ -646,6 +665,108 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
                     </span>
                   ))}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Related Content */}
+          <div className="admin-card p-6">
+            <h2 className="text-lg font-bold mb-4">Related Content</h2>
+            <div className="space-y-4">
+              {/* Related News */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Related News</label>
+                <p className="text-xs text-gray-500 mb-2">Select news articles to display on this vehicle page</p>
+                <div className="space-y-1 mb-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {formData.related_news_ids.length === 0 && (
+                    <div className="text-xs text-gray-400 text-center py-2">No news selected</div>
+                  )}
+                  {formData.related_news_ids.map((newsId, idx) => {
+                    const newsItem = allNews.find(n => n.id === newsId);
+                    return (
+                      <div key={newsId} className="flex items-center gap-2 bg-gray-50 rounded px-2 py-1.5">
+                        <span className="text-xs text-gray-400">{idx + 1}.</span>
+                        <span className="text-xs text-gray-700 flex-1 truncate">{newsItem?.title || 'Loading...'}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({
+                            ...formData,
+                            related_news_ids: formData.related_news_ids.filter(id => id !== newsId)
+                          })}
+                          className="text-red-400 hover:text-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value && !formData.related_news_ids.includes(e.target.value)) {
+                      setFormData({
+                        ...formData,
+                        related_news_ids: [...formData.related_news_ids, e.target.value]
+                      });
+                    }
+                  }}
+                  className="admin-select text-sm"
+                >
+                  <option value="">+ Add news article</option>
+                  {allNews.filter(n => !formData.related_news_ids.includes(n.id)).map(n => (
+                    <option key={n.id} value={n.id}>{n.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Similar Vehicles */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Similar Vehicles</label>
+                <p className="text-xs text-gray-500 mb-2">Select vehicles to show for comparison (filtered by same type)</p>
+                <div className="space-y-1 mb-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {formData.similar_vehicle_ids.length === 0 && (
+                    <div className="text-xs text-gray-400 text-center py-2">No vehicles selected</div>
+                  )}
+                  {formData.similar_vehicle_ids.map((vehicleId, idx) => {
+                    const v = allVehicles.find(v => v.id === vehicleId);
+                    return (
+                      <div key={vehicleId} className="flex items-center gap-2 bg-gray-50 rounded px-2 py-1.5">
+                        <span className="text-xs text-gray-400">{idx + 1}.</span>
+                        <span className="text-xs text-gray-700 flex-1 truncate">{v?.name || 'Loading...'}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({
+                            ...formData,
+                            similar_vehicle_ids: formData.similar_vehicle_ids.filter(id => id !== vehicleId)
+                          })}
+                          className="text-red-400 hover:text-red-600"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value && !formData.similar_vehicle_ids.includes(e.target.value)) {
+                      setFormData({
+                        ...formData,
+                        similar_vehicle_ids: [...formData.similar_vehicle_ids, e.target.value]
+                      });
+                    }
+                  }}
+                  className="admin-select text-sm"
+                >
+                  <option value="">+ Add vehicle</option>
+                  {allVehicles
+                    .filter(v => v.id !== vehicleId && !formData.similar_vehicle_ids.includes(v.id))
+                    .map(v => (
+                      <option key={v.id} value={v.id}>{v.name} ({v.type})</option>
+                    ))}
+                </select>
               </div>
             </div>
           </div>

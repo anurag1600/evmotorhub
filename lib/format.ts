@@ -80,7 +80,20 @@ export function getCategoryLabel(category: string): string {
   return labels[category] || category;
 }
 
-export function getCategoryColor(category: string): string {
+export function getCategoryColor(category: string, forAdmin: boolean = false): string {
+  if (forAdmin) {
+    const colors: Record<string, string> = {
+      news: 'bg-blue-100 text-blue-800',
+      review: 'bg-emerald-100 text-emerald-800',
+      launch: 'bg-amber-100 text-amber-800',
+      comparison: 'bg-violet-100 text-violet-800',
+      guide: 'bg-teal-100 text-teal-800',
+      industry: 'bg-slate-100 text-slate-800',
+      tips: 'bg-rose-100 text-rose-800',
+      blog: 'bg-indigo-100 text-indigo-800',
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+  }
   const colors: Record<string, string> = {
     news: 'bg-blue-500 text-white shadow-blue-200',
     review: 'bg-emerald-500 text-white shadow-emerald-200',

@@ -43,6 +43,7 @@ export interface Manufacturer {
   website: string;
   total_models: number;
   is_featured: boolean;
+  show_on_homepage: boolean;
   contact_email?: string;
   support_phone?: string;
   model_year_start?: number;
@@ -80,6 +81,8 @@ export interface Vehicle {
   features: string[];
   pros: string[];
   cons: string[];
+  related_news_ids?: string[];
+  similar_vehicle_ids?: string[];
   status?: 'draft' | 'published' | 'archived';
   seo_title?: string;
   seo_description?: string;
@@ -259,6 +262,7 @@ export interface PricingState {
   rto_percentage: number;
   road_tax_percentage: number;
   other_charges: number;
+  subsidy_amount: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -268,6 +272,7 @@ export interface PricingCity {
   id: string;
   state_id: string;
   name: string;
+  pincode: string | null;
   rto_charge: number;
   insurance_charge: number;
   other_charges: number;

@@ -16,8 +16,8 @@ const statusColors: Record<string, string> = {
   inactive: 'bg-gray-100 text-gray-700',
 };
 
-const EXPORT_COLS = ['id', 'name', 'slug', 'logo_url', 'hero_image_url', 'description', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'is_featured', 'contact_email', 'support_phone', 'model_year_start', 'status'];
-const IMPORT_COLS = ['name', 'slug', 'logo_url', 'hero_image_url', 'description', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'is_featured', 'contact_email', 'support_phone', 'model_year_start', 'status'];
+const EXPORT_COLS = ['id', 'name', 'slug', 'logo_url', 'hero_image_url', 'description', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'is_featured', 'show_on_homepage', 'contact_email', 'support_phone', 'model_year_start', 'status'];
+const IMPORT_COLS = ['name', 'slug', 'logo_url', 'hero_image_url', 'description', 'country', 'founded_year', 'headquarters', 'website', 'total_models', 'is_featured', 'show_on_homepage', 'contact_email', 'support_phone', 'model_year_start', 'status'];
 
 export default function ManufacturersManagementPage() {
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
@@ -151,6 +151,7 @@ export default function ManufacturersManagementPage() {
                       <th>Country</th>
                       <th>Models</th>
                       <th>Status</th>
+                      <th>Homepage</th>
                       <th>Featured</th>
                       <th>Updated</th>
                       <th>Actions</th>
@@ -167,6 +168,7 @@ export default function ManufacturersManagementPage() {
                             {m.status || 'active'}
                           </span>
                         </td>
+                        <td>{m.show_on_homepage !== false ? '✓' : '—'}</td>
                         <td>{m.is_featured ? '✓' : '—'}</td>
                         <td className="text-xs text-gray-500">{timeAgo(m.updated_at || m.created_at)}</td>
                         <td>

@@ -33,7 +33,7 @@ async function getData() {
     supabase
       .from('manufacturers')
       .select('*')
-      .eq('is_featured', true)
+      .eq('show_on_homepage', true)
       .order('name')
       .limit(8),
     supabase
