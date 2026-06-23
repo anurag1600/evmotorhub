@@ -6,6 +6,7 @@ import { VehicleVariant } from '@/lib/types';
 import { Power, Plus, Pencil, Trash2, X, Save, Loader as Loader2, Image as ImageIcon, GripVertical, Copy, Star, Info, CircleAlert as AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { formatPrice } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
 
 interface VariantsInlineEditorProps {
@@ -28,6 +29,8 @@ const emptyForm = {
   image_url: '',
   color: '',
   color_hex: '',
+  colors: [] as string[],
+  color_hexes: [] as string[],
   sort_order: '0',
   is_available: true,
   is_featured: false,
@@ -129,6 +132,8 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
       image_url: variant.image_url || '',
       color: variant.color || '',
       color_hex: variant.color_hex || '',
+      colors: variant.colors || (variant.color ? [variant.color] : []),
+      color_hexes: variant.color_hexes || (variant.color_hex ? [variant.color_hex] : []),
       sort_order: variant.sort_order?.toString() || '0',
       is_available: variant.is_available ?? true,
       is_featured: variant.is_featured ?? false,
@@ -170,8 +175,10 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
         charging_time_hrs: form.charging_time_hrs ? parseFloat(form.charging_time_hrs) : null,
         kerb_weight: form.kerb_weight ? parseInt(form.kerb_weight) : null,
         image_url: form.image_url || null,
-        color: form.color || null,
-        color_hex: form.color_hex || null,
+        color: form.colors[0] || form.color || null,
+        color_hex: form.color_hexes[0] || form.color_hex || null,
+        colors: form.colors.length > 0 ? form.colors : null,
+        color_hexes: form.color_hexes.length > 0 ? form.color_hexes : null,
         sort_order: parseInt(form.sort_order) || 0,
         is_available: form.is_available,
         is_featured: form.is_featured,
@@ -507,55 +514,96 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
                 className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Color Name</label>
-              <input
-                type="text"
-                value={form.color}
-                onChange={(e) => setForm(f => ({ ...f, color: e.target.value }))}
-                placeholder="Midnight Black"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
-            </div>
             <div className="col-span-full">
-              <label className="block text-xs font-medium text-gray-600 mb-2">Color Selection</label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {colorPresets.map((preset) => (
-                  <button
-                    key={preset.hex}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, color_hex: preset.hex, color: f.color || preset.name }))}
-                    className={cn(
-                      'w-8 h-8 rounded-lg border-2 transition-all',
-                      form.color_hex === preset.hex
-                        ? 'border-[#145a2c] ring-2 ring-[#145a2c]/30 scale-110'
-                        : 'border-gray-200 hover:border-gray-400'
-                    )}
-                    style={{ backgroundColor: preset.hex }}
-                    title={preset.name}
-                  />
-                ))}
-              </div>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={form.color_hex || '#1a1a1a'}
-                  onChange={(e) => setForm(f => ({ ...f, color_hex: e.target.value }))}
-                  className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200"
-                />
-                <input
-                  type="text"
-                  value={form.color_hex}
-                  onChange={(e) => setForm(f => ({ ...f, color_hex: e.target.value }))}
-                  placeholder="#1a1a1a"
-                  className="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c] font-mono"
-                />
-                {form.color_hex && (
-                  <div
-                    className="w-10 h-10 rounded-lg border border-gray-200 flex-shrink-0"
-                    style={{ backgroundColor: form.color_hex }}
-                  />
+              <label className="block text-xs font-medium text-gray-600 mb-2">Available Colors</label>
+              <div className="space-y-2">
+                {/* Show selected colors */}
+                {form.colors.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {form.colors.map((col, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 bg-white rounded-lg p-1.5 border border-gray-200">
+                        <div
+                          className="w-6 h-6 rounded-md border border-gray-300"
+                          style={{ backgroundColor: form.color_hexes[idx] || '#808080' }}
+                        />
+                        <span className="text-xs text-gray-700">{col}</span>
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({
+                            ...f,
+                            colors: f.colors.filter((_, i) => i !== idx),
+                            color_hexes: f.color_hexes.filter((_, i) => i !== idx)
+                          }))}
+                          className="p-0.5 hover:bg-red-100 rounded"
+                        >
+                          <X size={12} className="text-gray-400 hover:text-red-600" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
+                {/* Quick add from presets */}
+                <div className="flex flex-wrap gap-2">
+                  {colorPresets.filter(p => !form.colors.includes(p.name)).slice(0, 8).map((preset) => (
+                    <button
+                      key={preset.hex}
+                      type="button"
+                      onClick={() => setForm(f => ({
+                        ...f,
+                        colors: [...f.colors, preset.name],
+                        color_hexes: [...f.color_hexes, preset.hex]
+                      }))}
+                      className="flex items-center gap-1.5 px-2 py-1 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                    >
+                      <div
+                        className="w-5 h-5 rounded-md border border-gray-300"
+                        style={{ backgroundColor: preset.hex }}
+                      />
+                      <span className="text-xs text-gray-600">{preset.name}</span>
+                      <Plus size={12} className="text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+                {/* Custom color input */}
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value="#808080"
+                    onChange={(e) => {
+                      const hex = e.target.value;
+                      // Only add if not already present
+                      if (!form.color_hexes.includes(hex)) {
+                        setForm(f => ({
+                          ...f,
+                          colors: [...f.colors, 'Custom'],
+                          color_hexes: [...f.color_hexes, hex]
+                        }));
+                      }
+                    }}
+                    className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200"
+                    title="Pick custom color"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Add custom color name..."
+                    className="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const input = e.target as HTMLInputElement;
+                        const name = input.value.trim();
+                        if (name) {
+                          setForm(f => ({
+                            ...f,
+                            colors: [...f.colors, name],
+                            color_hexes: [...f.color_hexes, '#808080']
+                          }));
+                          input.value = '';
+                        }
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </div>
             <div>
@@ -732,9 +780,26 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
                     <div className="text-xs text-gray-500">{variant.short_name}</div>
                   )}
                 </div>
-                {variant.color && (
+                {/* Show colors - either multiple or single */}
+                {variant.colors && variant.colors.length > 0 ? (
+                  <div className="flex -space-x-1">
+                    {variant.colors.slice(0, 4).map((col, i) => (
+                      <span
+                        key={i}
+                        className="w-4 h-4 rounded-full border-2 border-white flex-shrink-0"
+                        style={{ backgroundColor: variant.color_hexes?.[i] || '#9ca3af' }}
+                        title={col}
+                      />
+                    ))}
+                    {variant.colors.length > 4 && (
+                      <span className="w-4 h-4 rounded-full bg-gray-200 text-[8px] flex items-center justify-center font-medium text-gray-600 border-2 border-white">
+                        +{variant.colors.length - 4}
+                      </span>
+                    )}
+                  </div>
+                ) : variant.color && (
                   <span
-                    className="w-3 h-3 rounded-full border border-gray-200 flex-shrink-0"
+                    className="w-4 h-4 rounded-full border border-gray-200 flex-shrink-0"
                     style={{ backgroundColor: variant.color_hex || '#9ca3af' }}
                     title={variant.color}
                   />

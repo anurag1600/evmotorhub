@@ -84,14 +84,16 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
 
   // On-road price calculation
   const priceBreakdown = useMemo(() => {
-    const rto = selectedCity?.rto_charge || Math.round(displayValues.price * (selectedState?.rto_percentage || 8) / 100);
-    const insurance = selectedCity?.insurance_charge || Math.round(displayValues.price * 0.04);
-    const roadTax = Math.round(displayValues.price * (selectedState?.road_tax_percentage || 0) / 100);
+    // Use explicit ex_showroom_price from vehicle, fall back to variant/vehicle price
+    const exShowroomBase = vehicle.ex_showroom_price || displayValues.price;
+    const rto = selectedCity?.rto_charge || Math.round(exShowroomBase * (selectedState?.rto_percentage || 8) / 100);
+    const insurance = selectedCity?.insurance_charge || Math.round(exShowroomBase * 0.04);
+    const roadTax = Math.round(exShowroomBase * (selectedState?.road_tax_percentage || 0) / 100);
     const other = selectedCity?.other_charges || selectedState?.other_charges || 1000;
     const subsidy = selectedState?.subsidy_amount || 0;
-    const onRoadPrice = displayValues.price + rto + insurance + roadTax + other - subsidy;
-    return { exShowroom: displayValues.price, rto, insurance, roadTax, other, subsidy, onRoadPrice };
-  }, [displayValues.price, selectedState, selectedCity]);
+    const onRoadPrice = exShowroomBase + rto + insurance + roadTax + other - subsidy;
+    return { exShowroom: exShowroomBase, rto, insurance, roadTax, other, subsidy, onRoadPrice };
+  }, [displayValues.price, vehicle.ex_showroom_price, selectedState, selectedCity]);
 
   // EMI calculation
   const emiResult = useMemo(() => {

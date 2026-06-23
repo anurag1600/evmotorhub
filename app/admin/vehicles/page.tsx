@@ -19,7 +19,7 @@ const statusColors: Record<string, string> = {
 
 const EXPORT_COLS = [
   'id', 'name', 'slug', 'type', 'segment', 'manufacturer_id',
-  'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
+  'ex_showroom_price', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
   'image_url', 'image_gallery', 'gallery_urls', 'video_url', 'description',
   'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date',
   'colors', 'features', 'pros', 'cons', 'specifications',
@@ -28,7 +28,7 @@ const EXPORT_COLS = [
 ];
 const IMPORT_COLS = [
   'name', 'slug', 'type', 'segment', 'manufacturer_id',
-  'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
+  'ex_showroom_price', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs',
   'image_url', 'image_gallery', 'gallery_urls', 'video_url', 'description',
   'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date',
   'colors', 'features', 'pros', 'cons', 'specifications',
@@ -120,6 +120,7 @@ export default function VehiclesManagementPage() {
           type: row.type,
           segment: row.segment || 'budget',
           manufacturer_id: row.manufacturer_id || null,
+          ex_showroom_price: Number(row.ex_showroom_price) || 0,
           price_min: Number(row.price_min) || 0,
           price_max: Number(row.price_max) || 0,
           range_km: Number(row.range_km) || 0,

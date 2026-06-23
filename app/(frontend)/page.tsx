@@ -439,7 +439,9 @@ export default async function HomePage() {
                 <span className="text-xs font-medium text-gray-700 group-hover:text-[#145a2c] transition-colors leading-tight">
                   {m.name}
                 </span>
-                <span className="text-xs text-gray-400">{m.total_models} models</span>
+                {(m.total_models ?? 0) > 0 && (
+                  <span className="text-xs text-gray-400">{m.total_models} models</span>
+                )}
               </Link>
             ))}
           </div>

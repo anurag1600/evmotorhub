@@ -61,6 +61,7 @@ export interface Vehicle {
   manufacturer_id: string;
   type: VehicleType;
   segment: VehicleSegment;
+  ex_showroom_price?: number;
   price_min: number;
   price_max: number;
   range_km: number;
@@ -205,6 +206,8 @@ export interface VehicleVariant {
   image_url: string | null;
   color: string | null;
   color_hex: string | null;
+  colors?: string[];
+  color_hexes?: string[];
   specifications: Record<string, string>;
   is_available: boolean;
   is_featured: boolean;
