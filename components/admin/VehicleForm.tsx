@@ -35,6 +35,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     image_url: '',
     gallery_urls: [] as string[],
     image_gallery: [] as string[],
+    video_url: '',
     description: '',
     is_upcoming: false,
     is_featured: false,
@@ -130,7 +131,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     setSuccess('');
 
     try {
-      const { name, slug, manufacturer_id, type, segment, image_url, gallery_urls, image_gallery, description, is_upcoming, is_featured, is_latest, launch_date, colors, specifications, features, pros, cons, status, seo_title, seo_description, seo_keywords } = formData;
+      const { name, slug, manufacturer_id, type, segment, image_url, gallery_urls, image_gallery, video_url, description, is_upcoming, is_featured, is_latest, launch_date, colors, specifications, features, pros, cons, status, seo_title, seo_description, seo_keywords } = formData;
 
       if (!name || !slug || !manufacturer_id) {
         throw new Error('Name, slug, and manufacturer are required');
@@ -150,6 +151,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         image_url,
         gallery_urls,
         image_gallery,
+        video_url: video_url || null,
         description,
         is_upcoming,
         is_featured,
@@ -178,10 +180,53 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         if (error) throw error;
         setSuccess('Vehicle updated successfully!');
       } else {
-        const { error } = await supabase.from('vehicles').insert([vehicleData]);
+        // Insert new vehicle and get the ID
+        const { data: newVehicle, error } = await supabase
+          .from('vehicles')
+          .insert([vehicleData])
+          .select('id')
+          .single();
 
         if (error) throw error;
-        setSuccess('Vehicle created successfully!');
+
+        // Save draft variants if any
+        if (newVehicle && variants.length > 0) {
+          const variantInserts = variants.map((v, index) => ({
+            vehicle_id: newVehicle.id,
+            name: v.name,
+            slug: v.slug || v.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+            short_name: v.short_name,
+            price: v.price,
+            range_km: v.range_km,
+            battery_capacity_kwh: v.battery_capacity_kwh,
+            motor_power_kw: v.motor_power_kw,
+            top_speed_kmh: v.top_speed_kmh,
+            charging_time_hrs: v.charging_time_hrs,
+            kerb_weight: v.kerb_weight,
+            image_url: v.image_url,
+            color: v.color,
+            color_hex: v.color_hex,
+            sort_order: index,
+            is_available: v.is_available ?? true,
+            is_featured: v.is_featured ?? false,
+            status: v.status || 'active',
+            specifications: v.specifications || {},
+          }));
+
+          const { error: variantError } = await supabase
+            .from('vehicle_variants')
+            .insert(variantInserts);
+
+          if (variantError) {
+            console.error('Failed to save variants:', variantError);
+            // Still show success for vehicle, but note the issue
+            setSuccess('Vehicle created, but some variants failed to save.');
+          } else {
+            setSuccess('Vehicle created with ' + variants.length + ' variants!');
+          }
+        } else {
+          setSuccess('Vehicle created successfully!');
+        }
       }
 
       setTimeout(() => router.push('/admin/vehicles'), 1500);
@@ -538,21 +583,14 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
             </div>
           </div>
 
-          {/* Variants Section - only for existing vehicles */}
-          {vehicleId && (
-            <div className="admin-card p-6">
-              <VariantsInlineEditor vehicleId={vehicleId} onVariantsChange={handleVariantsChange} />
-            </div>
-          )}
-
-          {/* Placeholder for new vehicles */}
-          {!vehicleId && (
-            <div className="admin-card p-6 text-center">
-              <Power size={32} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500 mb-2">Variants can be added after creating the vehicle</p>
-              <p className="text-xs text-gray-400">Save this vehicle first, then edit to add variants</p>
-            </div>
-          )}
+          {/* Variants Section */}
+          <div className="admin-card p-6">
+            <VariantsInlineEditor
+              vehicleId={vehicleId}
+              onVariantsChange={handleVariantsChange}
+              isDraft={!vehicleId}
+            />
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -666,6 +704,22 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Video URL */}
+          <div className="admin-card p-6">
+            <h2 className="text-lg font-bold mb-4">Video</h2>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">YouTube Video URL</label>
+              <input
+                type="url"
+                value={formData.video_url}
+                onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="admin-input"
+              />
+              <p className="text-xs text-gray-500 mt-1">Add a YouTube video URL to show a "Watch Video" button on the product page</p>
             </div>
           </div>
 

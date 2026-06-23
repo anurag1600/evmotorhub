@@ -71,6 +71,7 @@ export interface Vehicle {
   image_url: string;
   gallery_urls: string[];
   image_gallery: string[];
+  video_url?: string;
   description: string;
   is_upcoming: boolean;
   is_featured: boolean;

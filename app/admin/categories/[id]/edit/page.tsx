@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { HomepageCategory } from '@/lib/types';
@@ -17,8 +17,8 @@ const vehicleTypes = [
 
 function EditCategoryForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+  const params = useParams();
+  const id = params.id as string;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

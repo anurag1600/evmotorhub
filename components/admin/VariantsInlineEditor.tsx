@@ -9,8 +9,9 @@ import { toast } from 'sonner';
 import ImageUpload from '@/components/ImageUpload';
 
 interface VariantsInlineEditorProps {
-  vehicleId: string;
+  vehicleId?: string;
   onVariantsChange?: (variants: VehicleVariant[]) => void;
+  isDraft?: boolean; // When true, variants are stored in memory without DB operations
 }
 
 const emptyForm = {
@@ -52,15 +53,16 @@ const colorPresets = [
   { name: 'Teal', hex: '#0d9488' },
 ];
 
-export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: VariantsInlineEditorProps) {
+export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDraft = false }: VariantsInlineEditorProps) {
   const [variants, setVariants] = useState<VehicleVariant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDraft);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [draftIdCounter, setDraftIdCounter] = useState(0);
 
   // Use ref for callback to avoid infinite loops
   const onVariantsChangeRef = useRef(onVariantsChange);
@@ -68,8 +70,15 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
     onVariantsChangeRef.current = onVariantsChange;
   }, [onVariantsChange]);
 
+  // Notify parent of variant changes in draft mode
+  useEffect(() => {
+    if (isDraft) {
+      onVariantsChangeRef.current?.(variants);
+    }
+  }, [variants, isDraft]);
+
   const fetchVariants = useCallback(async () => {
-    if (!vehicleId) {
+    if (!vehicleId || isDraft) {
       setLoading(false);
       return;
     }
@@ -137,7 +146,7 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vehicleId) return;
+    if (!vehicleId && !isDraft) return;
 
     setSaving(true);
     try {
@@ -149,7 +158,7 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
       }
 
       const payload = {
-        vehicle_id: vehicleId,
+        vehicle_id: vehicleId || '',
         name: form.name,
         slug: form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
         short_name: form.short_name || null,
@@ -170,6 +179,27 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
         specifications,
       };
 
+      // Draft mode - store in memory only
+      if (isDraft) {
+        if (editingId) {
+          setVariants(prev => prev.map(v => v.id === editingId ? { ...v, ...payload } as VehicleVariant : v));
+          toast.success('Variant updated');
+        } else {
+          const newDraftVariant = {
+            ...payload,
+            id: `draft-${draftIdCounter}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as VehicleVariant;
+          setDraftIdCounter(prev => prev + 1);
+          setVariants(prev => [...prev, newDraftVariant]);
+          toast.success('Variant added');
+        }
+        resetForm();
+        return;
+      }
+
+      // Database mode for existing vehicles
       if (editingId) {
         const { error } = await supabase
           .from('vehicle_variants')
@@ -198,6 +228,13 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
     if (!confirm('Delete this variant?')) return;
     setDeleting(id);
     try {
+      // Draft mode - just remove from memory
+      if (isDraft) {
+        const newVariants = variants.filter(v => v.id !== id);
+        setVariants(newVariants);
+        toast.success('Variant removed');
+        return;
+      }
       await supabase.from('vehicle_variants').delete().eq('id', id);
       const newVariants = variants.filter(v => v.id !== id);
       setVariants(newVariants);
@@ -212,6 +249,22 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
 
   const toggleFeatured = async (id: string, isFeatured: boolean) => {
     try {
+      // Draft mode - update in memory only
+      if (isDraft) {
+        if (!isFeatured) {
+          // Remove featured from all others, set this one as featured
+          setVariants(prev => prev.map(v => ({
+            ...v,
+            is_featured: v.id === id ? true : false
+          })));
+          toast.success('Featured variant updated');
+        } else {
+          setVariants(prev => prev.map(v => v.id === id ? { ...v, is_featured: false } : v));
+          toast.success('Featured removed');
+        }
+        return;
+      }
+
       if (!isFeatured) {
         // If setting as featured, remove featured from all other variants first
         await supabase
@@ -249,10 +302,17 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
     [newVariants[idx], newVariants[swapIdx]] = [newVariants[swapIdx], newVariants[idx]];
 
-    setVariants(newVariants);
+    // Update sort_orders
+    const reordered = newVariants.map((v, i) => ({ ...v, sort_order: i }));
+    setVariants(reordered);
+
+    // Draft mode - no DB update needed
+    if (isDraft) {
+      return;
+    }
 
     try {
-      const updates = newVariants.map((v, i) => ({ id: v.id, sort_order: i }));
+      const updates = reordered.map((v, i) => ({ id: v.id, sort_order: i }));
       for (const u of updates) {
         const { error } = await supabase.from('vehicle_variants').update({ sort_order: u.sort_order }).eq('id', u.id);
         if (error) throw error;
@@ -265,7 +325,7 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
 
   const duplicateVariant = async (variant: VehicleVariant) => {
     const newVariant = {
-      vehicle_id: vehicleId,
+      vehicle_id: vehicleId || '',
       name: `${variant.name} (Copy)`,
       slug: `${variant.slug || variant.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-copy`,
       short_name: variant.short_name,
@@ -285,6 +345,20 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange }: Va
       status: variant.status,
       specifications: variant.specifications,
     };
+
+    // Draft mode - add to memory
+    if (isDraft) {
+      const newDraftVariant = {
+        ...newVariant,
+        id: `draft-${draftIdCounter}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as VehicleVariant;
+      setDraftIdCounter(prev => prev + 1);
+      setVariants(prev => [...prev, newDraftVariant]);
+      toast.success('Variant duplicated');
+      return;
+    }
 
     const { error } = await supabase.from('vehicle_variants').insert([newVariant]);
     if (error) {
