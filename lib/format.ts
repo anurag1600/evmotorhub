@@ -1,10 +1,19 @@
 export function formatPrice(amount: number): string {
+  if (!amount || amount === 0) return '₹0';
+  if (amount < 0) return `₹${Math.abs(amount).toLocaleString('en-IN')}`;
+  // Always show exact value with Indian locale formatting (lakhs/crores commas)
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+export function formatPriceCompact(amount: number): string {
+  // Compact version for badges/labels where space is limited
+  if (!amount || amount === 0) return '₹0';
   if (amount >= 10000000) {
-    return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    const cr = amount / 10000000;
+    return `₹${cr % 1 === 0 ? cr : cr.toFixed(2)} Cr`;
   } else if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(2)} Lakh`;
-  } else if (amount >= 1000) {
-    return `₹${(amount / 1000).toFixed(0)}K`;
+    const lakh = amount / 100000;
+    return `₹${lakh % 1 === 0 ? lakh : lakh.toFixed(2)} L`;
   }
   return `₹${amount.toLocaleString('en-IN')}`;
 }
