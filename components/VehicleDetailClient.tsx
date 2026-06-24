@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Zap, Gauge, Battery, Clock, MapPin, ChevronRight, Scale, Calculator, ShoppingBag,
-  ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Award, Fuel, Weight, ChevronLeft
+  ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Award, Fuel, Weight, ChevronLeft, Palette
 } from 'lucide-react';
 import { Vehicle, VehicleVariant, PricingState, PricingCity, NewsArticle } from '@/lib/types';
 import { formatPrice, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
@@ -40,7 +40,6 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [showCityModal, setShowCityModal] = useState(false);
   const [showEMIModal, setShowEMIModal] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
-  const [showVariantModal, setShowVariantModal] = useState(false);
 
   // Data
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
@@ -53,6 +52,17 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [emiDownPayment, setEmiDownPayment] = useState(0);
   const [emiInterestRate, setEmiInterestRate] = useState(9.5);
   const [emiTenure, setEmiTenure] = useState(36);
+
+  // All colors from vehicle and variants
+  const allColors = useMemo(() => {
+    const colorSet = new Set<string>();
+    if (vehicle.colors) vehicle.colors.forEach(c => colorSet.add(c));
+    variants.forEach(v => {
+      if (v.colors) v.colors.forEach(c => colorSet.add(c));
+      if (v.color) colorSet.add(v.color);
+    });
+    return Array.from(colorSet);
+  }, [vehicle, variants]);
 
   // Display values
   const display = useMemo(() => ({
@@ -89,7 +99,6 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   // Fetch data
   useEffect(() => {
     const fetchData = async () => {
-      // Related news
       if (vehicle.related_news_ids?.length) {
         const { data } = await supabase.from('news').select('*').in('id', vehicle.related_news_ids).eq('status', 'published');
         if (data) setRelatedNews(vehicle.related_news_ids!.map(id => data.find(n => n.id === id)).filter(Boolean) as NewsArticle[]);
@@ -98,7 +107,6 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         if (data) setRelatedNews(data as NewsArticle[]);
       }
 
-      // Similar vehicles
       if (vehicle.similar_vehicle_ids?.length) {
         const { data } = await supabase.from('vehicles').select('*, manufacturers(name, slug)').in('id', vehicle.similar_vehicle_ids);
         if (data) setAdminSimilarVehicles(vehicle.similar_vehicle_ids!.map(id => data.find(v => v.id === id)).filter(Boolean));
@@ -106,15 +114,12 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         setAdminSimilarVehicles(similar.filter(v => v.type === vehicle.type).slice(0, 4));
       }
 
-      // Cities
       const { data: allCities } = await supabase.from('pricing_cities').select('*, state:pricing_states(*)').eq('is_active', true).order('is_popular', { ascending: false }).order('name');
       if (allCities) setCities(allCities as PricingCity[]);
 
-      // Advertisement
       const { data: ads } = await supabase.from('advertisements').select('*').eq('is_active', true).eq('placement', 'sidebar').gte('end_date', new Date().toISOString()).order('created_at', { ascending: false }).limit(1);
       if (ads && ads.length > 0) setAdvertisement(ads[0]);
 
-      // Default city
       const stored = typeof window !== 'undefined' ? localStorage.getItem('selectedCity') : null;
       if (stored) {
         try { const parsed = JSON.parse(stored); if (parsed?.id) { setSelectedCity(parsed); if (parsed.state) setSelectedState(parsed.state); } } catch {}
@@ -136,16 +141,20 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
     return cities.filter(c => c.name.toLowerCase().includes(s) || c.pincode?.includes(s) || c.state?.name?.toLowerCase().includes(s)).slice(0, 20);
   }, [cities, citySearch]);
 
-  const vehicleColors = vehicle.colors || [];
-  const hasVideo = vehicle.video_url && vehicle.video_url.length > 0;
   const activeVariants = variants.filter(v => v.status === 'active');
 
   const handleSelectCity = useCallback((city: PricingCity) => { setSelectedCity(city); if (city.state) setSelectedState(city.state as PricingState); setShowCityModal(false); setCitySearch(''); }, []);
-  const handleSelectVariant = useCallback((v: VehicleVariant) => { setSelectedVariant(v); setShowVariantModal(false); }, []);
+  const handleSelectVariant = useCallback((v: VehicleVariant) => { setSelectedVariant(v); }, []);
 
-  // Gallery navigation
   const nextImage = useCallback(() => setCurrentImageIndex(i => (i + 1) % galleryImages.length), [galleryImages.length]);
   const prevImage = useCallback(() => setCurrentImageIndex(i => (i - 1 + galleryImages.length) % galleryImages.length), [galleryImages.length]);
+
+  const getColorHex = (name: string): string => {
+    const map: Record<string, string> = { black: '#1a1a1a', white: '#f5f5f5', silver: '#c0c0c0', grey: '#808080', gray: '#808080', blue: '#1e40af', red: '#dc2626', green: '#16a34a', orange: '#ea580c', yellow: '#eab308', brown: '#78350f', gold: '#ffd700', teal: '#0d9488', purple: '#7c3aed', cyan: '#06b6d4', pink: '#ec4899' };
+    const n = name.toLowerCase().trim();
+    for (const [k, v] of Object.entries(map)) if (n.includes(k)) return v;
+    return '#9ca3af';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,132 +173,167 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         </div>
       </div>
 
-      {/* Main Content - 70/30 Layout */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-
-          {/* LEFT COLUMN - 70% */}
-          <div className="w-full lg:w-[70%] space-y-6">
-
-            {/* SECTION 1: Hero Area */}
-            <section className="bg-white rounded-2xl border overflow-hidden">
-              <div className="flex flex-col md:flex-row">
-                {/* Gallery */}
-                <div className="w-full md:w-1/2 p-4">
-                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 group">
-                    <img src={galleryImages[currentImageIndex]} alt={vehicle.name} className="w-full h-full object-cover" />
-                    {galleryImages.length > 1 && (
-                      <>
-                        <button onClick={prevImage} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
-                          <ChevronLeft size={18} className="text-gray-700" />
-                        </button>
-                        <button onClick={nextImage} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
-                          <ChevronRight size={18} className="text-gray-700" />
-                        </button>
-                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                          {galleryImages.map((_, i) => (
-                            <button key={i} onClick={() => setCurrentImageIndex(i)} className={cn('w-2 h-2 rounded-full transition-all', i === currentImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/80')} />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {vehicle.is_upcoming && (
-                      <span className="absolute top-3 left-3 bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow">Upcoming</span>
-                    )}
-                    {vehicle.is_latest && !vehicle.is_upcoming && (
-                      <span className="absolute top-3 left-3 bg-[#145a2c] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow">New Launch</span>
-                    )}
-                  </div>
-                  {/* Thumbnails */}
-                  {galleryImages.length > 1 && (
-                    <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
-                      {galleryImages.map((img, i) => (
-                        <button key={i} onClick={() => setCurrentImageIndex(i)} className={cn('w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border-2 transition-all', i === currentImageIndex ? 'border-[#145a2c] ring-2 ring-green-200' : 'border-transparent hover:border-gray-300')}>
-                          <img src={img} alt="" className="w-full h-full object-cover" />
-                        </button>
+      {/* HERO SECTION - Full Width */}
+      <section className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Left: Gallery */}
+            <div className="w-full lg:w-1/2">
+              <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 group">
+                <img src={galleryImages[currentImageIndex]} alt={vehicle.name} className="w-full h-full object-cover" />
+                {galleryImages.length > 1 && (
+                  <>
+                    <button onClick={prevImage} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
+                      <ChevronLeft size={20} className="text-gray-700" />
+                    </button>
+                    <button onClick={nextImage} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
+                      <ChevronRight size={20} className="text-gray-700" />
+                    </button>
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {galleryImages.map((_, i) => (
+                        <button key={i} onClick={() => setCurrentImageIndex(i)} className={cn('w-2.5 h-2.5 rounded-full transition-all', i === currentImageIndex ? 'bg-white w-8' : 'bg-white/50 hover:bg-white/80')} />
                       ))}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
+                {vehicle.is_upcoming && (
+                  <span className="absolute top-4 left-4 bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-lg">Upcoming</span>
+                )}
+                {vehicle.is_latest && !vehicle.is_upcoming && (
+                  <span className="absolute top-4 left-4 bg-[#145a2c] text-white text-xs font-bold px-4 py-2 rounded-lg shadow-lg">New Launch</span>
+                )}
+              </div>
 
-                {/* Info */}
-                <div className="w-full md:w-1/2 p-5 space-y-4">
-                  {/* Title & badges */}
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      {manufacturer && (
-                        <Link href={`/manufacturers/${manufacturer.slug}`} className="text-sm font-semibold text-[#145a2c] bg-green-50 px-3 py-1 rounded-full hover:bg-green-100 transition-colors">
-                          {manufacturer.name}
-                        </Link>
-                      )}
-                      <span className={cn('text-xs font-medium px-2.5 py-1 rounded-full', getSegmentColor(vehicle.segment))}>
-                        {getSegmentLabel(vehicle.segment)}
-                      </span>
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900">{vehicle.name}</h1>
-                    {selectedVariant && selectedVariant.name !== vehicle.name && (
-                      <p className="text-gray-500 text-sm">{selectedVariant.short_name || selectedVariant.name}</p>
-                    )}
-                  </div>
-
-                  {/* Key specs grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl">
-                      <Zap size={20} className="text-amber-600" />
-                      <div><p className="text-xs text-gray-500">Range</p><p className="font-bold text-gray-900">{display.range_km} km</p></div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl">
-                      <Battery size={20} className="text-green-600" />
-                      <div><p className="text-xs text-gray-500">Battery</p><p className="font-bold text-gray-900">{display.battery_capacity_kwh} kWh</p></div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
-                      <Gauge size={20} className="text-blue-600" />
-                      <div><p className="text-xs text-gray-500">Top Speed</p><p className="font-bold text-gray-900">{display.top_speed_kmh} km/h</p></div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-                      <Clock size={20} className="text-purple-600" />
-                      <div><p className="text-xs text-gray-500">Charging</p><p className="font-bold text-gray-900">{display.charging_time_hrs} hrs</p></div>
-                    </div>
-                  </div>
-
-                  {/* Price */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">Ex-showroom Price</p>
-                        <p className="text-2xl font-bold text-[#145a2c]">{formatPrice(display.price)}</p>
-                        {vehicle.price_min !== vehicle.price_max && vehicle.price_max > 0 && (
-                          <p className="text-xs text-gray-500 mt-0.5">{formatPrice(vehicle.price_min)} - {formatPrice(vehicle.price_max)}</p>
-                        )}
-                      </div>
-                      <button onClick={() => setShowCityModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg text-xs font-medium border hover:shadow-sm transition-all">
-                        <MapPin size={12} /> {selectedCity?.name || 'City'} <ChevronDown size={12} />
-                      </button>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-green-200 flex justify-between items-center">
-                      <span className="text-sm text-gray-600">On-road Price</span>
-                      <span className="text-lg font-bold text-gray-900">{formatPrice(priceBreakdown.onRoadPrice)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700 mt-2">
-                      <Calculator size={14} className="text-[#145a2c]" />
-                      <span>EMI from <strong className="text-[#145a2c]">{formatPrice(emiResult.emi)}/mo</strong></span>
-                    </div>
-                  </div>
-
-                  {/* CTA Buttons */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link href={`/compare?vehicles=${vehicle.slug}`} className="flex items-center justify-center gap-2 border-2 border-[#145a2c] text-[#145a2c] rounded-xl py-3 font-semibold hover:bg-[#145a2c] hover:text-white transition-all">
-                      <Scale size={18} /> Compare
-                    </Link>
-                    <button onClick={() => setShowOfferModal(true)} className="flex items-center justify-center gap-2 bg-orange-500 text-white rounded-xl py-3 font-semibold hover:bg-orange-600 transition-colors">
-                      <ShoppingBag size={18} /> Get Offers
+              {/* Thumbnails */}
+              {galleryImages.length > 1 && (
+                <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
+                  {galleryImages.map((img, i) => (
+                    <button key={i} onClick={() => setCurrentImageIndex(i)} className={cn('w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 border-2 transition-all', i === currentImageIndex ? 'border-[#145a2c] ring-2 ring-green-200' : 'border-transparent hover:border-gray-300')}>
+                      <img src={img} alt="" className="w-full h-full object-cover" />
                     </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Info */}
+            <div className="w-full lg:w-1/2 space-y-5">
+              {/* Tags */}
+              <div className="flex flex-wrap items-center gap-2">
+                {manufacturer && (
+                  <Link href={`/manufacturers/${manufacturer.slug}`} className="text-sm font-semibold text-[#145a2c] bg-green-50 px-3 py-1 rounded-full hover:bg-green-100 transition-colors">
+                    {manufacturer.name}
+                  </Link>
+                )}
+                <span className={cn('text-xs font-medium px-3 py-1 rounded-full', getSegmentColor(vehicle.segment))}>
+                  {getSegmentLabel(vehicle.segment)}
+                </span>
+                <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  {getVehicleTypeLabel(vehicle.type)}
+                </span>
+              </div>
+
+              {/* Name */}
+              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">{vehicle.name}</h1>
+
+              {/* Colors displayed inline */}
+              {allColors.length > 0 && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Palette size={16} className="text-gray-400" />
+                  <span className="text-sm text-gray-500">Colours:</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {allColors.map((color, i) => (
+                      <div key={i} className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-full">
+                        <span className="w-3 h-3 rounded-full border border-gray-200" style={{ backgroundColor: getColorHex(color) }} />
+                        <span className="text-xs font-medium text-gray-700">{color}</span>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              )}
+
+              {/* Variant selector if multiple variants */}
+              {activeVariants.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  {activeVariants.map((v) => (
+                    <button key={v.id} onClick={() => handleSelectVariant(v)} className={cn('px-4 py-2 rounded-lg text-sm font-medium transition-all', selectedVariant?.id === v.id ? 'bg-[#145a2c] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')}>
+                      {v.short_name || v.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Quick Specs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-amber-50 rounded-xl p-3 text-center">
+                  <Zap size={20} className="mx-auto text-amber-600 mb-1" />
+                  <p className="text-xs text-gray-500">Range</p>
+                  <p className="font-bold text-gray-900">{display.range_km} km</p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-3 text-center">
+                  <Battery size={20} className="mx-auto text-green-600 mb-1" />
+                  <p className="text-xs text-gray-500">Battery</p>
+                  <p className="font-bold text-gray-900">{display.battery_capacity_kwh} kWh</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 text-center">
+                  <Gauge size={20} className="mx-auto text-blue-600 mb-1" />
+                  <p className="text-xs text-gray-500">Top Speed</p>
+                  <p className="font-bold text-gray-900">{display.top_speed_kmh} km/h</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-3 text-center">
+                  <Clock size={20} className="mx-auto text-purple-600 mb-1" />
+                  <p className="text-xs text-gray-500">Charging</p>
+                  <p className="font-bold text-gray-900">{display.charging_time_hrs} hrs</p>
                 </div>
               </div>
-            </section>
 
-            {/* SECTION 2: About Vehicle */}
+              {/* Price Card */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-5 border border-green-200">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Ex-showroom Price</p>
+                    <p className="text-3xl font-bold text-[#145a2c]">{formatPrice(display.price)}</p>
+                    {vehicle.price_min !== vehicle.price_max && vehicle.price_max > 0 && (
+                      <p className="text-xs text-gray-500 mt-0.5">{formatPrice(vehicle.price_min)} - {formatPrice(vehicle.price_max)}</p>
+                    )}
+                  </div>
+                  <button onClick={() => setShowCityModal(true)} className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-lg text-xs font-medium border hover:shadow-sm transition-all">
+                    <MapPin size={12} /> {selectedCity?.name || 'City'} <ChevronDown size={12} />
+                  </button>
+                </div>
+                <div className="bg-white/70 rounded-xl p-3 flex justify-between items-center">
+                  <span className="text-sm text-gray-600">On-road Price</span>
+                  <span className="text-xl font-bold text-gray-900">{formatPrice(priceBreakdown.onRoadPrice)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-700 mt-3">
+                  <Calculator size={14} className="text-[#145a2c]" />
+                  <span>EMI from <strong className="text-[#145a2c]">{formatPrice(emiResult.emi)}/mo</strong></span>
+                  <button onClick={() => setShowEMIModal(true)} className="text-[#145a2c] hover:underline text-xs font-medium ml-auto">Calculate</button>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <Link href={`/compare?vehicles=${vehicle.slug}`} className="flex items-center justify-center gap-2 border-2 border-[#145a2c] text-[#145a2c] rounded-xl py-3.5 font-semibold hover:bg-[#145a2c] hover:text-white transition-all">
+                  <Scale size={18} /> Compare
+                </Link>
+                <button onClick={() => setShowOfferModal(true)} className="flex items-center justify-center gap-2 bg-orange-500 text-white rounded-xl py-3.5 font-semibold hover:bg-orange-600 transition-colors">
+                  <ShoppingBag size={18} /> Get Offers
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CONTENT AREA - Two Column Layout (starts after hero) */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+
+          {/* LEFT COLUMN - Content Sections */}
+          <div className="w-full lg:w-[65%] space-y-6">
+
+            {/* ABOUT Section */}
             {vehicle.description && (
               <section className="bg-white rounded-2xl border p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">About {vehicle.name}</h2>
@@ -297,48 +341,70 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               </section>
             )}
 
-            {/* SECTION 3: Specifications Table */}
+            {/* SPECIFICATIONS Section */}
             <section className="bg-white rounded-2xl border p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <Award size={22} className="text-[#145a2c]" /> Specifications
               </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 bg-gray-50 rounded-tl-lg">Specification</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600 bg-gray-50 rounded-tr-lg">Value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {display.range_km > 0 && <tr className="border-b border-gray-100"><td className="py-3 px-4 text-sm text-gray-600 flex items-center gap-2"><Zap size={16} className="text-amber-500" />Range</td><td className="py-3 px-4 text-sm font-medium text-gray-900">{display.range_km} km</td></tr>}
-                    {display.battery_capacity_kwh > 0 && <tr className="border-b border-gray-100"><td className="py-3 px-4 text-sm text-gray-600 flex items-center gap-2"><Battery size={16} className="text-green-500" />Battery Capacity</td><td className="py-3 px-4 text-sm font-medium text-gray-900">{display.battery_capacity_kwh} kWh</td></tr>}
-                    {display.top_speed_kmh > 0 && <tr className="border-b border-gray-100"><td className="py-3 px-4 text-sm text-gray-600 flex items-center gap-2"><Gauge size={16} className="text-blue-500" />Top Speed</td><td className="py-3 px-4 text-sm font-medium text-gray-900">{display.top_speed_kmh} km/h</td></tr>}
-                    {display.motor_power_kw > 0 && <tr className="border-b border-gray-100"><td className="py-3 px-4 text-sm text-gray-600 flex items-center gap-2"><Fuel size={16} className="text-orange-500" />Motor Power</td><td className="py-3 px-4 text-sm font-medium text-gray-900">{display.motor_power_kw} kW</td></tr>}
-                    {display.charging_time_hrs > 0 && <tr className="border-b border-gray-100"><td className="py-3 px-4 text-sm text-gray-600 flex items-center gap-2"><Clock size={16} className="text-purple-500" />Charging Time</td><td className="py-3 px-4 text-sm font-medium text-gray-900">{display.charging_time_hrs} hrs</td></tr>}
-                    {display.kerb_weight && display.kerb_weight > 0 && <tr className="border-b border-gray-100"><td className="py-3 px-4 text-sm text-gray-600 flex items-center gap-2"><Weight size={16} className="text-gray-500" />Kerb Weight</td><td className="py-3 px-4 text-sm font-medium text-gray-900">{display.kerb_weight} kg</td></tr>}
-                    {Object.entries(display.specifications).map(([key, value], i, arr) => (
-                      <tr key={key} className={i === arr.length - 1 ? '' : 'border-b border-gray-100'}>
-                        <td className="py-3 px-4 text-sm text-gray-600">{key}</td>
-                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{String(value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {display.range_km === 0 && display.battery_capacity_kwh === 0 && Object.keys(display.specifications).length === 0 && (
-                  <p className="text-gray-500 text-center py-8">No specifications available.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {display.range_km > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
+                    <div className="flex items-center gap-3"><Zap size={18} className="text-amber-600" /><span className="text-gray-700">Range</span></div>
+                    <span className="font-bold text-gray-900">{display.range_km} km</span>
+                  </div>
                 )}
+                {display.battery_capacity_kwh > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl">
+                    <div className="flex items-center gap-3"><Battery size={18} className="text-green-600" /><span className="text-gray-700">Battery</span></div>
+                    <span className="font-bold text-gray-900">{display.battery_capacity_kwh} kWh</span>
+                  </div>
+                )}
+                {display.top_speed_kmh > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
+                    <div className="flex items-center gap-3"><Gauge size={18} className="text-blue-600" /><span className="text-gray-700">Top Speed</span></div>
+                    <span className="font-bold text-gray-900">{display.top_speed_kmh} km/h</span>
+                  </div>
+                )}
+                {display.motor_power_kw > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-orange-50 rounded-xl">
+                    <div className="flex items-center gap-3"><Fuel size={18} className="text-orange-600" /><span className="text-gray-700">Motor Power</span></div>
+                    <span className="font-bold text-gray-900">{display.motor_power_kw} kW</span>
+                  </div>
+                )}
+                {display.charging_time_hrs > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl">
+                    <div className="flex items-center gap-3"><Clock size={18} className="text-purple-600" /><span className="text-gray-700">Charging Time</span></div>
+                    <span className="font-bold text-gray-900">{display.charging_time_hrs} hrs</span>
+                  </div>
+                )}
+                {display.kerb_weight && display.kerb_weight > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-3"><Weight size={18} className="text-gray-600" /><span className="text-gray-700">Kerb Weight</span></div>
+                    <span className="font-bold text-gray-900">{display.kerb_weight} kg</span>
+                  </div>
+                )}
+                {Object.entries(display.specifications).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <span className="text-gray-700">{key}</span>
+                    <span className="font-bold text-gray-900">{String(value)}</span>
+                  </div>
+                ))}
               </div>
+              {display.range_km === 0 && display.battery_capacity_kwh === 0 && Object.keys(display.specifications).length === 0 && (
+                <p className="text-gray-500 text-center py-8">No specifications available.</p>
+              )}
             </section>
 
-            {/* SECTION 4: Features */}
+            {/* FEATURES Section */}
             {vehicle.features && vehicle.features.length > 0 && (
               <section className="bg-white rounded-2xl border p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Features & Details</h2>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {vehicle.features.map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-full border border-green-100">
-                      <Check size={14} className="text-[#145a2c]" />
+                    <div key={i} className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                      <div className="w-6 h-6 bg-[#145a2c] rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check size={14} className="text-white" />
+                      </div>
                       <span className="text-sm font-medium text-gray-700">{feature}</span>
                     </div>
                   ))}
@@ -346,7 +412,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               </section>
             )}
 
-            {/* SECTION 5: Pros & Cons */}
+            {/* PROS & CONS Section */}
             {(vehicle.pros?.length > 0 || vehicle.cons?.length > 0) && (
               <section className="bg-white rounded-2xl border p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Pros & Cons</h2>
@@ -367,57 +433,48 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               </section>
             )}
 
-            {/* SECTION 6: Variants Table */}
+            {/* VARIANTS Section */}
             <section className="bg-white rounded-2xl border p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Variants</h2>
               {activeVariants.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px]">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase bg-gray-50">Variant</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase bg-gray-50">Price</th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase bg-gray-50">Range</th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase bg-gray-50">Battery</th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase bg-gray-50">Speed</th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase bg-gray-50">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeVariants.map((v) => {
-                        const isSelected = selectedVariant?.id === v.id;
-                        return (
-                          <tr key={v.id} className={cn('border-b border-gray-100 hover:bg-gray-50 transition-colors', isSelected && 'bg-green-50')}>
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-3">
-                                {v.image_url ? <img src={v.image_url} alt={v.name} className="w-12 h-12 rounded-lg object-cover bg-gray-100" /> : <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center"><Zap size={20} className="text-gray-300" /></div>}
-                                <div>
-                                  <p className="font-semibold text-gray-900">{v.short_name || v.name}</p>
-                                  {v.short_name && <p className="text-xs text-gray-500">{v.name}</p>}
-                                </div>
+                <div className="space-y-4">
+                  {activeVariants.map((v) => {
+                    const isSelected = selectedVariant?.id === v.id;
+                    return (
+                      <div key={v.id} className={cn('border rounded-xl p-4 transition-all', isSelected ? 'border-[#145a2c] bg-green-50' : 'border-gray-200 hover:border-gray-300')}>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          {v.image_url && (
+                            <img src={v.image_url} alt={v.name} className="w-full sm:w-32 h-24 rounded-lg object-cover bg-gray-100" />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="font-bold text-gray-900">{v.short_name || v.name}</h3>
+                                {v.short_name && <p className="text-xs text-gray-500">{v.name}</p>}
                               </div>
-                            </td>
-                            <td className="py-4 px-4"><span className="font-bold text-[#145a2c]">{formatPrice(v.price)}</span></td>
-                            <td className="py-4 px-4 text-center text-sm text-gray-600">{v.range_km ? `${v.range_km} km` : '—'}</td>
-                            <td className="py-4 px-4 text-center text-sm text-gray-600">{v.battery_capacity_kwh ? `${v.battery_capacity_kwh} kWh` : '—'}</td>
-                            <td className="py-4 px-4 text-center text-sm text-gray-600">{v.top_speed_kmh ? `${v.top_speed_kmh} km/h` : '—'}</td>
-                            <td className="py-4 px-4 text-center">
-                              <button onClick={() => handleSelectVariant(v)} className={cn('px-4 py-2 rounded-lg text-sm font-medium transition-all', isSelected ? 'bg-[#145a2c] text-white' : 'bg-gray-100 text-gray-700 hover:bg-[#145a2c] hover:text-white')}>
-                                {isSelected ? 'Selected' : 'View'}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              <p className="text-xl font-bold text-[#145a2c]">{formatPrice(v.price)}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-3">
+                              {v.range_km && <span className="flex items-center gap-1"><Zap size={12} /> {v.range_km} km</span>}
+                              {v.battery_capacity_kwh && <span className="flex items-center gap-1"><Battery size={12} /> {v.battery_capacity_kwh} kWh</span>}
+                              {v.top_speed_kmh && <span className="flex items-center gap-1"><Gauge size={12} /> {v.top_speed_kmh} km/h</span>}
+                              {v.charging_time_hrs && <span className="flex items-center gap-1"><Clock size={12} /> {v.charging_time_hrs}h</span>}
+                            </div>
+                            <button onClick={() => handleSelectVariant(v)} className={cn('px-4 py-2 rounded-lg text-sm font-medium transition-all', isSelected ? 'bg-[#145a2c] text-white' : 'bg-gray-100 text-gray-700 hover:bg-[#145a2c] hover:text-white')}>
+                              {isSelected ? 'Selected' : 'Select Variant'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-8">No variants available for this vehicle.</p>
               )}
             </section>
 
-            {/* Price Breakdown */}
+            {/* PRICE BREAKDOWN Section */}
             <section className="bg-white rounded-2xl border p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><TrendingUp size={22} className="text-[#145a2c]" /> On-Road Price Breakdown</h2>
@@ -440,36 +497,77 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
             </section>
           </div>
 
-          {/* RIGHT SIDEBAR - 30% */}
-          <div className="w-full lg:w-[30%] space-y-6">
+          {/* RIGHT SIDEBAR - Sticky */}
+          <div className="w-full lg:w-[35%]">
             <div className="lg:sticky lg:top-20 space-y-6">
 
-              {/* Similar Vehicles */}
+              {/* 1. GET OFFER Card */}
+              <section className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
+                <h3 className="font-bold text-xl mb-2">Get Best Offers</h3>
+                <p className="text-sm text-orange-100 mb-4">Exclusive deals from authorized dealers in your city</p>
+                <button onClick={() => setShowOfferModal(true)} className="w-full bg-white text-orange-600 rounded-xl py-3.5 font-bold hover:bg-orange-50 transition-colors flex items-center justify-center gap-2 shadow-lg">
+                  <ShoppingBag size={18} />Get Offers Now
+                </button>
+                <p className="text-xs text-orange-200 mt-3 text-center">Free • No commitment</p>
+              </section>
+
+              {/* 2. SIMILAR VEHICLES */}
               {adminSimilarVehicles.length > 0 && (
                 <section className="bg-white rounded-2xl border p-5">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">Similar {getVehicleTypeLabel(vehicle.type)}s</h3>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {adminSimilarVehicles.slice(0, 4).map((v) => (
                       <Link key={v.id} href={`/vehicles/${v.slug}`} className="block group">
-                        <div className="flex gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                          {v.image_url ? <img src={v.image_url} alt={v.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0" /> : <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0"><Zap size={20} className="text-gray-300" /></div>}
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-gray-900 group-hover:text-[#145a2c] truncate">{v.name}</p>
+                        <div className="flex gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors border border-gray-100">
+                          {v.image_url ? (
+                            <img src={v.image_url} alt={v.name} className="w-20 h-20 rounded-xl object-cover bg-gray-100 flex-shrink-0" />
+                          ) : (
+                            <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <Zap size={24} className="text-gray-300" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1 flex flex-col justify-center">
+                            <p className="font-semibold text-gray-900 group-hover:text-[#145a2c] transition-colors truncate">{v.name}</p>
                             <p className="text-xs text-gray-500">{v.manufacturers?.name}</p>
-                            <p className="text-sm font-bold text-[#145a2c] mt-1">{formatPrice(v.price_min)}</p>
+                            <p className="text-base font-bold text-[#145a2c] mt-1">{formatPrice(v.price_min)}</p>
                           </div>
                         </div>
                       </Link>
                     ))}
                   </div>
-                  <Link href={`/vehicles?type=${vehicle.type}`} className="block text-center text-sm text-[#145a2c] font-medium mt-4 hover:underline py-2">View all {getVehicleTypeLabel(vehicle.type)}s</Link>
+                  <Link href={`/vehicles?type=${vehicle.type}`} className="block text-center text-sm text-[#145a2c] font-semibold mt-4 hover:underline py-2 border-t border-gray-100">
+                    View all {getVehicleTypeLabel(vehicle.type)}s →
+                  </Link>
                 </section>
               )}
 
-              {/* Advertisement Slot (Square) */}
+              {/* 3. RELATED NEWS */}
+              {relatedNews.length > 0 && (
+                <section className="bg-white rounded-2xl border p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900">Related News</h3>
+                    <Link href="/news" className="text-sm text-[#145a2c] font-medium hover:underline">View all</Link>
+                  </div>
+                  <div className="space-y-4">
+                    {relatedNews.slice(0, 3).map((article) => (
+                      <Link key={article.id} href={`/news/${article.slug}`} className="block group">
+                        <div className="flex gap-3">
+                          <img src={article.image_url} alt="" className="w-16 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] text-gray-500 uppercase font-semibold">{article.category}</p>
+                            <p className="text-sm font-medium text-gray-900 group-hover:text-[#145a2c] line-clamp-2 transition-colors">{article.title}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 4. ADVERTISEMENT (Square) */}
               {advertisement && (
                 <section className="bg-white rounded-2xl border overflow-hidden">
-                  <div className="text-xs text-gray-400 text-center py-1 bg-gray-50">Advertisement</div>
+                  <div className="text-[10px] text-gray-400 text-center py-1.5 bg-gray-50 uppercase tracking-wide">Advertisement</div>
                   {advertisement.image_url && (
                     <a href={advertisement.link_url || '#'} target="_blank" rel="noopener noreferrer" className="block">
                       <img src={advertisement.image_url} alt={advertisement.title} className="w-full aspect-square object-cover" />
@@ -478,37 +576,6 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                 </section>
               )}
 
-              {/* Related News */}
-              {relatedNews.length > 0 && (
-                <section className="bg-white rounded-2xl border p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900">Related News</h3>
-                    <Link href="/news" className="text-sm text-[#145a2c] font-medium hover:underline">View all</Link>
-                  </div>
-                  <div className="space-y-4">
-                    {relatedNews.slice(0, 4).map((article) => (
-                      <Link key={article.id} href={`/news/${article.slug}`} className="block group">
-                        <div className="flex gap-3">
-                          <img src={article.image_url} alt="" className="w-20 h-14 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-gray-500 uppercase font-medium">{article.category}</p>
-                            <p className="text-sm font-medium text-gray-900 group-hover:text-[#145a2c] line-clamp-2">{article.title}</p>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Quick Actions */}
-              <section className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-5 text-white">
-                <h3 className="font-bold text-lg mb-2">Get Best Offers</h3>
-                <p className="text-sm text-orange-100 mb-4">Exclusive deals from authorized dealers</p>
-                <button onClick={() => setShowOfferModal(true)} className="w-full bg-white text-orange-600 rounded-xl py-3 font-bold hover:bg-orange-50 transition-colors flex items-center justify-center gap-2">
-                  <ShoppingBag size={18} />Get Offers
-                </button>
-              </section>
             </div>
           </div>
         </div>
@@ -529,7 +596,6 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
       {/* Modals */}
       {showCityModal && <CityModal cities={cities} popularCities={popularCities} filteredCities={filteredCities} selectedCity={selectedCity} citySearch={citySearch} setCitySearch={setCitySearch} onSelect={handleSelectCity} onClose={() => setShowCityModal(false)} />}
       {showEMIModal && <EMIModal priceBreakdown={priceBreakdown} emiDownPayment={emiDownPayment} setEmiDownPayment={setEmiDownPayment} emiInterestRate={emiInterestRate} setEmiInterestRate={setEmiInterestRate} emiTenure={emiTenure} setEmiTenure={setEmiTenure} emiResult={emiResult} onGetOffer={() => { setShowEMIModal(false); setShowOfferModal(true); }} onClose={() => setShowEMIModal(false)} />}
-      {showVariantModal && activeVariants.length > 0 && <VariantModal variants={activeVariants} selectedVariant={selectedVariant} onSelect={handleSelectVariant} onClose={() => setShowVariantModal(false)} />}
       <OfferEnquiryModal vehicleId={vehicle.id} vehicleName={vehicle.name} vehiclePrice={priceBreakdown.onRoadPrice} variantName={selectedVariant?.short_name || selectedVariant?.name} selectedCity={selectedCity?.name} isOpen={showOfferModal} onClose={() => setShowOfferModal(false)} />
     </div>
   );
@@ -564,17 +630,6 @@ function EMIModal({ priceBreakdown, emiDownPayment, setEmiDownPayment, emiIntere
           <div className="bg-gradient-to-br from-[#145a2c] to-[#0f3d1e] rounded-xl p-5 text-white"><p className="text-xs text-green-200 mb-1">Monthly EMI</p><p className="text-3xl font-bold">{formatPrice(emiResult.emi)}</p><div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-white/20"><div><p className="text-xs text-green-200">Loan Amount</p><p className="font-semibold">{formatPrice(emiResult.principal)}</p></div><div><p className="text-xs text-green-200">Total Interest</p><p className="font-semibold">{formatPrice(emiResult.totalInterest)}</p></div></div></div>
           <button onClick={onGetOffer} className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors"><ShoppingBag size={18} />Get Best Offer</button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function VariantModal({ variants, selectedVariant, onSelect, onClose }: { variants: VehicleVariant[]; selectedVariant: VehicleVariant | null; onSelect: (v: VehicleVariant) => void; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b"><h3 className="text-lg font-bold">Select Variant</h3><button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} className="text-gray-400" /></button></div>
-        <div className="p-4 overflow-y-auto max-h-[calc(90vh-60px)]"><div className="grid grid-cols-2 gap-4">{variants.map((v) => <button key={v.id} onClick={() => onSelect(v)} className={cn('text-left p-4 rounded-xl border-2 transition-all', selectedVariant?.id === v.id ? 'border-[#145a2c] bg-green-50' : 'border-gray-200 hover:border-gray-300')}>{v.image_url && <img src={v.image_url} alt={v.name} className="w-full h-24 rounded-lg object-cover bg-gray-100 mb-3" />}<p className="font-semibold">{v.short_name || v.name}</p><p className="text-lg font-bold text-[#145a2c]">{formatPrice(v.price)}</p><div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-600">{v.range_km && <span className="flex items-center gap-1"><Zap size={10} />{v.range_km} km</span>}{v.battery_capacity_kwh && <span className="flex items-center gap-1"><Battery size={10} />{v.battery_capacity_kwh} kWh</span>}</div>{selectedVariant?.id === v.id && <p className="mt-2 text-xs font-semibold text-[#145a2c] flex items-center gap-1"><Check size={12} />Selected</p>}</button>)}</div></div>
       </div>
     </div>
   );
