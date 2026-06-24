@@ -32,7 +32,8 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     manufacturer_id: '',
     type: 'scooter' as typeof vehicleTypes[number],
     segment: 'budget' as typeof segments[number],
-    ex_showroom_price: 0,
+    price_min: 0,
+    price_max: 0,
     image_url: '',
     gallery_urls: [] as string[],
     image_gallery: [] as string[],
@@ -132,14 +133,16 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     setSuccess('');
 
     try {
-      const { name, slug, manufacturer_id, type, segment, ex_showroom_price, image_url, gallery_urls, image_gallery, video_url, description, is_upcoming, is_featured, is_latest, launch_date, colors, specifications, features, pros, cons, status, seo_title, seo_description, seo_keywords } = formData;
+      const { name, slug, manufacturer_id, type, segment, price_min, price_max, image_url, gallery_urls, image_gallery, video_url, description, is_upcoming, is_featured, is_latest, launch_date, colors, specifications, features, pros, cons, status, seo_title, seo_description, seo_keywords } = formData;
 
       if (!name || !slug || !manufacturer_id) {
         throw new Error('Name, slug, and manufacturer are required');
       }
 
-      // Auto-calculate price range from active variants
-      const { price_min, price_max } = getPriceRange();
+      // Use form prices if set, otherwise auto-calculate from variants
+      const variantPrices = getPriceRange();
+      const finalPriceMin = price_min || variantPrices.price_min || 0;
+      const finalPriceMax = price_max || variantPrices.price_max || 0;
 
       const vehicleData = {
         name,
@@ -147,9 +150,8 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         manufacturer_id,
         type,
         segment,
-        ex_showroom_price: ex_showroom_price || 0,
-        price_min,
-        price_max,
+        price_min: finalPriceMin,
+        price_max: finalPriceMax,
         image_url,
         gallery_urls,
         image_gallery,
@@ -347,35 +349,47 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
             </div>
             <div className="grid md:grid-cols-2 gap-4 mt-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Ex-Showroom Price</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (Rs.)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
                   <input
                     type="number"
-                    value={formData.ex_showroom_price || ''}
-                    onChange={(e) => setFormData({ ...formData, ex_showroom_price: parseInt(e.target.value) || 0 })}
-                    placeholder="Ex-showroom price"
+                    value={formData.price_min || ''}
+                    onChange={(e) => setFormData({ ...formData, price_min: parseInt(e.target.value) || 0 })}
+                    placeholder="Minimum price"
                     className="admin-input pl-7"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Base price before RTO, insurance, etc.</p>
+                <p className="text-xs text-gray-500 mt-1">Base price (ex-showroom)</p>
               </div>
-              <div className="flex items-end">
-                {variants.length > 0 && (
-                  <div className="w-full p-3 bg-green-50 rounded-lg border border-green-100">
-                    <div className="text-xs font-semibold text-green-800 mb-1">Variant Price Range (Auto)</div>
-                    <div className="text-sm text-green-700">
-                      {(() => {
-                        const { price_min, price_max } = getPriceRange();
-                        if (price_min === 0 && price_max === 0) return 'Add active variants to calculate';
-                        if (price_min === price_max) return `₹${price_min.toLocaleString('en-IN')}`;
-                        return `₹${price_min.toLocaleString('en-IN')} - ₹${price_max.toLocaleString('en-IN')}`;
-                      })()}
-                    </div>
-                  </div>
-                )}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (Rs.)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
+                  <input
+                    type="number"
+                    value={formData.price_max || ''}
+                    onChange={(e) => setFormData({ ...formData, price_max: parseInt(e.target.value) || 0 })}
+                    placeholder="Maximum price"
+                    className="admin-input pl-7"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Highest variant price</p>
               </div>
             </div>
+            {variants.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-100">
+                <div className="text-xs font-semibold text-green-800 mb-1">Variant Price Range (Auto-calculated from variants)</div>
+                <div className="text-sm text-green-700">
+                  {(() => {
+                    const { price_min, price_max } = getPriceRange();
+                    if (price_min === 0 && price_max === 0) return 'Add active variants to calculate';
+                    if (price_min === price_max) return `₹${price_min.toLocaleString('en-IN')}`;
+                    return `₹${price_min.toLocaleString('en-IN')} - ₹${price_max.toLocaleString('en-IN')}`;
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Description */}

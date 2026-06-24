@@ -61,7 +61,6 @@ export interface Vehicle {
   manufacturer_id: string;
   type: VehicleType;
   segment: VehicleSegment;
-  ex_showroom_price?: number;
   price_min: number;
   price_max: number;
   range_km: number;
