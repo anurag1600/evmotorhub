@@ -3,16 +3,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { VehicleVariant } from '@/lib/types';
-import { Power, Plus, Pencil, Trash2, X, Save, Loader as Loader2, Image as ImageIcon, GripVertical, Copy, Star, Info, CircleAlert as AlertCircle } from 'lucide-react';
+import { Power, Plus, Pencil, Trash2, X, Save, Loader as Loader2, Image as ImageIcon, GripVertical, Copy, Star, CircleAlert as AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { formatPrice } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
 
 interface VariantsInlineEditorProps {
   vehicleId?: string;
   onVariantsChange?: (variants: VehicleVariant[]) => void;
-  isDraft?: boolean; // When true, variants are stored in memory without DB operations
+  isDraft?: boolean;
 }
 
 const emptyForm = {
@@ -27,10 +26,9 @@ const emptyForm = {
   charging_time_hrs: '',
   kerb_weight: '',
   image_url: '',
-  color: '',
-  color_hex: '',
   colors: [] as string[],
   color_hexes: [] as string[],
+  color_input: '',
   sort_order: '0',
   is_available: true,
   is_featured: false,
@@ -39,22 +37,6 @@ const emptyForm = {
 };
 
 const statusOptions = ['active', 'discontinued', 'upcoming'] as const;
-
-// Common colors for quick selection
-const colorPresets = [
-  { name: 'Black', hex: '#1a1a1a' },
-  { name: 'White', hex: '#f5f5f5' },
-  { name: 'Silver', hex: '#c0c0c0' },
-  { name: 'Grey', hex: '#808080' },
-  { name: 'Red', hex: '#dc2626' },
-  { name: 'Blue', hex: '#1e40af' },
-  { name: 'Green', hex: '#16a34a' },
-  { name: 'Yellow', hex: '#eab308' },
-  { name: 'Orange', hex: '#ea580c' },
-  { name: 'Brown', hex: '#78350f' },
-  { name: 'Gold', hex: '#ffd700' },
-  { name: 'Teal', hex: '#0d9488' },
-];
 
 export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDraft = false }: VariantsInlineEditorProps) {
   const [variants, setVariants] = useState<VehicleVariant[]>([]);
@@ -67,24 +49,15 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
   const [form, setForm] = useState(emptyForm);
   const [draftIdCounter, setDraftIdCounter] = useState(0);
 
-  // Use ref for callback to avoid infinite loops
   const onVariantsChangeRef = useRef(onVariantsChange);
-  useEffect(() => {
-    onVariantsChangeRef.current = onVariantsChange;
-  }, [onVariantsChange]);
+  useEffect(() => { onVariantsChangeRef.current = onVariantsChange; }, [onVariantsChange]);
 
-  // Notify parent of variant changes in draft mode
   useEffect(() => {
-    if (isDraft) {
-      onVariantsChangeRef.current?.(variants);
-    }
+    if (isDraft) { onVariantsChangeRef.current?.(variants); }
   }, [variants, isDraft]);
 
   const fetchVariants = useCallback(async () => {
-    if (!vehicleId || isDraft) {
-      setLoading(false);
-      return;
-    }
+    if (!vehicleId || isDraft) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
@@ -103,11 +76,9 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
     } finally {
       setLoading(false);
     }
-  }, [vehicleId]);
+  }, [vehicleId, isDraft]);
 
-  useEffect(() => {
-    fetchVariants();
-  }, [fetchVariants]);
+  useEffect(() => { fetchVariants(); }, [fetchVariants]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -130,10 +101,9 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
       charging_time_hrs: variant.charging_time_hrs?.toString() || '',
       kerb_weight: variant.kerb_weight?.toString() || '',
       image_url: variant.image_url || '',
-      color: variant.color || '',
-      color_hex: variant.color_hex || '',
-      colors: variant.colors || (variant.color ? [variant.color] : []),
-      color_hexes: variant.color_hexes || (variant.color_hex ? [variant.color_hex] : []),
+      colors: variant.colors || [],
+      color_hexes: variant.color_hexes || [],
+      color_input: '',
       sort_order: variant.sort_order?.toString() || '0',
       is_available: variant.is_available ?? true,
       is_featured: variant.is_featured ?? false,
@@ -149,24 +119,43 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
     setForm({ ...emptyForm, sort_order: nextOrder.toString() });
   };
 
+  const addColor = () => {
+    const input = form.color_input.trim();
+    if (input && !form.colors.includes(input)) {
+      setForm(f => ({
+        ...f,
+        colors: [...f.colors, input],
+        color_hexes: [...f.color_hexes, '#808080'],
+        color_input: '',
+      }));
+    }
+  };
+
+  const removeColor = (index: number) => {
+    setForm(f => ({
+      ...f,
+      colors: f.colors.filter((_, i) => i !== index),
+      color_hexes: f.color_hexes.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vehicleId && !isDraft) return;
+    if (!vehicleId && !isDraft) {
+      toast.error('Save vehicle first to add variants');
+      return;
+    }
 
     setSaving(true);
     try {
       let specifications = {};
-      try {
-        specifications = JSON.parse(form.specifications || '{}');
-      } catch {
-        specifications = {};
-      }
+      try { specifications = JSON.parse(form.specifications || '{}'); } catch { specifications = {}; }
 
       const payload = {
         vehicle_id: vehicleId || '',
-        name: form.name,
-        slug: form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-        short_name: form.short_name || null,
+        name: form.name.trim(),
+        slug: form.slug.trim() || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+        short_name: form.short_name.trim() || null,
         price: parseFloat(form.price) || 0,
         range_km: form.range_km ? parseInt(form.range_km) : null,
         battery_capacity_kwh: form.battery_capacity_kwh ? parseFloat(form.battery_capacity_kwh) : null,
@@ -175,8 +164,8 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
         charging_time_hrs: form.charging_time_hrs ? parseFloat(form.charging_time_hrs) : null,
         kerb_weight: form.kerb_weight ? parseInt(form.kerb_weight) : null,
         image_url: form.image_url || null,
-        color: form.colors[0] || form.color || null,
-        color_hex: form.color_hexes[0] || form.color_hex || null,
+        color: form.colors[0] || null,
+        color_hex: form.color_hexes[0] || null,
         colors: form.colors.length > 0 ? form.colors : null,
         color_hexes: form.color_hexes.length > 0 ? form.color_hexes : null,
         sort_order: parseInt(form.sort_order) || 0,
@@ -186,7 +175,6 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
         specifications,
       };
 
-      // Draft mode - store in memory only
       if (isDraft) {
         if (editingId) {
           setVariants(prev => prev.map(v => v.id === editingId ? { ...v, ...payload } as VehicleVariant : v));
@@ -206,18 +194,12 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
         return;
       }
 
-      // Database mode for existing vehicles
       if (editingId) {
-        const { error } = await supabase
-          .from('vehicle_variants')
-          .update(payload)
-          .eq('id', editingId);
+        const { error } = await supabase.from('vehicle_variants').update(payload).eq('id', editingId);
         if (error) throw error;
         toast.success('Variant updated');
       } else {
-        const { error } = await supabase
-          .from('vehicle_variants')
-          .insert([payload]);
+        const { error } = await supabase.from('vehicle_variants').insert([payload]);
         if (error) throw error;
         toast.success('Variant created');
       }
@@ -225,6 +207,7 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
       resetForm();
       fetchVariants();
     } catch (err: any) {
+      console.error('Variant save error:', err);
       toast.error(err.message || 'Failed to save variant');
     } finally {
       setSaving(false);
@@ -235,19 +218,18 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
     if (!confirm('Delete this variant?')) return;
     setDeleting(id);
     try {
-      // Draft mode - just remove from memory
       if (isDraft) {
-        const newVariants = variants.filter(v => v.id !== id);
-        setVariants(newVariants);
+        setVariants(prev => prev.filter(v => v.id !== id));
         toast.success('Variant removed');
         return;
       }
-      await supabase.from('vehicle_variants').delete().eq('id', id);
-      const newVariants = variants.filter(v => v.id !== id);
-      setVariants(newVariants);
-      onVariantsChange?.(newVariants);
+      const { error } = await supabase.from('vehicle_variants').delete().eq('id', id);
+      if (error) throw error;
+      setVariants(prev => prev.filter(v => v.id !== id));
+      onVariantsChangeRef.current?.(variants.filter(v => v.id !== id));
       toast.success('Variant deleted');
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Delete error:', err);
       toast.error('Failed to delete');
     } finally {
       setDeleting(null);
@@ -256,46 +238,29 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
 
   const toggleFeatured = async (id: string, isFeatured: boolean) => {
     try {
-      // Draft mode - update in memory only
       if (isDraft) {
         if (!isFeatured) {
-          // Remove featured from all others, set this one as featured
-          setVariants(prev => prev.map(v => ({
-            ...v,
-            is_featured: v.id === id ? true : false
-          })));
-          toast.success('Featured variant updated');
+          setVariants(prev => prev.map(v => ({ ...v, is_featured: v.id === id })));
+          toast.success('Featured variant set');
         } else {
           setVariants(prev => prev.map(v => v.id === id ? { ...v, is_featured: false } : v));
-          toast.success('Featured removed');
         }
         return;
       }
 
       if (!isFeatured) {
-        // If setting as featured, remove featured from all other variants first
-        await supabase
-          .from('vehicle_variants')
-          .update({ is_featured: false })
-          .eq('vehicle_id', vehicleId);
-
-        const { error } = await supabase
-          .from('vehicle_variants')
-          .update({ is_featured: true })
-          .eq('id', id);
+        await supabase.from('vehicle_variants').update({ is_featured: false }).eq('vehicle_id', vehicleId);
+        const { error } = await supabase.from('vehicle_variants').update({ is_featured: true }).eq('id', id);
         if (error) throw error;
         toast.success('Featured variant updated');
       } else {
-        const { error } = await supabase
-          .from('vehicle_variants')
-          .update({ is_featured: false })
-          .eq('id', id);
+        const { error } = await supabase.from('vehicle_variants').update({ is_featured: false }).eq('id', id);
         if (error) throw error;
         toast.success('Featured removed');
       }
       fetchVariants();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update featured status');
+      toast.error(err.message || 'Failed to update');
     }
   };
 
@@ -308,25 +273,17 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
     const newVariants = [...variants];
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
     [newVariants[idx], newVariants[swapIdx]] = [newVariants[swapIdx], newVariants[idx]];
-
-    // Update sort_orders
     const reordered = newVariants.map((v, i) => ({ ...v, sort_order: i }));
     setVariants(reordered);
 
-    // Draft mode - no DB update needed
-    if (isDraft) {
-      return;
-    }
+    if (isDraft) return;
 
     try {
-      const updates = reordered.map((v, i) => ({ id: v.id, sort_order: i }));
-      for (const u of updates) {
-        const { error } = await supabase.from('vehicle_variants').update({ sort_order: u.sort_order }).eq('id', u.id);
-        if (error) throw error;
+      for (const v of reordered) {
+        await supabase.from('vehicle_variants').update({ sort_order: v.sort_order }).eq('id', v.id);
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to reorder');
-      fetchVariants(); // Revert on error
+    } catch {
+      fetchVariants();
     }
   };
 
@@ -346,6 +303,8 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
       image_url: variant.image_url,
       color: variant.color,
       color_hex: variant.color_hex,
+      colors: variant.colors,
+      color_hexes: variant.color_hexes,
       sort_order: Math.max(...variants.map(v => v.sort_order || 0)) + 1,
       is_available: variant.is_available,
       is_featured: false,
@@ -353,14 +312,8 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
       specifications: variant.specifications,
     };
 
-    // Draft mode - add to memory
     if (isDraft) {
-      const newDraftVariant = {
-        ...newVariant,
-        id: `draft-${draftIdCounter}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as VehicleVariant;
+      const newDraftVariant = { ...newVariant, id: `draft-${draftIdCounter}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VehicleVariant;
       setDraftIdCounter(prev => prev + 1);
       setVariants(prev => [...prev, newDraftVariant]);
       toast.success('Variant duplicated');
@@ -376,7 +329,7 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
     }
   };
 
-  const formatPrice = (price: number) => {
+  const formatPriceLocal = (price: number) => {
     if (price >= 100000) return `${(price / 100000).toFixed(2)}L`;
     return price.toLocaleString('en-IN');
   };
@@ -387,16 +340,10 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
         <h2 className="text-lg font-bold flex items-center gap-2">
           <Power size={18} className="text-[#145a2c]" />
           Variants
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-normal">
-            {variants.length}
-          </span>
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-normal">{variants.length}</span>
         </h2>
         {!isAdding && !editingId && (
-          <button
-            type="button"
-            onClick={handleAddNew}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#145a2c] text-white rounded-lg text-xs font-semibold hover:bg-[#0f4020] transition-colors"
-          >
+          <button type="button" onClick={handleAddNew} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#145a2c] text-white rounded-lg text-xs font-semibold hover:bg-[#0f4020] transition-colors">
             <Plus size={14} />
             Add Variant
           </button>
@@ -405,262 +352,119 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
 
       {(isAdding || editingId) && (
         <form onSubmit={handleSubmit} className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-900 text-sm">
-              {editingId ? 'Edit Variant' : 'New Variant'}
-            </h3>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              <X size={16} className="text-gray-400" />
-            </button>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 text-sm">{editingId ? 'Edit Variant' : 'New Variant'}</h3>
+            <button type="button" onClick={resetForm} className="p-1 hover:bg-gray-200 rounded-lg"><X size={16} className="text-gray-400" /></button>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="S1 Pro"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                required
-              />
+              <input type="text" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="S1 Pro" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" required />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Short Name</label>
-              <input
-                type="text"
-                value={form.short_name}
-                onChange={(e) => setForm(f => ({ ...f, short_name: e.target.value }))}
-                placeholder="S1 Pro"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <label className="block text-xs font-medium text-gray-600 mb-1">Slug</label>
+              <input type="text" value={form.slug} onChange={(e) => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="s1-pro" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Price (Rs.) *</label>
-              <input
-                type="number"
-                value={form.price}
-                onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))}
-                placeholder="139999"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                required
-              />
+              <input type="number" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} placeholder="139999" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" required />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Battery (kWh)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={form.battery_capacity_kwh}
-                onChange={(e) => setForm(f => ({ ...f, battery_capacity_kwh: e.target.value }))}
-                placeholder="3.97"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <input type="number" step="0.1" value={form.battery_capacity_kwh} onChange={(e) => setForm(f => ({ ...f, battery_capacity_kwh: e.target.value }))} placeholder="3.97" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Range (km)</label>
-              <input
-                type="number"
-                value={form.range_km}
-                onChange={(e) => setForm(f => ({ ...f, range_km: e.target.value }))}
-                placeholder="195"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <input type="number" value={form.range_km} onChange={(e) => setForm(f => ({ ...f, range_km: e.target.value }))} placeholder="195" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Top Speed (km/h)</label>
-              <input
-                type="number"
-                value={form.top_speed_kmh}
-                onChange={(e) => setForm(f => ({ ...f, top_speed_kmh: e.target.value }))}
-                placeholder="116"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <input type="number" value={form.top_speed_kmh} onChange={(e) => setForm(f => ({ ...f, top_speed_kmh: e.target.value }))} placeholder="116" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Motor (kW)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={form.motor_power_kw}
-                onChange={(e) => setForm(f => ({ ...f, motor_power_kw: e.target.value }))}
-                placeholder="8.5"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <input type="number" step="0.1" value={form.motor_power_kw} onChange={(e) => setForm(f => ({ ...f, motor_power_kw: e.target.value }))} placeholder="8.5" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Charging (hrs)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={form.charging_time_hrs}
-                onChange={(e) => setForm(f => ({ ...f, charging_time_hrs: e.target.value }))}
-                placeholder="5.3"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <input type="number" step="0.1" value={form.charging_time_hrs} onChange={(e) => setForm(f => ({ ...f, charging_time_hrs: e.target.value }))} placeholder="5.3" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Kerb Weight (kg)</label>
-              <input
-                type="number"
-                value={form.kerb_weight}
-                onChange={(e) => setForm(f => ({ ...f, kerb_weight: e.target.value }))}
-                placeholder="108"
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
-            </div>
-            <div className="col-span-full">
-              <label className="block text-xs font-medium text-gray-600 mb-2">Available Colors</label>
-              <div className="space-y-2">
-                {/* Show selected colors */}
-                {form.colors.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {form.colors.map((col, idx) => (
-                      <div key={idx} className="flex items-center gap-1.5 bg-white rounded-lg p-1.5 border border-gray-200">
-                        <div
-                          className="w-6 h-6 rounded-md border border-gray-300"
-                          style={{ backgroundColor: form.color_hexes[idx] || '#808080' }}
-                        />
-                        <span className="text-xs text-gray-700">{col}</span>
-                        <button
-                          type="button"
-                          onClick={() => setForm(f => ({
-                            ...f,
-                            colors: f.colors.filter((_, i) => i !== idx),
-                            color_hexes: f.color_hexes.filter((_, i) => i !== idx)
-                          }))}
-                          className="p-0.5 hover:bg-red-100 rounded"
-                        >
-                          <X size={12} className="text-gray-400 hover:text-red-600" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {/* Quick add from presets */}
-                <div className="flex flex-wrap gap-2">
-                  {colorPresets.filter(p => !form.colors.includes(p.name)).slice(0, 8).map((preset) => (
-                    <button
-                      key={preset.hex}
-                      type="button"
-                      onClick={() => setForm(f => ({
-                        ...f,
-                        colors: [...f.colors, preset.name],
-                        color_hexes: [...f.color_hexes, preset.hex]
-                      }))}
-                      className="flex items-center gap-1.5 px-2 py-1 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
-                    >
-                      <div
-                        className="w-5 h-5 rounded-md border border-gray-300"
-                        style={{ backgroundColor: preset.hex }}
-                      />
-                      <span className="text-xs text-gray-600">{preset.name}</span>
-                      <Plus size={12} className="text-gray-400" />
-                    </button>
-                  ))}
-                </div>
-                {/* Custom color input */}
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value="#808080"
-                    onChange={(e) => {
-                      const hex = e.target.value;
-                      // Only add if not already present
-                      if (!form.color_hexes.includes(hex)) {
-                        setForm(f => ({
-                          ...f,
-                          colors: [...f.colors, 'Custom'],
-                          color_hexes: [...f.color_hexes, hex]
-                        }));
-                      }
-                    }}
-                    className="w-8 h-8 rounded-lg cursor-pointer border border-gray-200"
-                    title="Pick custom color"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Add custom color name..."
-                    className="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const input = e.target as HTMLInputElement;
-                        const name = input.value.trim();
-                        if (name) {
-                          setForm(f => ({
-                            ...f,
-                            colors: [...f.colors, name],
-                            color_hexes: [...f.color_hexes, '#808080']
-                          }));
-                          input.value = '';
-                        }
-                      }
-                    }}
-                  />
-                </div>
-              </div>
+              <input type="number" value={form.kerb_weight} onChange={(e) => setForm(f => ({ ...f, kerb_weight: e.target.value }))} placeholder="108" className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm(f => ({ ...f, status: e.target.value as any }))}
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              >
-                {statusOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
-                ))}
+              <select value={form.status} onChange={(e) => setForm(f => ({ ...f, status: e.target.value as any }))} className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]">
+                {statusOptions.map(opt => <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Sort Order</label>
-              <input
-                type="number"
-                value={form.sort_order}
-                onChange={(e) => setForm(f => ({ ...f, sort_order: e.target.value }))}
-                className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
+              <input type="number" value={form.sort_order} onChange={(e) => setForm(f => ({ ...f, sort_order: e.target.value }))} className="w-full px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]" />
             </div>
             <div className="flex items-center gap-4 pt-5">
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.is_available}
-                  onChange={(e) => setForm(f => ({ ...f, is_available: e.target.checked }))}
-                  className="w-4 h-4 rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]"
-                />
+                <input type="checkbox" checked={form.is_available} onChange={(e) => setForm(f => ({ ...f, is_available: e.target.checked }))} className="w-4 h-4 rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]" />
                 <span className="text-xs text-gray-700">Available</span>
               </label>
               <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.is_featured}
-                  onChange={(e) => setForm(f => ({ ...f, is_featured: e.target.checked }))}
-                  className="w-4 h-4 rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]"
-                />
+                <input type="checkbox" checked={form.is_featured} onChange={(e) => setForm(f => ({ ...f, is_featured: e.target.checked }))} className="w-4 h-4 rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]" />
                 <span className="text-xs text-gray-700">Featured</span>
               </label>
             </div>
           </div>
 
+          {/* Colors - Tag Input Style */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Variant Image</label>
-            <ImageUpload
-              bucket="vehicle-gallery"
-              onImageUrl={(url) => setForm(f => ({ ...f, image_url: url }))}
-              currentImageUrl={form.image_url}
-              label="Variant Image"
-              recommendedWidth={600}
-              recommendedHeight={400}
-            />
+            <label className="block text-xs font-medium text-gray-600 mb-2">Colors</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {form.colors.map((col, idx) => (
+                <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded-full text-xs">
+                  <input
+                    type="color"
+                    value={form.color_hexes[idx] || '#808080'}
+                    onChange={(e) => setForm(f => ({ ...f, color_hexes: f.color_hexes.map((h, i) => i === idx ? e.target.value : h) }))}
+                    className="w-4 h-4 rounded cursor-pointer border-0 p-0"
+                  />
+                  {col}
+                  <button type="button" onClick={() => removeColor(idx)} className="text-gray-400 hover:text-red-600"><X size={12} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.color_input}
+                onChange={(e) => setForm(f => ({ ...f, color_input: e.target.value }))}
+                onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); addColor(); } }}
+                placeholder="Enter color name and press Enter"
+                className="flex-1 px-2.5 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+              />
+              <button type="button" onClick={addColor} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium text-gray-700 transition-colors">Add</button>
+            </div>
           </div>
 
+          {/* Image - Compact */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Variant Image</label>
+            <div className="flex items-start gap-3">
+              {form.image_url && (
+                <img src={form.image_url} alt="Variant" className="w-16 h-16 rounded-lg object-cover border border-gray-200" />
+              )}
+              <ImageUpload
+                bucket="vehicle-gallery"
+                onImageUrl={(url) => setForm(f => ({ ...f, image_url: url }))}
+                currentImageUrl=""
+                label=""
+                recommendedWidth={600}
+                recommendedHeight={400}
+              />
+            </div>
+          </div>
+
+          {/* Specifications - Compact */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Additional Specs (JSON)</label>
             <textarea
@@ -673,18 +477,8 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={resetForm}
-              className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-[#145a2c] text-white rounded-lg text-sm font-semibold hover:bg-[#0f4020] transition-colors disabled:opacity-50"
-            >
+            <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-white transition-colors">Cancel</button>
+            <button type="submit" disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-[#145a2c] text-white rounded-lg text-sm font-semibold hover:bg-[#0f4020] transition-colors disabled:opacity-50">
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {editingId ? 'Update' : 'Create'}
             </button>
@@ -693,38 +487,23 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-8 text-gray-500">
-          <Loader2 size={20} className="animate-spin mr-2" />
-          Loading variants...
-        </div>
+        <div className="flex items-center justify-center py-8 text-gray-500"><Loader2 size={20} className="animate-spin mr-2" />Loading variants...</div>
       ) : error ? (
         <div className="text-center py-8 text-red-500 bg-red-50 rounded-xl border border-red-200">
           <AlertCircle size={32} className="mx-auto text-red-400 mb-3" />
           <p className="mb-3">{error}</p>
-          <button
-            type="button"
-            onClick={fetchVariants}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
+          <button type="button" onClick={fetchVariants} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors">Retry</button>
         </div>
       ) : variants.length === 0 && !isAdding ? (
         <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
           <Power size={32} className="mx-auto text-gray-300 mb-3" />
           <p className="mb-3">No variants added yet.</p>
-          <button
-            type="button"
-            onClick={handleAddNew}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#145a2c] text-white rounded-lg text-sm font-semibold hover:bg-[#0f4020] transition-colors"
-          >
-            <Plus size={14} />
-            Add First Variant
+          <button type="button" onClick={handleAddNew} className="inline-flex items-center gap-2 px-4 py-2 bg-[#145a2c] text-white rounded-lg text-sm font-semibold hover:bg-[#0f4020] transition-colors">
+            <Plus size={14} />Add First Variant
           </button>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-          {/* Table Header */}
           <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-600 border-b border-gray-100">
             <div className="col-span-3">Variant</div>
             <div className="col-span-2 text-right">Price</div>
@@ -735,156 +514,51 @@ export default function VariantsInlineEditor({ vehicleId, onVariantsChange, isDr
             <div className="col-span-1 text-center">Status</div>
             <div className="col-span-2 text-center">Actions</div>
           </div>
-
-          {/* Table Body */}
           {variants.map((variant, idx) => (
-            <div
-              key={variant.id}
-              className={cn(
-                'grid grid-cols-12 gap-2 px-4 py-3 items-center group transition-colors',
-                idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50',
-                editingId === variant.id && 'bg-green-50'
-              )}
-            >
-              {/* Variant Name */}
+            <div key={variant.id} className={cn('grid grid-cols-12 gap-2 px-4 py-3 items-center group transition-colors', idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50', editingId === variant.id && 'bg-green-50')}>
               <div className="col-span-3 flex items-center gap-2">
                 <div className="flex flex-col items-center gap-0.5 text-gray-300">
-                  <button
-                    type="button"
-                    onClick={() => moveVariant(variant.id, 'up')}
-                    disabled={idx === 0}
-                    className="p-0 hover:text-gray-500 disabled:opacity-30 text-xs"
-                  >
-                    ▲
-                  </button>
+                  <button type="button" onClick={() => moveVariant(variant.id, 'up')} disabled={idx === 0} className="p-0 hover:text-gray-500 disabled:opacity-30 text-xs">▲</button>
                   <GripVertical size={12} />
-                  <button
-                    type="button"
-                    onClick={() => moveVariant(variant.id, 'down')}
-                    disabled={idx === variants.length - 1}
-                    className="p-0 hover:text-gray-500 disabled:opacity-30 text-xs"
-                  >
-                    ▼
-                  </button>
+                  <button type="button" onClick={() => moveVariant(variant.id, 'down')} disabled={idx === variants.length - 1} className="p-0 hover:text-gray-500 disabled:opacity-30 text-xs">▼</button>
                 </div>
                 {variant.image_url ? (
                   <img src={variant.image_url} alt={variant.name} className="w-8 h-8 rounded object-cover bg-gray-100" />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-                    <ImageIcon size={14} className="text-gray-300" />
-                  </div>
+                  <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center"><ImageIcon size={14} className="text-gray-300" /></div>
                 )}
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 text-sm truncate">{variant.name}</div>
-                  {variant.short_name && (
-                    <div className="text-xs text-gray-500">{variant.short_name}</div>
-                  )}
+                  {variant.short_name && <div className="text-xs text-gray-500">{variant.short_name}</div>}
                 </div>
-                {/* Show colors - either multiple or single */}
-                {variant.colors && variant.colors.length > 0 ? (
+                {variant.colors && variant.colors.length > 0 && (
                   <div className="flex -space-x-1">
                     {variant.colors.slice(0, 4).map((col, i) => (
-                      <span
-                        key={i}
-                        className="w-4 h-4 rounded-full border-2 border-white flex-shrink-0"
-                        style={{ backgroundColor: variant.color_hexes?.[i] || '#9ca3af' }}
-                        title={col}
-                      />
+                      <span key={i} className="w-4 h-4 rounded-full border-2 border-white flex-shrink-0" style={{ backgroundColor: variant.color_hexes?.[i] || '#9ca3af' }} title={col} />
                     ))}
                     {variant.colors.length > 4 && (
-                      <span className="w-4 h-4 rounded-full bg-gray-200 text-[8px] flex items-center justify-center font-medium text-gray-600 border-2 border-white">
-                        +{variant.colors.length - 4}
-                      </span>
+                      <span className="w-4 h-4 rounded-full bg-gray-200 text-[8px] flex items-center justify-center font-medium text-gray-600 border-2 border-white">+{variant.colors.length - 4}</span>
                     )}
                   </div>
-                ) : variant.color && (
-                  <span
-                    className="w-4 h-4 rounded-full border border-gray-200 flex-shrink-0"
-                    style={{ backgroundColor: variant.color_hex || '#9ca3af' }}
-                    title={variant.color}
-                  />
                 )}
               </div>
-
-              {/* Price */}
-              <div className="col-span-2 text-right">
-                <div className="font-bold text-gray-900 text-sm">₹{formatPrice(variant.price)}</div>
-              </div>
-
-              {/* Battery */}
-              <div className="col-span-1 text-center text-sm text-gray-600">
-                {variant.battery_capacity_kwh ? `${variant.battery_capacity_kwh}` : '—'}
-              </div>
-
-              {/* Range */}
-              <div className="col-span-1 text-center text-sm text-gray-600">
-                {variant.range_km ? `${variant.range_km}` : '—'}
-              </div>
-
-              {/* Top Speed */}
-              <div className="col-span-1 text-center text-sm text-gray-600">
-                {variant.top_speed_kmh ? `${variant.top_speed_kmh}` : '—'}
-              </div>
-
-              {/* Featured */}
+              <div className="col-span-2 text-right font-bold text-gray-900 text-sm">₹{formatPriceLocal(variant.price)}</div>
+              <div className="col-span-1 text-center text-sm text-gray-600">{variant.battery_capacity_kwh || '—'}</div>
+              <div className="col-span-1 text-center text-sm text-gray-600">{variant.range_km || '—'}</div>
+              <div className="col-span-1 text-center text-sm text-gray-600">{variant.top_speed_kmh || '—'}</div>
               <div className="col-span-1 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => toggleFeatured(variant.id, variant.is_featured)}
-                  className={cn(
-                    'p-1 rounded transition-colors',
-                    variant.is_featured
-                      ? 'text-yellow-500 hover:text-yellow-600'
-                      : 'text-gray-300 hover:text-gray-400'
-                  )}
-                  title={variant.is_featured ? 'Featured (click to remove)' : 'Set as featured'}
-                >
+                <button type="button" onClick={() => toggleFeatured(variant.id, variant.is_featured)} className={cn('p-1 rounded transition-colors', variant.is_featured ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-gray-400')} title={variant.is_featured ? 'Featured' : 'Set as featured'}>
                   <Star size={16} fill={variant.is_featured ? 'currentColor' : 'none'} />
                 </button>
               </div>
-
-              {/* Status */}
               <div className="col-span-1 flex justify-center">
-                <span className={cn(
-                  'px-2 py-0.5 rounded-full text-xs font-medium',
-                  variant.status === 'active' && 'bg-green-50 text-green-700',
-                  variant.status === 'discontinued' && 'bg-gray-100 text-gray-600',
-                  variant.status === 'upcoming' && 'bg-blue-50 text-blue-700'
-                )}>
-                  {variant.status}
-                </span>
+                <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', variant.status === 'active' && 'bg-green-50 text-green-700', variant.status === 'discontinued' && 'bg-gray-100 text-gray-600', variant.status === 'upcoming' && 'bg-blue-50 text-blue-700')}>{variant.status}</span>
               </div>
-
-              {/* Actions */}
               <div className="col-span-2 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={() => startEdit(variant)}
-                  className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
-                  title="Edit"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => duplicateVariant(variant)}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Duplicate"
-                >
-                  <Copy size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteVariant(variant.id)}
-                  disabled={deleting === variant.id}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title="Delete"
-                >
-                  {deleting === variant.id ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Trash2 size={14} />
-                  )}
+                <button type="button" onClick={() => startEdit(variant)} className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors" title="Edit"><Pencil size={14} /></button>
+                <button type="button" onClick={() => duplicateVariant(variant)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Duplicate"><Copy size={14} /></button>
+                <button type="button" onClick={() => deleteVariant(variant.id)} disabled={deleting === variant.id} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50" title="Delete">
+                  {deleting === variant.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
               </div>
             </div>
