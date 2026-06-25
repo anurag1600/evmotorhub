@@ -89,21 +89,26 @@ export default function VehiclesManagementPage() {
     let success = 0;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (!row.name) { errors.push(`Row ${i + 1}: name is required`); continue; }
-      if (!['scooter', 'bike', 'car'].includes(row.type)) { errors.push(`Row ${i + 1}: type must be scooter, bike, or car`); continue; }
-      const slug = row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      // Only name is strictly required
+      if (!row.name?.trim()) { errors.push(`Row ${i + 1}: name is required`); continue; }
+
+      // Auto-generate slug from name if not provided
+      const slug = row.slug?.trim() || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+      // Default type to 'scooter' if not provided or invalid
+      const validTypes = ['scooter', 'bike', 'car'];
+      const type = validTypes.includes(row.type?.toLowerCase()) ? row.type.toLowerCase() : 'scooter';
 
       // Parse array fields (semicolon-separated)
       const parseArray = (val: string | undefined) =>
         val ? val.split(';').map(s => s.trim()).filter(Boolean) : [];
 
-      // Parse JSON fields
+      // Parse JSON fields - supports both JSON format and key:value;key:value format
       const parseJson = (val: string | undefined): Record<string, string> => {
         if (!val) return {};
         try {
           return JSON.parse(val);
         } catch {
-          // Try key:value format
           const obj: Record<string, string> = {};
           val.split(';').forEach(pair => {
             const [k, v] = pair.split(':').map(s => s.trim());
@@ -115,11 +120,11 @@ export default function VehiclesManagementPage() {
 
       try {
         const { error } = await supabase.from('vehicles').insert([{
-          name: row.name,
+          name: row.name.trim(),
           slug,
-          type: row.type,
-          segment: row.segment || 'budget',
-          manufacturer_id: row.manufacturer_id || null,
+          type,
+          segment: row.segment?.trim() || 'budget',
+          manufacturer_id: row.manufacturer_id?.trim() || null,
           price_min: Number(row.price_min) || 0,
           price_max: Number(row.price_max) || 0,
           range_km: Number(row.range_km) || 0,
@@ -127,16 +132,16 @@ export default function VehiclesManagementPage() {
           battery_capacity_kwh: Number(row.battery_capacity_kwh) || 0,
           motor_power_kw: Number(row.motor_power_kw) || 0,
           charging_time_hrs: Number(row.charging_time_hrs) || 0,
-          image_url: row.image_url || null,
+          image_url: row.image_url?.trim() || null,
           image_gallery: parseArray(row.image_gallery),
           gallery_urls: parseArray(row.gallery_urls),
-          video_url: row.video_url || null,
-          description: row.description || null,
-          is_upcoming: row.is_upcoming === 'true',
-          is_featured: row.is_featured === 'true',
-          is_latest: row.is_latest === 'true',
-          status: row.status || 'draft',
-          launch_date: row.launch_date || null,
+          video_url: row.video_url?.trim() || null,
+          description: row.description?.trim() || null,
+          is_upcoming: row.is_upcoming?.toLowerCase() === 'true',
+          is_featured: row.is_featured?.toLowerCase() === 'true',
+          is_latest: row.is_latest?.toLowerCase() === 'true',
+          status: row.status?.trim() || 'draft',
+          launch_date: row.launch_date?.trim() || null,
           colors: parseArray(row.colors),
           features: parseArray(row.features),
           pros: parseArray(row.pros),
@@ -144,8 +149,8 @@ export default function VehiclesManagementPage() {
           specifications: parseJson(row.specifications),
           related_news_ids: parseArray(row.related_news_ids),
           similar_vehicle_ids: parseArray(row.similar_vehicle_ids),
-          seo_title: row.seo_title || null,
-          seo_description: row.seo_description || null,
+          seo_title: row.seo_title?.trim() || null,
+          seo_description: row.seo_description?.trim() || null,
           seo_keywords: row.seo_keywords ? parseArray(row.seo_keywords) : null,
         }]);
         if (error) throw error;
