@@ -14,6 +14,7 @@ const adminMenuItems = [
   { label: 'Vehicles', href: '/admin/vehicles', icon: Car },
   { label: 'Manufacturers', href: '/admin/manufacturers', icon: Package },
   { label: 'Charging Stations', href: '/admin/charging', icon: Zap },
+  { label: 'Charging Submissions', href: '/admin/charging-submissions', icon: Zap },
   { label: 'Pricing', href: '/admin/pricing', icon: MapPin },
   { label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
   { label: 'Popular Comparisons', href: '/admin/comparisons', icon: Scale },

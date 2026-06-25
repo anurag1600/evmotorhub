@@ -8,6 +8,7 @@ import { ChargingStation } from '@/lib/types';
 import { getStatusColor } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import ChargingStationSubmitModal from '@/components/ChargingStationSubmitModal';
 
 const indianCities = [
   'All Cities', 'Bengaluru', 'Mumbai', 'New Delhi', 'Gurugram', 'Chennai',
@@ -23,6 +24,7 @@ export default function ChargingStationsPage() {
   const [search, setSearch] = useState('');
   const [selectedConnector, setSelectedConnector] = useState('');
   const [selectedStation, setSelectedStation] = useState<ChargingStation | null>(null);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -206,11 +208,20 @@ export default function ChargingStationsPage() {
             <div className="font-bold text-lg mb-1">Know a charging station not listed here?</div>
             <div className="text-green-200 text-sm">Help us build India&apos;s most complete EV charging directory.</div>
           </div>
-          <button className="bg-white text-[#145a2c] px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 transition-colors whitespace-nowrap flex-shrink-0">
+          <button
+            onClick={() => setShowSubmitModal(true)}
+            className="bg-white text-[#145a2c] px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 transition-colors whitespace-nowrap flex-shrink-0"
+          >
             Submit a Station
           </button>
         </div>
       </div>
+
+      {/* Submit Modal */}
+      <ChargingStationSubmitModal
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+      />
 
       {/* Station Detail Modal */}
       {selectedStation && (
