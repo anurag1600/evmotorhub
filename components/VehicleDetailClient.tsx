@@ -6,7 +6,7 @@ import {
   Zap, Gauge, Battery, Clock, MapPin, ChevronRight, Scale, Calculator, ShoppingBag,
   ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Palette, ChevronLeft
 } from 'lucide-react';
-import { Vehicle, VehicleVariant, PricingState, PricingCity, NewsArticle } from '@/lib/types';
+import { Vehicle, VehicleVariant, PricingState, PricingCity, NewsArticle, PricingRule, PricingSlab, PricingSubsidy, VehiclePricingCategory, OnRoadPriceBreakdown } from '@/lib/types';
 import { formatPrice, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -45,6 +45,9 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
   const [adminSimilarVehicles, setAdminSimilarVehicles] = useState<any[]>([]);
   const [cities, setCities] = useState<PricingCity[]>([]);
+  const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
+  const [pricingSlabs, setPricingSlabs] = useState<PricingSlab[]>([]);
+  const [pricingSubsidies, setPricingSubsidies] = useState<PricingSubsidy[]>([]);
   const [citySearch, setCitySearch] = useState('');
   const [advertisement, setAdvertisement] = useState<any>(null);
 
@@ -94,25 +97,158 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
     };
   }, [selectedVariant, vehicle]);
 
-  // Price calculation
-  const priceBreakdown = useMemo(() => {
-    const base = display.price;
-    const rto = selectedCity?.rto_charge || Math.round(base * (selectedState?.rto_percentage || 8) / 100);
-    const insurance = selectedCity?.insurance_charge || Math.round(base * 0.04);
-    const roadTax = Math.round(base * (selectedState?.road_tax_percentage || 0) / 100);
-    const other = selectedCity?.other_charges || selectedState?.other_charges || 1000;
-    const subsidy = selectedState?.subsidy_amount || 0;
-    const onRoadPrice = base + rto + insurance + roadTax + other - subsidy;
-    return { exShowroom: base, rto, insurance, roadTax, other, subsidy, onRoadPrice };
-  }, [display.price, selectedState, selectedCity]);
+  // Get vehicle category for pricing
+  const vehiclePricingCategory: VehiclePricingCategory = useMemo(() => {
+    if (vehicle.type === 'car') return 'electric_car';
+    if (vehicle.type === 'scooter') return 'electric_scooter';
+    return 'electric_bike';
+  }, [vehicle.type]);
+
+  // Price calculation using new percentage-based system
+  const priceBreakdown: OnRoadPriceBreakdown = useMemo(() => {
+    const exShowroom = display.price;
+
+    if (!selectedCity) {
+      // Default fallback if no city selected
+      return {
+        ex_showroom: exShowroom,
+        rto: Math.round(exShowroom * 0.08),
+        rto_percentage: 8,
+        insurance: Math.round(exShowroom * 0.035),
+        insurance_percentage: 3.5,
+        registration: 1000,
+        hsrp: 500,
+        fastag: vehicle.type === 'car' ? 500 : 0,
+        other: 1000,
+        subsidy: 0,
+        subsidy_description: null,
+        on_road: Math.round(exShowroom * 1.125) + 1500,
+        breakdown: {
+          show_rto: true,
+          show_insurance: true,
+          show_registration: true,
+          show_hsrp: true,
+          show_fastag: vehicle.type === 'car',
+          show_other: true,
+        },
+      };
+    }
+
+    // Find rule for this city + category
+    const rule = pricingRules.find(r => r.city_id === selectedCity.id && r.vehicle_category === vehiclePricingCategory);
+
+    if (!rule) {
+      // Fallback to state percentages or defaults
+      const rtoPct = selectedState?.rto_percentage || 8;
+      const insPct = selectedState?.road_tax_percentage || 3.5;
+      return {
+        ex_showroom: exShowroom,
+        rto: Math.round(exShowroom * rtoPct / 100),
+        rto_percentage: rtoPct,
+        insurance: Math.round(exShowroom * insPct / 100),
+        insurance_percentage: insPct,
+        registration: 1000,
+        hsrp: 500,
+        fastag: vehicle.type === 'car' ? 500 : 0,
+        other: selectedState?.other_charges || 1000,
+        subsidy: selectedState?.subsidy_amount || 0,
+        subsidy_description: null,
+        on_road: Math.round(exShowroom * (1 + rtoPct / 100 + insPct / 100)) + 2000 - (selectedState?.subsidy_amount || 0),
+        breakdown: {
+          show_rto: true,
+          show_insurance: true,
+          show_registration: true,
+          show_hsrp: true,
+          show_fastag: vehicle.type === 'car',
+          show_other: true,
+        },
+      };
+    }
+
+    // Find applicable tax slab
+    const applicableSlab = pricingSlabs.find(s =>
+      s.rule_id === rule.id &&
+      s.is_active &&
+      exShowroom >= s.min_price &&
+      (s.max_price === null || exShowroom <= s.max_price)
+    );
+
+    const taxPercentage = applicableSlab?.tax_percentage || rule.rto_percentage;
+
+    // Calculate RTO
+    const rto = rule.show_rto ? Math.round(exShowroom * taxPercentage / 100) : 0;
+
+    // Calculate Insurance
+    const insurance = rule.show_insurance ? Math.round(exShowroom * rule.insurance_percentage / 100) : 0;
+
+    // Fixed charges
+    const registration = rule.show_registration ? rule.registration_fee : 0;
+    const hsrp = rule.show_hsrp ? rule.hsrp_fee : 0;
+    const fastag = rule.show_fastag ? rule.fastag_fee : 0;
+    const other = rule.show_other ? rule.other_charges : 0;
+
+    // Find subsidy
+    const subsidyRecord = pricingSubsidies.find(s =>
+      s.city_id === selectedCity.id &&
+      s.vehicle_category === vehiclePricingCategory &&
+      s.is_active
+    );
+
+    let subsidy = 0;
+    let subsidyDescription: string | null = null;
+    if (subsidyRecord) {
+      subsidyDescription = subsidyRecord.description;
+      if (subsidyRecord.subsidy_type === 'fixed') {
+        subsidy = subsidyRecord.value;
+      } else {
+        subsidy = Math.round(exShowroom * subsidyRecord.value / 100);
+      }
+    }
+
+    const on_road = exShowroom + rto + insurance + registration + hsrp + fastag + other - subsidy;
+
+    return {
+      ex_showroom: exShowroom,
+      rto,
+      rto_percentage: taxPercentage,
+      insurance,
+      insurance_percentage: rule.insurance_percentage,
+      registration,
+      hsrp,
+      fastag,
+      other,
+      subsidy,
+      subsidy_description: subsidyDescription,
+      on_road: on_road,
+      breakdown: {
+        show_rto: rule.show_rto,
+        show_insurance: rule.show_insurance,
+        show_registration: rule.show_registration,
+        show_hsrp: rule.show_hsrp,
+        show_fastag: rule.show_fastag,
+        show_other: rule.show_other,
+      },
+    };
+  }, [display.price, selectedCity, selectedState, pricingRules, pricingSlabs, pricingSubsidies, vehiclePricingCategory, vehicle.type]);
+
+  // Legacy compatibility for EMI calculator
+  const legacyPriceBreakdown = useMemo(() => ({
+    exShowroom: priceBreakdown.ex_showroom,
+    rto: priceBreakdown.rto,
+    insurance: priceBreakdown.insurance,
+    roadTax: 0, // Included in RTO now
+    other: priceBreakdown.registration + priceBreakdown.hsrp + priceBreakdown.fastag + priceBreakdown.other,
+    subsidy: priceBreakdown.subsidy,
+    onRoadPrice: priceBreakdown.on_road,
+  }), [priceBreakdown]);
 
   // EMI calculation
   const emiResult = useMemo(() => {
-    const principal = priceBreakdown.onRoadPrice - emiDownPayment;
+    const principal = legacyPriceBreakdown.onRoadPrice - emiDownPayment;
     const monthlyRate = emiInterestRate / 12 / 100;
     const emi = principal > 0 ? Math.round((principal * monthlyRate * Math.pow(1 + monthlyRate, emiTenure)) / (Math.pow(1 + monthlyRate, emiTenure) - 1)) : 0;
     return { emi, principal, totalAmount: emi * emiTenure, totalInterest: emi * emiTenure - principal };
-  }, [priceBreakdown.onRoadPrice, emiDownPayment, emiInterestRate, emiTenure]);
+  }, [legacyPriceBreakdown.onRoadPrice, emiDownPayment, emiInterestRate, emiTenure]);
 
   // Fetch data
   useEffect(() => {
@@ -132,8 +268,16 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         setAdminSimilarVehicles(similar.filter(v => v.type === vehicle.type).slice(0, 4));
       }
 
-      const { data: allCities } = await supabase.from('pricing_cities').select('*, state:pricing_states(*)').eq('is_active', true).order('is_popular', { ascending: false }).order('name');
-      if (allCities) setCities(allCities as PricingCity[]);
+      const [allCitiesRes, rulesRes, slabsRes, subsidiesRes] = await Promise.all([
+        supabase.from('pricing_cities').select('*, state:pricing_states(*)').eq('is_active', true).order('is_popular', { ascending: false }).order('name'),
+        supabase.from('pricing_rules').select('*').eq('is_active', true),
+        supabase.from('pricing_slabs').select('*').eq('is_active', true),
+        supabase.from('pricing_subsidies').select('*').eq('is_active', true),
+      ]);
+      if (allCitiesRes.data) setCities(allCitiesRes.data as PricingCity[]);
+      if (rulesRes.data) setPricingRules(rulesRes.data as PricingRule[]);
+      if (slabsRes.data) setPricingSlabs(slabsRes.data as PricingSlab[]);
+      if (subsidiesRes.data) setPricingSubsidies(subsidiesRes.data as PricingSubsidy[]);
 
       const { data: ads } = await supabase.from('advertisements').select('*').eq('is_active', true).eq('placement', 'sidebar').gte('end_date', new Date().toISOString()).order('created_at', { ascending: false }).limit(1);
       if (ads && ads.length > 0) setAdvertisement(ads[0]);
@@ -149,7 +293,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
     fetchData();
   }, [vehicle, similar]);
 
-  useEffect(() => { setEmiDownPayment(Math.round(priceBreakdown.onRoadPrice * 0.1)); }, [priceBreakdown.onRoadPrice]);
+  useEffect(() => { setEmiDownPayment(Math.round(legacyPriceBreakdown.onRoadPrice * 0.1)); }, [legacyPriceBreakdown.onRoadPrice]);
   useEffect(() => { if (selectedCity && typeof window !== 'undefined') localStorage.setItem('selectedCity', JSON.stringify(selectedCity)); }, [selectedCity]);
 
   const popularCities = useMemo(() => cities.filter(c => c.is_popular).slice(0, 8), [cities]);
@@ -327,7 +471,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wide">Ex-showroom Price</p>
-                    <p className="text-2xl font-bold text-[#145a2c]">{formatPrice(display.price)}</p>
+                    <p className="text-2xl font-bold text-[#145a2c]">{formatPrice(priceBreakdown.ex_showroom)}</p>
                     {vehicle.price_min !== vehicle.price_max && vehicle.price_max > 0 && (
                       <p className="text-[10px] text-gray-500">{formatPrice(vehicle.price_min)} - {formatPrice(vehicle.price_max)}</p>
                     )}
@@ -338,7 +482,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                 </div>
                 <div className="bg-white/70 rounded-lg p-2.5 flex justify-between items-center">
                   <span className="text-sm text-gray-600">On-road Price</span>
-                  <span className="text-lg font-bold text-gray-900">{formatPrice(priceBreakdown.onRoadPrice)}</span>
+                  <span className="text-lg font-bold text-gray-900">{formatPrice(priceBreakdown.on_road)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-700 mt-2">
                   <Calculator size={12} className="text-[#145a2c]" />
@@ -480,16 +624,58 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between"><span className="text-sm text-gray-600">Ex-showroom</span><span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.exShowroom)}</span></div>
-                  <div className="flex justify-between"><span className="text-sm text-gray-600">RTO Charges</span><span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.rto)}</span></div>
-                  <div className="flex justify-between"><span className="text-sm text-gray-600">Insurance</span><span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.insurance)}</span></div>
-                  <div className="flex justify-between"><span className="text-sm text-gray-600">Road Tax</span><span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.roadTax)}</span></div>
-                  <div className="flex justify-between"><span className="text-sm text-gray-600">Other Charges</span><span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.other)}</span></div>
-                  {priceBreakdown.subsidy > 0 && <div className="flex justify-between"><span className="text-sm text-gray-600">EV Subsidy</span><span className="text-sm font-medium text-green-600">-{formatPrice(priceBreakdown.subsidy)}</span></div>}
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Ex-showroom</span>
+                    <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.ex_showroom)}</span>
+                  </div>
+                  {priceBreakdown.breakdown.show_rto && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">RTO / Road Tax ({priceBreakdown.rto_percentage}%)</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.rto)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_insurance && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Insurance ({priceBreakdown.insurance_percentage}%)</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.insurance)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_registration && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Registration Fee</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.registration)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_hsrp && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">HSRP</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.hsrp)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_fastag && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">FASTag</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.fastag)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_other && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Other Charges</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.other)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.subsidy > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">
+                        {priceBreakdown.subsidy_description || 'EV Subsidy'}
+                      </span>
+                      <span className="text-sm font-medium text-green-600">-{formatPrice(priceBreakdown.subsidy)}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 pt-3 border-t flex justify-between items-center">
                   <span className="font-semibold text-gray-700 text-sm">Total On-Road Price</span>
-                  <span className="text-xl font-bold text-[#145a2c]">{formatPrice(priceBreakdown.onRoadPrice)}</span>
+                  <span className="text-xl font-bold text-[#145a2c]">{formatPrice(priceBreakdown.on_road)}</span>
                 </div>
               </div>
             </section>
@@ -581,7 +767,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
       {/* Mobile CTA Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t shadow-lg lg:hidden">
         <div className="px-4 py-3 flex items-center justify-between gap-3">
-          <div><p className="text-[10px] text-gray-500">On-road Price</p><p className="text-base font-bold text-[#145a2c]">{formatPrice(priceBreakdown.onRoadPrice)}</p></div>
+          <div><p className="text-[10px] text-gray-500">On-road Price</p><p className="text-base font-bold text-[#145a2c]">{formatPrice(priceBreakdown.on_road)}</p></div>
           <div className="flex gap-2">
             <button onClick={() => setShowEMIModal(true)} className="px-3 py-2 bg-gray-100 rounded-lg text-xs font-semibold hover:bg-gray-200">EMI {formatPrice(emiResult.emi)}</button>
             <button onClick={() => setShowOfferModal(true)} className="px-3 py-2 bg-orange-500 text-white rounded-lg text-xs font-semibold hover:bg-orange-600">Get Offer</button>
@@ -592,8 +778,8 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
 
       {/* Modals */}
       {showCityModal && <CityModal cities={cities} popularCities={popularCities} filteredCities={filteredCities} selectedCity={selectedCity} citySearch={citySearch} setCitySearch={setCitySearch} onSelect={handleSelectCity} onClose={() => setShowCityModal(false)} />}
-      {showEMIModal && <EMIModal priceBreakdown={priceBreakdown} emiDownPayment={emiDownPayment} setEmiDownPayment={setEmiDownPayment} emiInterestRate={emiInterestRate} setEmiInterestRate={setEmiInterestRate} emiTenure={emiTenure} setEmiTenure={setEmiTenure} emiResult={emiResult} onGetOffer={() => { setShowEMIModal(false); setShowOfferModal(true); }} onClose={() => setShowEMIModal(false)} />}
-      <OfferEnquiryModal vehicleId={vehicle.id} vehicleName={vehicle.name} vehiclePrice={priceBreakdown.onRoadPrice} variantName={selectedVariant?.short_name || selectedVariant?.name} selectedCity={selectedCity?.name} isOpen={showOfferModal} onClose={() => setShowOfferModal(false)} />
+      {showEMIModal && <EMIModal priceBreakdown={legacyPriceBreakdown} emiDownPayment={emiDownPayment} setEmiDownPayment={setEmiDownPayment} emiInterestRate={emiInterestRate} setEmiInterestRate={setEmiInterestRate} emiTenure={emiTenure} setEmiTenure={setEmiTenure} emiResult={emiResult} onGetOffer={() => { setShowEMIModal(false); setShowOfferModal(true); }} onClose={() => setShowEMIModal(false)} />}
+      <OfferEnquiryModal vehicleId={vehicle.id} vehicleName={vehicle.name} vehiclePrice={priceBreakdown.on_road} variantName={selectedVariant?.short_name || selectedVariant?.name} selectedCity={selectedCity?.name} isOpen={showOfferModal} onClose={() => setShowOfferModal(false)} />
     </div>
   );
 }

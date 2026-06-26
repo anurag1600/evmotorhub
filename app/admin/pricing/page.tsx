@@ -2,57 +2,95 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PricingState, PricingCity } from '@/lib/types';
-import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, X, Star, Download, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { PricingState, PricingCity, PricingRule, PricingSlab, PricingSubsidy, VehiclePricingCategory } from '@/lib/types';
+import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, X, Star, Download, Upload, FileText, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Eye, EyeOff, Percent, IndianRupee, Layers, Gift, Car, Bike, CircleDot as Circle, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { arrayToCSV, downloadCSV, parseCSV, generateTemplate } from '@/lib/import-export';
 
 interface CityWithState extends PricingCity {
   state?: PricingState;
 }
 
-const STATE_EXPORT_COLS = ['id', 'name', 'code', 'rto_percentage', 'road_tax_percentage', 'other_charges', 'subsidy_amount', 'is_active'];
-const STATE_IMPORT_COLS = ['name', 'code', 'rto_percentage', 'road_tax_percentage', 'other_charges', 'subsidy_amount', 'is_active'];
+interface RuleWithCity extends PricingRule {
+  city?: CityWithState;
+}
 
-const CITY_EXPORT_COLS = ['id', 'name', 'pincode', 'state_code', 'rto_charge', 'insurance_charge', 'other_charges', 'is_popular', 'is_active'];
-const CITY_IMPORT_COLS = ['name', 'pincode', 'state_code', 'rto_charge', 'insurance_charge', 'other_charges', 'is_popular', 'is_active'];
+interface SubsidyWithCity extends PricingSubsidy {
+  city?: CityWithState;
+}
+
+const VEHICLE_CATEGORIES: { value: VehiclePricingCategory; label: string; icon: React.ReactNode }[] = [
+  { value: 'electric_car', label: 'Electric Car', icon: <Car size={14} /> },
+  { value: 'electric_scooter', label: 'Electric Scooter', icon: <Circle size={14} /> },
+  { value: 'electric_bike', label: 'Electric Bike', icon: <Bike size={14} /> },
+];
+
+const CATEGORY_LABELS: Record<VehiclePricingCategory, string> = {
+  electric_car: 'Electric Car',
+  electric_scooter: 'Electric Scooter',
+  electric_bike: 'Electric Bike',
+};
 
 export default function PricingManagementPage() {
   const [states, setStates] = useState<PricingState[]>([]);
   const [cities, setCities] = useState<CityWithState[]>([]);
+  const [rules, setRules] = useState<RuleWithCity[]>([]);
+  const [slabs, setSlabs] = useState<PricingSlab[]>([]);
+  const [subsidies, setSubsidies] = useState<SubsidyWithCity[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'states' | 'cities'>('states');
+  const [activeTab, setActiveTab] = useState<'cities' | 'rules' | 'slabs' | 'subsidies'>('cities');
 
   // Form states
-  const [editingState, setEditingState] = useState<PricingState | null>(null);
   const [editingCity, setEditingCity] = useState<CityWithState | null>(null);
-  const [showStateForm, setShowStateForm] = useState(false);
+  const [editingRule, setEditingRule] = useState<RuleWithCity | null>(null);
+  const [editingSlab, setEditingSlab] = useState<PricingSlab | null>(null);
+  const [editingSubsidy, setEditingSubsidy] = useState<SubsidyWithCity | null>(null);
   const [showCityForm, setShowCityForm] = useState(false);
-
-  // Bulk upload state
-  const [showImportExport, setShowImportExport] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importReport, setImportReport] = useState<{ success: number; errors: string[] } | null>(null);
-
-  const [stateForm, setStateForm] = useState({
-    name: '',
-    code: '',
-    rto_percentage: '8',
-    road_tax_percentage: '0',
-    other_charges: '1000',
-    subsidy_amount: '0',
-  });
+  const [showRuleForm, setShowRuleForm] = useState(false);
+  const [showSlabForm, setShowSlabForm] = useState(false);
+  const [showSubsidyForm, setShowSubsidyForm] = useState(false);
+  const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
 
   const [cityForm, setCityForm] = useState({
     state_id: '',
     name: '',
     pincode: '',
-    rto_charge: '50000',
-    insurance_charge: '15000',
-    other_charges: '2000',
     is_popular: false,
+    is_active: true,
+  });
+
+  const [ruleForm, setRuleForm] = useState({
+    city_id: '',
+    vehicle_category: 'electric_car' as VehiclePricingCategory,
+    rto_percentage: '8',
+    insurance_percentage: '3.5',
+    registration_fee: '1000',
+    hsrp_fee: '500',
+    fastag_fee: '500',
+    other_charges: '1000',
+    show_rto: true,
+    show_insurance: true,
+    show_registration: true,
+    show_hsrp: true,
+    show_fastag: true,
+    show_other: true,
+  });
+
+  const [slabForm, setSlabForm] = useState({
+    rule_id: '',
+    min_price: '0',
+    max_price: '',
+    tax_percentage: '8',
+    sort_order: '1',
+  });
+
+  const [subsidyForm, setSubsidyForm] = useState({
+    city_id: '',
+    vehicle_category: 'electric_car' as VehiclePricingCategory,
+    subsidy_type: 'fixed' as 'fixed' | 'percentage',
+    value: '0',
+    description: '',
   });
 
   useEffect(() => {
@@ -62,12 +100,18 @@ export default function PricingManagementPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statesRes, citiesRes] = await Promise.all([
+      const [statesRes, citiesRes, rulesRes, slabsRes, subsidiesRes] = await Promise.all([
         supabase.from('pricing_states').select('*').order('name'),
         supabase.from('pricing_cities').select('*, state:pricing_states(*)').order('is_popular', { ascending: false }).order('name'),
+        supabase.from('pricing_rules').select('*, city:pricing_cities(*, state:pricing_states(*))').order('created_at'),
+        supabase.from('pricing_slabs').select('*').order('sort_order'),
+        supabase.from('pricing_subsidies').select('*, city:pricing_cities(*, state:pricing_states(*))').order('created_at'),
       ]);
       setStates((statesRes.data || []) as PricingState[]);
       setCities((citiesRes.data || []) as CityWithState[]);
+      setRules((rulesRes.data || []) as RuleWithCity[]);
+      setSlabs((slabsRes.data || []) as PricingSlab[]);
+      setSubsidies((subsidiesRes.data || []) as SubsidyWithCity[]);
     } catch (err) {
       toast.error('Failed to load pricing data');
     } finally {
@@ -75,44 +119,7 @@ export default function PricingManagementPage() {
     }
   };
 
-  const handleSaveState = async () => {
-    if (!stateForm.name || !stateForm.code) {
-      toast.error('State name and code are required');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = {
-        name: stateForm.name,
-        code: stateForm.code.toUpperCase(),
-        rto_percentage: parseFloat(stateForm.rto_percentage) || 0,
-        road_tax_percentage: parseFloat(stateForm.road_tax_percentage) || 0,
-        other_charges: parseInt(stateForm.other_charges) || 0,
-        subsidy_amount: parseInt(stateForm.subsidy_amount) || 0,
-      };
-
-      if (editingState) {
-        const { error } = await supabase.from('pricing_states').update(payload).eq('id', editingState.id);
-        if (error) throw error;
-        toast.success('State updated');
-      } else {
-        const { error } = await supabase.from('pricing_states').insert([payload]);
-        if (error) throw error;
-        toast.success('State added');
-      }
-
-      setShowStateForm(false);
-      setEditingState(null);
-      setStateForm({ name: '', code: '', rto_percentage: '8', road_tax_percentage: '0', other_charges: '1000', subsidy_amount: '0' });
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save state');
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // ==================== CITY CRUD ====================
   const handleSaveCity = async () => {
     if (!cityForm.state_id || !cityForm.name) {
       toast.error('State and city name are required');
@@ -123,12 +130,13 @@ export default function PricingManagementPage() {
     try {
       const payload = {
         state_id: cityForm.state_id,
-        name: cityForm.name,
-        pincode: cityForm.pincode || null,
-        rto_charge: parseInt(cityForm.rto_charge) || 0,
-        insurance_charge: parseInt(cityForm.insurance_charge) || 0,
-        other_charges: parseInt(cityForm.other_charges) || 0,
+        name: cityForm.name.trim(),
+        pincode: cityForm.pincode.trim() || null,
         is_popular: cityForm.is_popular,
+        is_active: cityForm.is_active,
+        rto_charge: 0,
+        insurance_charge: 0,
+        other_charges: 0,
       };
 
       if (editingCity) {
@@ -143,7 +151,7 @@ export default function PricingManagementPage() {
 
       setShowCityForm(false);
       setEditingCity(null);
-      setCityForm({ state_id: '', name: '', pincode: '', rto_charge: '50000', insurance_charge: '15000', other_charges: '2000', is_popular: false });
+      setCityForm({ state_id: '', name: '', pincode: '', is_popular: false, is_active: true });
       fetchData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save city');
@@ -152,19 +160,8 @@ export default function PricingManagementPage() {
     }
   };
 
-  const handleDeleteState = async (id: string) => {
-    if (!confirm('Delete this state? All cities in this state will also be deleted.')) return;
-    try {
-      await supabase.from('pricing_states').delete().eq('id', id);
-      toast.success('State deleted');
-      fetchData();
-    } catch (err) {
-      toast.error('Failed to delete state');
-    }
-  };
-
   const handleDeleteCity = async (id: string) => {
-    if (!confirm('Delete this city?')) return;
+    if (!confirm('Delete this city? All associated rules, slabs, and subsidies will also be deleted.')) return;
     try {
       await supabase.from('pricing_cities').delete().eq('id', id);
       toast.success('City deleted');
@@ -174,158 +171,179 @@ export default function PricingManagementPage() {
     }
   };
 
-  const startEditState = (state: PricingState) => {
-    setEditingState(state);
-    setStateForm({
-      name: state.name,
-      code: state.code,
-      rto_percentage: state.rto_percentage.toString(),
-      road_tax_percentage: state.road_tax_percentage.toString(),
-      other_charges: state.other_charges.toString(),
-      subsidy_amount: (state.subsidy_amount || 0).toString(),
-    });
-    setShowStateForm(true);
-  };
+  // ==================== RULE CRUD ====================
+  const handleSaveRule = async () => {
+    if (!ruleForm.city_id) {
+      toast.error('City is required');
+      return;
+    }
 
-  const startEditCity = (city: CityWithState) => {
-    setEditingCity(city);
-    setCityForm({
-      state_id: city.state_id,
-      name: city.name,
-      pincode: city.pincode || '',
-      rto_charge: city.rto_charge.toString(),
-      insurance_charge: city.insurance_charge.toString(),
-      other_charges: city.other_charges.toString(),
-      is_popular: city.is_popular || false,
-    });
-    setShowCityForm(true);
-  };
-
-  // Export handlers
-  const handleExportStates = () => {
-    const exportData = states.map(s => ({
-      id: s.id,
-      name: s.name,
-      code: s.code,
-      rto_percentage: s.rto_percentage,
-      road_tax_percentage: s.road_tax_percentage,
-      other_charges: s.other_charges,
-      subsidy_amount: s.subsidy_amount || 0,
-      is_active: s.is_active ? 'true' : 'false',
-    }));
-    const csv = arrayToCSV(exportData, STATE_EXPORT_COLS);
-    downloadCSV(csv, `pricing_states_${Date.now()}.csv`);
-  };
-
-  const handleExportCities = () => {
-    const exportData = cities.map(c => ({
-      id: c.id,
-      name: c.name,
-      pincode: c.pincode || '',
-      state_code: c.state?.code || '',
-      rto_charge: c.rto_charge,
-      insurance_charge: c.insurance_charge,
-      other_charges: c.other_charges,
-      is_popular: c.is_popular ? 'true' : 'false',
-      is_active: c.is_active ? 'true' : 'false',
-    }));
-    const csv = arrayToCSV(exportData, CITY_EXPORT_COLS);
-    downloadCSV(csv, `pricing_cities_${Date.now()}.csv`);
-  };
-
-  const handleDownloadTemplate = () => {
-    const cols = activeTab === 'states' ? STATE_IMPORT_COLS : CITY_IMPORT_COLS;
-    const template = generateTemplate(cols);
-    downloadCSV(template, `${activeTab}_template.csv`);
-  };
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    setImportReport(null);
-
+    setSaving(true);
     try {
-      const text = await file.text();
-      const { rows } = parseCSV(text);
+      const payload = {
+        city_id: ruleForm.city_id,
+        vehicle_category: ruleForm.vehicle_category,
+        rto_percentage: parseFloat(ruleForm.rto_percentage) || 0,
+        insurance_percentage: parseFloat(ruleForm.insurance_percentage) || 0,
+        registration_fee: parseInt(ruleForm.registration_fee) || 0,
+        hsrp_fee: parseInt(ruleForm.hsrp_fee) || 0,
+        fastag_fee: parseInt(ruleForm.fastag_fee) || 0,
+        other_charges: parseInt(ruleForm.other_charges) || 0,
+        show_rto: ruleForm.show_rto,
+        show_insurance: ruleForm.show_insurance,
+        show_registration: ruleForm.show_registration,
+        show_hsrp: ruleForm.show_hsrp,
+        show_fastag: ruleForm.show_fastag,
+        show_other: ruleForm.show_other,
+      };
 
-      if (rows.length === 0) {
-        setImportReport({ success: 0, errors: ['File is empty or has no data rows.'] });
-        return;
+      if (editingRule) {
+        const { error } = await supabase.from('pricing_rules').update(payload).eq('id', editingRule.id);
+        if (error) throw error;
+        toast.success('Rule updated');
+      } else {
+        const { error } = await supabase.from('pricing_rules').insert([payload]);
+        if (error) throw error;
+        toast.success('Rule added');
       }
 
-      const errors: string[] = [];
-      let success = 0;
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-
-        try {
-          if (activeTab === 'states') {
-            if (!row.name || !row.code) {
-              errors.push(`Row ${i + 1}: name and code are required`);
-              continue;
-            }
-
-            const payload = {
-              name: row.name.trim(),
-              code: row.code.toUpperCase().trim().slice(0, 2),
-              rto_percentage: parseFloat(row.rto_percentage) || 8,
-              road_tax_percentage: parseFloat(row.road_tax_percentage) || 0,
-              other_charges: parseInt(row.other_charges) || 1000,
-              subsidy_amount: parseInt(row.subsidy_amount) || 0,
-              is_active: row.is_active !== 'false',
-            };
-
-            const { error } = await supabase.from('pricing_states').insert([payload]);
-            if (error) throw error;
-            success++;
-          } else {
-            // Cities import
-            if (!row.name || !row.state_code) {
-              errors.push(`Row ${i + 1}: name and state_code are required`);
-              continue;
-            }
-
-            // Find state by code
-            const state = states.find(s => s.code.toLowerCase() === row.state_code.toLowerCase().trim());
-            if (!state) {
-              errors.push(`Row ${i + 1}: State code "${row.state_code}" not found`);
-              continue;
-            }
-
-            const payload = {
-              name: row.name.trim(),
-              state_id: state.id,
-              pincode: row.pincode?.trim() || null,
-              rto_charge: parseInt(row.rto_charge) || 50000,
-              insurance_charge: parseInt(row.insurance_charge) || 15000,
-              other_charges: parseInt(row.other_charges) || 2000,
-              is_popular: row.is_popular === 'true',
-              is_active: row.is_active !== 'false',
-            };
-
-            const { error } = await supabase.from('pricing_cities').insert([payload]);
-            if (error) throw error;
-            success++;
-          }
-        } catch (err: any) {
-          errors.push(`Row ${i + 1}: ${err.message}`);
-        }
-      }
-
-      if (success > 0) fetchData();
-      setImportReport({ success, errors });
+      setShowRuleForm(false);
+      setEditingRule(null);
+      setRuleForm({
+        city_id: '', vehicle_category: 'electric_car', rto_percentage: '8', insurance_percentage: '3.5',
+        registration_fee: '1000', hsrp_fee: '500', fastag_fee: '500', other_charges: '1000',
+        show_rto: true, show_insurance: true, show_registration: true, show_hsrp: true, show_fastag: true, show_other: true,
+      });
+      fetchData();
     } catch (err: any) {
-      setImportReport({ success: 0, errors: [err.message || 'Failed to parse file'] });
+      toast.error(err.message || 'Failed to save rule');
     } finally {
-      setImporting(false);
-      if (e.target) e.target.value = '';
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!confirm('Delete this rule? All associated slabs will also be deleted.')) return;
+    try {
+      await supabase.from('pricing_rules').delete().eq('id', id);
+      toast.success('Rule deleted');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to delete rule');
+    }
+  };
+
+  // ==================== SLAB CRUD ====================
+  const handleSaveSlab = async () => {
+    if (!slabForm.rule_id) {
+      toast.error('Rule is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        rule_id: slabForm.rule_id,
+        min_price: parseInt(slabForm.min_price) || 0,
+        max_price: slabForm.max_price ? parseInt(slabForm.max_price) : null,
+        tax_percentage: parseFloat(slabForm.tax_percentage) || 0,
+        sort_order: parseInt(slabForm.sort_order) || 1,
+        is_active: true,
+      };
+
+      if (editingSlab) {
+        const { error } = await supabase.from('pricing_slabs').update(payload).eq('id', editingSlab.id);
+        if (error) throw error;
+        toast.success('Slab updated');
+      } else {
+        const { error } = await supabase.from('pricing_slabs').insert([payload]);
+        if (error) throw error;
+        toast.success('Slab added');
+      }
+
+      setShowSlabForm(false);
+      setEditingSlab(null);
+      setSlabForm({ rule_id: '', min_price: '0', max_price: '', tax_percentage: '8', sort_order: '1' });
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save slab');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSlab = async (id: string) => {
+    if (!confirm('Delete this slab?')) return;
+    try {
+      await supabase.from('pricing_slabs').delete().eq('id', id);
+      toast.success('Slab deleted');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to delete slab');
+    }
+  };
+
+  // ==================== SUBSIDY CRUD ====================
+  const handleSaveSubsidy = async () => {
+    if (!subsidyForm.city_id) {
+      toast.error('City is required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        city_id: subsidyForm.city_id,
+        vehicle_category: subsidyForm.vehicle_category,
+        subsidy_type: subsidyForm.subsidy_type,
+        value: parseFloat(subsidyForm.value) || 0,
+        description: subsidyForm.description.trim() || null,
+        is_active: true,
+      };
+
+      if (editingSubsidy) {
+        const { error } = await supabase.from('pricing_subsidies').update(payload).eq('id', editingSubsidy.id);
+        if (error) throw error;
+        toast.success('Subsidy updated');
+      } else {
+        const { error } = await supabase.from('pricing_subsidies').insert([payload]);
+        if (error) throw error;
+        toast.success('Subsidy added');
+      }
+
+      setShowSubsidyForm(false);
+      setEditingSubsidy(null);
+      setSubsidyForm({ city_id: '', vehicle_category: 'electric_car', subsidy_type: 'fixed', value: '0', description: '' });
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save subsidy');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSubsidy = async (id: string) => {
+    if (!confirm('Delete this subsidy?')) return;
+    try {
+      await supabase.from('pricing_subsidies').delete().eq('id', id);
+      toast.success('Subsidy deleted');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to delete subsidy');
     }
   };
 
   const formatCurrency = (val: number) => `Rs. ${val.toLocaleString('en-IN')}`;
+  const formatPriceRange = (min: number, max: number | null) => {
+    const format = (n: number) => {
+      if (n >= 10000000) return `Rs. ${(n / 10000000).toFixed(1)}Cr`;
+      if (n >= 100000) return `Rs. ${(n / 100000).toFixed(1)}L`;
+      return `Rs. ${n.toLocaleString('en-IN')}`;
+    };
+    return max ? `${format(min)} - ${format(max)}` : `${format(min)}+`;
+  };
+
+  const getRuleSlabs = (ruleId: string) => slabs.filter(s => s.rule_id === ruleId).sort((a, b) => a.sort_order - b.sort_order);
 
   return (
     <div className="admin-page">
@@ -336,130 +354,35 @@ export default function PricingManagementPage() {
               <MapPin size={28} className="text-[#145a2c]" />
               Pricing Management
             </h1>
-            <p className="admin-subtitle">Manage state-wise and city-wise pricing for on-road price calculation</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowImportExport(!showImportExport)}
-              className="admin-btn-secondary flex items-center gap-2"
-            >
-              <Download size={14} />
-              Import / Export
-            </button>
+            <p className="admin-subtitle">Configure dynamic percentage-based pricing for on-road price calculation</p>
           </div>
         </div>
 
-        {/* Import/Export Modal */}
-        {showImportExport && (
-          <>
-            <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setShowImportExport(false)} />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-gray-900">Import / Export {activeTab === 'states' ? 'States' : 'Cities'}</h3>
-                <button onClick={() => setShowImportExport(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Export */}
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Export</p>
-                <button
-                  onClick={activeTab === 'states' ? handleExportStates : handleExportCities}
-                  className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                >
-                  <FileText size={16} />
-                  Export {activeTab === 'states' ? 'States' : 'Cities'} to CSV
-                </button>
-              </div>
-
-              {/* Import */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Import</p>
-                <button
-                  onClick={handleDownloadTemplate}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2.5 rounded-lg text-sm font-medium transition-colors mb-2"
-                >
-                  <Download size={16} />
-                  Download Sample Template
-                </button>
-                <label className="w-full flex items-center justify-center gap-2 bg-[#145a2c] hover:bg-[#0f4020] text-white py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer">
-                  {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                  {importing ? 'Importing...' : 'Import CSV / Excel'}
-                  <input
-                    type="file"
-                    accept=".csv,.xls,.xlsx,.tsv"
-                    onChange={handleImport}
-                    disabled={importing}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              {/* Import Report */}
-              {importReport && (
-                <div className={cn(
-                  'mt-4 rounded-lg p-3 text-sm',
-                  importReport.errors.length === 0 ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'
-                )}>
-                  {importReport.success > 0 && (
-                    <div className="flex items-center gap-2 text-green-700 font-medium">
-                      <CheckCircle size={16} />
-                      {importReport.success} records imported
-                    </div>
-                  )}
-                  {importReport.errors.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center gap-2 text-amber-700 font-medium">
-                        <AlertCircle size={16} />
-                        {importReport.errors.length} error{importReport.errors.length !== 1 ? 's' : ''}
-                      </div>
-                      <ul className="list-disc list-inside text-amber-700 space-y-0.5 max-h-32 overflow-y-auto text-xs">
-                        {importReport.errors.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
-                        {importReport.errors.length > 5 && <li>...and {importReport.errors.length - 5} more</li>}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Template Info */}
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
-                <p className="font-semibold mb-1">{activeTab === 'states' ? 'States' : 'Cities'} Template Fields:</p>
-                <p className="text-gray-500">
-                  {activeTab === 'states'
-                    ? 'name, code (2 letters), rto_percentage, road_tax_percentage, other_charges, subsidy_amount, is_active'
-                    : 'name, pincode, state_code (e.g., DL, MH), rto_charge, insurance_charge, other_charges, is_popular, is_active'}
-                </p>
-              </div>
-            </div>
-          </>
-        )}
-
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('states')}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              activeTab === 'states'
-                ? 'bg-[#145a2c] text-white'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            )}
-          >
-            States ({states.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('cities')}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              activeTab === 'cities'
-                ? 'bg-[#145a2c] text-white'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            )}
-          >
-            Cities ({cities.length})
-          </button>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {[
+            { key: 'cities', label: 'Cities', count: cities.length, icon: <MapPin size={14} /> },
+            { key: 'rules', label: 'Tax Rules', count: rules.length, icon: <Percent size={14} /> },
+            { key: 'slabs', label: 'Tax Slabs', count: slabs.length, icon: <Layers size={14} /> },
+            { key: 'subsidies', label: 'Subsidies', count: subsidies.length, icon: <Gift size={14} /> },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                activeTab === tab.key
+                  ? 'bg-[#145a2c] text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+              <span className={cn('px-1.5 py-0.5 rounded text-xs', activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100')}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -468,148 +391,7 @@ export default function PricingManagementPage() {
           </div>
         ) : (
           <>
-            {/* States Tab */}
-            {activeTab === 'states' && (
-              <div className="space-y-4">
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowStateForm(true);
-                      setEditingState(null);
-                      setStateForm({ name: '', code: '', rto_percentage: '8', road_tax_percentage: '0', other_charges: '1000', subsidy_amount: '0' });
-                    }}
-                    className="admin-btn-primary flex items-center gap-2"
-                  >
-                    <Plus size={14} />
-                    Add State
-                  </button>
-                </div>
-
-                {showStateForm && (
-                  <div className="admin-card p-5">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900">{editingState ? 'Edit State' : 'Add New State'}</h3>
-                      <button onClick={() => setShowStateForm(false)} className="text-gray-400 hover:text-gray-600">
-                        <X size={16} />
-                      </button>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">State Name *</label>
-                        <input
-                          type="text"
-                          value={stateForm.name}
-                          onChange={(e) => setStateForm({ ...stateForm, name: e.target.value })}
-                          placeholder="e.g., Maharashtra"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">State Code *</label>
-                        <input
-                          type="text"
-                          value={stateForm.code}
-                          onChange={(e) => setStateForm({ ...stateForm, code: e.target.value.toUpperCase() })}
-                          placeholder="e.g., MH"
-                          maxLength={2}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">RTO Percentage (%)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={stateForm.rto_percentage}
-                          onChange={(e) => setStateForm({ ...stateForm, rto_percentage: e.target.value })}
-                          placeholder="8"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Road Tax (%)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={stateForm.road_tax_percentage}
-                          onChange={(e) => setStateForm({ ...stateForm, road_tax_percentage: e.target.value })}
-                          placeholder="0"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Other Charges (Rs.)</label>
-                        <input
-                          type="number"
-                          value={stateForm.other_charges}
-                          onChange={(e) => setStateForm({ ...stateForm, other_charges: e.target.value })}
-                          placeholder="1000"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">EV Subsidy (Rs.)</label>
-                        <input
-                          type="number"
-                          value={stateForm.subsidy_amount}
-                          onChange={(e) => setStateForm({ ...stateForm, subsidy_amount: e.target.value })}
-                          placeholder="0"
-                          className="admin-input"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <button onClick={handleSaveState} disabled={saving} className="admin-btn-primary flex items-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {editingState ? 'Update' : 'Add State'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="admin-card overflow-hidden">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>State</th>
-                        <th>Code</th>
-                        <th>RTO %</th>
-                        <th>Road Tax %</th>
-                        <th>Other</th>
-                        <th>Subsidy</th>
-                        <th className="text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {states.map((state) => (
-                        <tr key={state.id}>
-                          <td className="font-medium text-gray-900">{state.name}</td>
-                          <td>
-                            <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{state.code}</span>
-                          </td>
-                          <td>{state.rto_percentage}%</td>
-                          <td>{state.road_tax_percentage}%</td>
-                          <td>{formatCurrency(state.other_charges)}</td>
-                          <td>{state.subsidy_amount ? formatCurrency(state.subsidy_amount) : '-'}</td>
-                          <td>
-                            <div className="flex gap-1 justify-center">
-                              <button onClick={() => startEditState(state)} className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg">
-                                <Pencil size={14} />
-                              </button>
-                              <button onClick={() => handleDeleteState(state.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Cities Tab */}
+            {/* ==================== CITIES TAB ==================== */}
             {activeTab === 'cities' && (
               <div className="space-y-4">
                 <div className="flex justify-end">
@@ -617,7 +399,7 @@ export default function PricingManagementPage() {
                     onClick={() => {
                       setShowCityForm(true);
                       setEditingCity(null);
-                      setCityForm({ state_id: states[0]?.id || '', name: '', pincode: '', rto_charge: '50000', insurance_charge: '15000', other_charges: '2000', is_popular: false });
+                      setCityForm({ state_id: states[0]?.id || '', name: '', pincode: '', is_popular: false, is_active: true });
                     }}
                     className="admin-btn-primary flex items-center gap-2"
                   >
@@ -634,7 +416,7 @@ export default function PricingManagementPage() {
                         <X size={16} />
                       </button>
                     </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">State *</label>
                         <select
@@ -668,37 +450,7 @@ export default function PricingManagementPage() {
                           className="admin-input"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">RTO Charge (Rs.)</label>
-                        <input
-                          type="number"
-                          value={cityForm.rto_charge}
-                          onChange={(e) => setCityForm({ ...cityForm, rto_charge: e.target.value })}
-                          placeholder="50000"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Insurance (Rs.)</label>
-                        <input
-                          type="number"
-                          value={cityForm.insurance_charge}
-                          onChange={(e) => setCityForm({ ...cityForm, insurance_charge: e.target.value })}
-                          placeholder="15000"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Other Charges (Rs.)</label>
-                        <input
-                          type="number"
-                          value={cityForm.other_charges}
-                          onChange={(e) => setCityForm({ ...cityForm, other_charges: e.target.value })}
-                          placeholder="2000"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 lg:col-span-3">
+                      <div className="flex items-end gap-4 pb-2">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="checkbox"
@@ -706,7 +458,16 @@ export default function PricingManagementPage() {
                             onChange={(e) => setCityForm({ ...cityForm, is_popular: e.target.checked })}
                             className="w-4 h-4 rounded accent-[#145a2c]"
                           />
-                          <span className="text-sm text-gray-700">Mark as Popular City (shown first in selection)</span>
+                          <span className="text-sm text-gray-700">Popular</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={cityForm.is_active}
+                            onChange={(e) => setCityForm({ ...cityForm, is_active: e.target.checked })}
+                            className="w-4 h-4 rounded accent-[#145a2c]"
+                          />
+                          <span className="text-sm text-gray-700">Active</span>
                         </label>
                       </div>
                     </div>
@@ -726,10 +487,8 @@ export default function PricingManagementPage() {
                         <th>City</th>
                         <th>Pincode</th>
                         <th>State</th>
-                        <th>RTO</th>
-                        <th>Insurance</th>
-                        <th>Other</th>
                         <th className="text-center">Popular</th>
+                        <th className="text-center">Active</th>
                         <th className="text-center">Actions</th>
                       </tr>
                     </thead>
@@ -737,11 +496,12 @@ export default function PricingManagementPage() {
                       {cities.map((city) => (
                         <tr key={city.id}>
                           <td className="font-medium text-gray-900">{city.name}</td>
-                          <td><span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">{city.pincode || '-'}</span></td>
+                          <td>
+                            <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">
+                              {city.pincode || '-'}
+                            </span>
+                          </td>
                           <td>{city.state?.name || '-'}</td>
-                          <td>{formatCurrency(city.rto_charge)}</td>
-                          <td>{formatCurrency(city.insurance_charge)}</td>
-                          <td>{formatCurrency(city.other_charges)}</td>
                           <td className="text-center">
                             {city.is_popular && (
                               <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
@@ -750,12 +510,681 @@ export default function PricingManagementPage() {
                               </span>
                             )}
                           </td>
+                          <td className="text-center">
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full', city.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
+                              {city.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
                           <td>
                             <div className="flex gap-1 justify-center">
-                              <button onClick={() => startEditCity(city)} className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg">
+                              <button
+                                onClick={() => {
+                                  setEditingCity(city);
+                                  setCityForm({
+                                    state_id: city.state_id,
+                                    name: city.name,
+                                    pincode: city.pincode || '',
+                                    is_popular: city.is_popular || false,
+                                    is_active: city.is_active !== false,
+                                  });
+                                  setShowCityForm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                              >
                                 <Pencil size={14} />
                               </button>
-                              <button onClick={() => handleDeleteCity(city.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                              <button
+                                onClick={() => handleDeleteCity(city.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== TAX RULES TAB ==================== */}
+            {activeTab === 'rules' && (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowRuleForm(true);
+                      setEditingRule(null);
+                      setRuleForm({
+                        city_id: cities[0]?.id || '',
+                        vehicle_category: 'electric_car',
+                        rto_percentage: '8',
+                        insurance_percentage: '3.5',
+                        registration_fee: '1000',
+                        hsrp_fee: '500',
+                        fastag_fee: '500',
+                        other_charges: '1000',
+                        show_rto: true,
+                        show_insurance: true,
+                        show_registration: true,
+                        show_hsrp: true,
+                        show_fastag: true,
+                        show_other: true,
+                      });
+                    }}
+                    className="admin-btn-primary flex items-center gap-2"
+                  >
+                    <Plus size={14} />
+                    Add Tax Rule
+                  </button>
+                </div>
+
+                {showRuleForm && (
+                  <div className="admin-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-gray-900">{editingRule ? 'Edit Tax Rule' : 'Add New Tax Rule'}</h3>
+                      <button onClick={() => setShowRuleForm(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">City *</label>
+                        <select
+                          value={ruleForm.city_id}
+                          onChange={(e) => setRuleForm({ ...ruleForm, city_id: e.target.value })}
+                          className="admin-select"
+                          disabled={!!editingRule}
+                        >
+                          <option value="">Select City</option>
+                          {cities.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}, {c.state?.code}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Vehicle Category *</label>
+                        <select
+                          value={ruleForm.vehicle_category}
+                          onChange={(e) => setRuleForm({ ...ruleForm, vehicle_category: e.target.value as VehiclePricingCategory })}
+                          className="admin-select"
+                          disabled={!!editingRule}
+                        >
+                          {VEHICLE_CATEGORIES.map((cat) => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">RTO / Road Tax %</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={ruleForm.rto_percentage}
+                            onChange={(e) => setRuleForm({ ...ruleForm, rto_percentage: e.target.value })}
+                            className="admin-input pr-8"
+                          />
+                          <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Insurance %</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={ruleForm.insurance_percentage}
+                            onChange={(e) => setRuleForm({ ...ruleForm, insurance_percentage: e.target.value })}
+                            className="admin-input pr-8"
+                          />
+                          <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Fixed Charges (Rs.)</p>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Registration Fee</label>
+                        <input
+                          type="number"
+                          value={ruleForm.registration_fee}
+                          onChange={(e) => setRuleForm({ ...ruleForm, registration_fee: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">HSRP Fee</label>
+                        <input
+                          type="number"
+                          value={ruleForm.hsrp_fee}
+                          onChange={(e) => setRuleForm({ ...ruleForm, hsrp_fee: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">FASTag Fee</label>
+                        <input
+                          type="number"
+                          value={ruleForm.fastag_fee}
+                          onChange={(e) => setRuleForm({ ...ruleForm, fastag_fee: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Other Charges</label>
+                        <input
+                          type="number"
+                          value={ruleForm.other_charges}
+                          onChange={(e) => setRuleForm({ ...ruleForm, other_charges: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Visibility Toggles</p>
+                    <div className="flex flex-wrap gap-4 mb-4">
+                      {[
+                        { key: 'show_rto', label: 'RTO' },
+                        { key: 'show_insurance', label: 'Insurance' },
+                        { key: 'show_registration', label: 'Registration' },
+                        { key: 'show_hsrp', label: 'HSRP' },
+                        { key: 'show_fastag', label: 'FASTag' },
+                        { key: 'show_other', label: 'Other' },
+                      ].map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={ruleForm[key as keyof typeof ruleForm] as boolean}
+                            onChange={(e) => setRuleForm({ ...ruleForm, [key]: e.target.checked })}
+                            className="w-4 h-4 rounded accent-[#145a2c]"
+                          />
+                          <span className="text-sm text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button onClick={handleSaveRule} disabled={saving} className="admin-btn-primary flex items-center gap-2">
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        {editingRule ? 'Update' : 'Add Rule'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rules List */}
+                <div className="space-y-3">
+                  {rules.map((rule) => {
+                    const ruleSlabs = getRuleSlabs(rule.id);
+                    const isExpanded = expandedRuleId === rule.id;
+
+                    return (
+                      <div key={rule.id} className="admin-card">
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center',
+                                rule.vehicle_category === 'electric_car' ? 'bg-blue-100 text-blue-600' :
+                                rule.vehicle_category === 'electric_scooter' ? 'bg-purple-100 text-purple-600' :
+                                'bg-orange-100 text-orange-600'
+                              )}>
+                                {rule.vehicle_category === 'electric_car' ? <Car size={16} /> :
+                                 rule.vehicle_category === 'electric_scooter' ? <Circle size={16} /> :
+                                 <Bike size={16} />}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{rule.city?.name}, {rule.city?.state?.code}</p>
+                                <p className="text-xs text-gray-500">{CATEGORY_LABELS[rule.vehicle_category]}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-gray-900">RTO: {rule.rto_percentage}%</p>
+                              <p className="text-xs text-gray-500">Insurance: {rule.insurance_percentage}%</p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setExpandedRuleId(isExpanded ? null : rule.id)}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                              >
+                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingRule(rule);
+                                  setRuleForm({
+                                    city_id: rule.city_id,
+                                    vehicle_category: rule.vehicle_category,
+                                    rto_percentage: rule.rto_percentage.toString(),
+                                    insurance_percentage: rule.insurance_percentage.toString(),
+                                    registration_fee: rule.registration_fee.toString(),
+                                    hsrp_fee: rule.hsrp_fee.toString(),
+                                    fastag_fee: rule.fastag_fee.toString(),
+                                    other_charges: rule.other_charges.toString(),
+                                    show_rto: rule.show_rto,
+                                    show_insurance: rule.show_insurance,
+                                    show_registration: rule.show_registration,
+                                    show_hsrp: rule.show_hsrp,
+                                    show_fastag: rule.show_fastag,
+                                    show_other: rule.show_other,
+                                  });
+                                  setShowRuleForm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRule(rule.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="border-t border-gray-100 p-4 bg-gray-50">
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-xs font-semibold text-gray-500 uppercase">Tax Slabs ({ruleSlabs.length})</p>
+                              <button
+                                onClick={() => {
+                                  setEditingSlab(null);
+                                  setSlabForm({
+                                    rule_id: rule.id,
+                                    min_price: '0',
+                                    max_price: '',
+                                    tax_percentage: rule.rto_percentage.toString(),
+                                    sort_order: (ruleSlabs.length + 1).toString(),
+                                  });
+                                  setShowSlabForm(true);
+                                }}
+                                className="text-xs flex items-center gap-1 text-[#145a2c] hover:underline"
+                              >
+                                <Plus size={12} />
+                                Add Slab
+                              </button>
+                            </div>
+                            {ruleSlabs.length > 0 ? (
+                              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {ruleSlabs.map((slab) => (
+                                  <div key={slab.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {formatPriceRange(slab.min_price, slab.max_price)}
+                                      </p>
+                                      <p className="text-xs text-gray-500">Tax: {slab.tax_percentage}%</p>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() => {
+                                          setEditingSlab(slab);
+                                          setSlabForm({
+                                            rule_id: slab.rule_id,
+                                            min_price: slab.min_price.toString(),
+                                            max_price: slab.max_price?.toString() || '',
+                                            tax_percentage: slab.tax_percentage.toString(),
+                                            sort_order: slab.sort_order.toString(),
+                                          });
+                                          setShowSlabForm(true);
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-[#145a2c]"
+                                      >
+                                        <Pencil size={12} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteSlab(slab.id)}
+                                        className="p-1 text-gray-400 hover:text-red-600"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-500 italic">No slabs defined. Base RTO % will be used.</p>
+                            )}
+
+                            <div className="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                              {[
+                                { key: 'show_rto', label: 'RTO' },
+                                { key: 'show_insurance', label: 'Insurance' },
+                                { key: 'show_registration', label: 'Registration' },
+                                { key: 'show_hsrp', label: 'HSRP' },
+                                { key: 'show_fastag', label: 'FASTag' },
+                                { key: 'show_other', label: 'Other' },
+                              ].map(({ key, label }) => (
+                                <div key={key} className={cn('flex items-center gap-1 text-xs px-2 py-1 rounded',
+                                  rule[key as keyof PricingRule] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                                )}>
+                                  {rule[key as keyof PricingRule] ? <Eye size={12} /> : <EyeOff size={12} />}
+                                  {label}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ==================== SLABS TAB ==================== */}
+            {activeTab === 'slabs' && (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSlabForm(true);
+                      setEditingSlab(null);
+                      setSlabForm({ rule_id: rules[0]?.id || '', min_price: '0', max_price: '', tax_percentage: '8', sort_order: '1' });
+                    }}
+                    className="admin-btn-primary flex items-center gap-2"
+                  >
+                    <Plus size={14} />
+                    Add Slab
+                  </button>
+                </div>
+
+                {showSlabForm && (
+                  <div className="admin-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-gray-900">{editingSlab ? 'Edit Slab' : 'Add New Slab'}</h3>
+                      <button onClick={() => setShowSlabForm(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Rule / City</label>
+                        <select
+                          value={slabForm.rule_id}
+                          onChange={(e) => setSlabForm({ ...slabForm, rule_id: e.target.value })}
+                          className="admin-select"
+                        >
+                          <option value="">Select Rule</option>
+                          {rules.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.city?.name} - {CATEGORY_LABELS[r.vehicle_category]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Min Price (Rs.)</label>
+                        <input
+                          type="number"
+                          value={slabForm.min_price}
+                          onChange={(e) => setSlabForm({ ...slabForm, min_price: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Max Price (Rs.)</label>
+                        <input
+                          type="number"
+                          value={slabForm.max_price}
+                          onChange={(e) => setSlabForm({ ...slabForm, max_price: e.target.value })}
+                          placeholder="Leave empty for no limit"
+                          className="admin-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Tax %</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={slabForm.tax_percentage}
+                          onChange={(e) => setSlabForm({ ...slabForm, tax_percentage: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Sort Order</label>
+                        <input
+                          type="number"
+                          value={slabForm.sort_order}
+                          onChange={(e) => setSlabForm({ ...slabForm, sort_order: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-4">
+                      <button onClick={handleSaveSlab} disabled={saving} className="admin-btn-primary flex items-center gap-2">
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        {editingSlab ? 'Update' : 'Add Slab'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="admin-card overflow-hidden">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>City / Category</th>
+                        <th>Price Range</th>
+                        <th>Tax %</th>
+                        <th>Order</th>
+                        <th className="text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {slabs.map((slab) => {
+                        const rule = rules.find(r => r.id === slab.rule_id);
+                        return (
+                          <tr key={slab.id}>
+                            <td className="font-medium text-gray-900">
+                              {rule ? `${rule.city?.name} - ${CATEGORY_LABELS[rule.vehicle_category]}` : '-'}
+                            </td>
+                            <td>{formatPriceRange(slab.min_price, slab.max_price)}</td>
+                            <td>
+                              <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm font-medium">
+                                {slab.tax_percentage}%
+                              </span>
+                            </td>
+                            <td>{slab.sort_order}</td>
+                            <td>
+                              <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={() => {
+                                    setEditingSlab(slab);
+                                    setSlabForm({
+                                      rule_id: slab.rule_id,
+                                      min_price: slab.min_price.toString(),
+                                      max_price: slab.max_price?.toString() || '',
+                                      tax_percentage: slab.tax_percentage.toString(),
+                                      sort_order: slab.sort_order.toString(),
+                                    });
+                                    setShowSlabForm(true);
+                                  }}
+                                  className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSlab(slab.id)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ==================== SUBSIDIES TAB ==================== */}
+            {activeTab === 'subsidies' && (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowSubsidyForm(true);
+                      setEditingSubsidy(null);
+                      setSubsidyForm({
+                        city_id: cities[0]?.id || '',
+                        vehicle_category: 'electric_car',
+                        subsidy_type: 'fixed',
+                        value: '0',
+                        description: ''
+                      });
+                    }}
+                    className="admin-btn-primary flex items-center gap-2"
+                  >
+                    <Plus size={14} />
+                    Add Subsidy
+                  </button>
+                </div>
+
+                {showSubsidyForm && (
+                  <div className="admin-card p-5">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-gray-900">{editingSubsidy ? 'Edit Subsidy' : 'Add New Subsidy'}</h3>
+                      <button onClick={() => setShowSubsidyForm(false)} className="text-gray-400 hover:text-gray-600">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">City *</label>
+                        <select
+                          value={subsidyForm.city_id}
+                          onChange={(e) => setSubsidyForm({ ...subsidyForm, city_id: e.target.value })}
+                          className="admin-select"
+                          disabled={!!editingSubsidy}
+                        >
+                          <option value="">Select City</option>
+                          {cities.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}, {c.state?.code}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Vehicle Category *</label>
+                        <select
+                          value={subsidyForm.vehicle_category}
+                          onChange={(e) => setSubsidyForm({ ...subsidyForm, vehicle_category: e.target.value as VehiclePricingCategory })}
+                          className="admin-select"
+                          disabled={!!editingSubsidy}
+                        >
+                          {VEHICLE_CATEGORIES.map((cat) => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Type</label>
+                        <select
+                          value={subsidyForm.subsidy_type}
+                          onChange={(e) => setSubsidyForm({ ...subsidyForm, subsidy_type: e.target.value as 'fixed' | 'percentage' })}
+                          className="admin-select"
+                        >
+                          <option value="fixed">Fixed Amount (Rs.)</option>
+                          <option value="percentage">Percentage (%)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">
+                          {subsidyForm.subsidy_type === 'fixed' ? 'Amount (Rs.)' : 'Percentage (%)'}
+                        </label>
+                        <input
+                          type="number"
+                          step={subsidyForm.subsidy_type === 'percentage' ? '0.1' : '1'}
+                          value={subsidyForm.value}
+                          onChange={(e) => setSubsidyForm({ ...subsidyForm, value: e.target.value })}
+                          className="admin-input"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                        <input
+                          type="text"
+                          value={subsidyForm.description}
+                          onChange={(e) => setSubsidyForm({ ...subsidyForm, description: e.target.value })}
+                          placeholder="e.g., FAME II Subsidy"
+                          className="admin-input"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-4">
+                      <button onClick={handleSaveSubsidy} disabled={saving} className="admin-btn-primary flex items-center gap-2">
+                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        {editingSubsidy ? 'Update' : 'Add Subsidy'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="admin-card overflow-hidden">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>City</th>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Description</th>
+                        <th className="text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subsidies.map((sub) => (
+                        <tr key={sub.id}>
+                          <td className="font-medium text-gray-900">{sub.city?.name || '-'}</td>
+                          <td>{CATEGORY_LABELS[sub.vehicle_category]}</td>
+                          <td>
+                            <span className={cn('text-xs px-2 py-0.5 rounded-full',
+                              sub.subsidy_type === 'fixed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                            )}>
+                              {sub.subsidy_type === 'fixed' ? 'Fixed' : 'Percentage'}
+                            </span>
+                          </td>
+                          <td className="font-semibold">
+                            {sub.subsidy_type === 'fixed'
+                              ? formatCurrency(sub.value)
+                              : `${sub.value}%`}
+                          </td>
+                          <td className="text-sm text-gray-600">{sub.description || '-'}</td>
+                          <td>
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                onClick={() => {
+                                  setEditingSubsidy(sub);
+                                  setSubsidyForm({
+                                    city_id: sub.city_id,
+                                    vehicle_category: sub.vehicle_category,
+                                    subsidy_type: sub.subsidy_type,
+                                    value: sub.value.toString(),
+                                    description: sub.description || '',
+                                  });
+                                  setShowSubsidyForm(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSubsidy(sub.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                              >
                                 <Trash2 size={14} />
                               </button>
                             </div>

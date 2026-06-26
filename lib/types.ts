@@ -288,6 +288,79 @@ export interface PricingCity {
   state?: PricingState;
 }
 
+export type VehiclePricingCategory = 'electric_car' | 'electric_scooter' | 'electric_bike';
+export type SubsidyType = 'fixed' | 'percentage';
+
+export interface PricingRule {
+  id: string;
+  city_id: string;
+  vehicle_category: VehiclePricingCategory;
+  rto_percentage: number;
+  insurance_percentage: number;
+  registration_fee: number;
+  hsrp_fee: number;
+  fastag_fee: number;
+  other_charges: number;
+  show_rto: boolean;
+  show_insurance: boolean;
+  show_registration: boolean;
+  show_hsrp: boolean;
+  show_fastag: boolean;
+  show_other: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  city?: PricingCity;
+}
+
+export interface PricingSlab {
+  id: string;
+  rule_id: string;
+  min_price: number;
+  max_price: number | null;
+  tax_percentage: number;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PricingSubsidy {
+  id: string;
+  city_id: string;
+  vehicle_category: VehiclePricingCategory;
+  subsidy_type: SubsidyType;
+  value: number;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  city?: PricingCity;
+}
+
+export interface OnRoadPriceBreakdown {
+  ex_showroom: number;
+  rto: number;
+  rto_percentage: number;
+  insurance: number;
+  insurance_percentage: number;
+  registration: number;
+  hsrp: number;
+  fastag: number;
+  other: number;
+  subsidy: number;
+  subsidy_description: string | null;
+  on_road: number;
+  breakdown: {
+    show_rto: boolean;
+    show_insurance: boolean;
+    show_registration: boolean;
+    show_hsrp: boolean;
+    show_fastag: boolean;
+    show_other: boolean;
+  };
+}
+
 export interface OfferEnquiry {
   id: string;
   vehicle_id: string;
