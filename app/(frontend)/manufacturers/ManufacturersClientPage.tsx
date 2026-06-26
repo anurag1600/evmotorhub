@@ -166,7 +166,7 @@ export default function ManufacturersClientPage() {
                           <p className="text-xs text-gray-600 line-clamp-2 mb-3">{m.description}</p>
 
                           {/* Vehicle Type Counts */}
-                          {/* <div className="flex flex-wrap gap-1.5 mb-3">
+                          <div className="flex flex-wrap gap-1.5 mb-3">
                             {m.scooter_count && m.scooter_count > 0 && (
                               <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
                                 {m.scooter_count} Scooters
@@ -182,7 +182,7 @@ export default function ManufacturersClientPage() {
                                 {m.car_count} Cars
                               </span>
                             )}
-                          </div> */}
+                          </div>
 
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <span className="flex items-center gap-1">
