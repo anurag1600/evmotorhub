@@ -12,7 +12,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
 
   const sitemapUrl = seo?.sitemap_enabled === false
     ? undefined
-    : `${(seo?.canonical_url || 'https://evmotorhub.in').replace(/\/$/, '')}/sitemap.xml`;
+    : `${(seo?.canonical_url || 'https://evmotorhub.com').replace(/\/$/, '')}/sitemap.xml`;
 
   return {
     rules: {
