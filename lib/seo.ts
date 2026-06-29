@@ -28,7 +28,7 @@ export function buildNoindexMeta(section: string, seo: Record<string, any> | nul
 }
 
 export function buildCanonicalUrl(path: string, seo: Record<string, any> | null): Pick<Metadata, 'alternates'> {
-  const base = (seo?.canonical_url || 'https://evmotorhub.com').replace(/\/$/, '');
+  const base = (seo?.canonical_url || 'https://evmotorhub.in').replace(/\/$/, '');
   const url = `${base}${path}`;
   return { alternates: { canonical: url } };
 }
