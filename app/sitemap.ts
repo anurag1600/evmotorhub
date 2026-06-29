@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   if (seo && seo.sitemap_enabled === false) return [];
 
-  const canonicalUrl = seo?.canonical_url || 'https://evmotorhub.in';
+  const canonicalUrl = seo?.canonical_url || 'https://evmotorhub.com';
   const baseUrl = canonicalUrl.replace(/\/$/, '');
 
   const staticRoutes = [
