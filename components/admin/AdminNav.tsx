@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { useAdmin } from '@/lib/admin-context';
-import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders, Mail, Megaphone, ShoppingBag, MapPin } from 'lucide-react';
+import { LayoutGrid, FileText, Car, Package, Image as ImageIcon, Settings, Menu, X, LogOut, Lock, Loader as Loader2, ChevronRight, Search, Chrome as Home, MessageSquare, Scale, CircleHelp as HelpCircle, Globe, Zap, FileSliders as Sliders, Mail, Megaphone, ShoppingBag, MapPin, Power } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const adminMenuItems = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutGrid },
   { label: 'News', href: '/admin/news', icon: FileText },
   { label: 'Vehicles', href: '/admin/vehicles', icon: Car },
+  { label: 'Variant Management', href: '/admin/variants', icon: Power },
   { label: 'Manufacturers', href: '/admin/manufacturers', icon: Package },
   { label: 'Charging Stations', href: '/admin/charging', icon: Zap },
   { label: 'Charging Submissions', href: '/admin/charging-submissions', icon: Zap },

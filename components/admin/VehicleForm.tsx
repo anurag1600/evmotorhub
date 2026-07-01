@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Vehicle, Manufacturer, VehicleVariant } from '@/lib/types';
-import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2, Power } from 'lucide-react';
+import { Vehicle, Manufacturer } from '@/lib/types';
+import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2, Power, ChevronRight } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
-import VariantManager from './VariantManager';
 
 interface VehicleFormProps {
   vehicleId?: string;
@@ -24,7 +23,6 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
-  const [variants, setVariants] = useState<VehicleVariant[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -111,21 +109,6 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
     }
   };
 
-  const handleVariantsChange = (updatedVariants: VehicleVariant[]) => {
-    setVariants(updatedVariants);
-  };
-
-  // Auto-calculate price range from variants
-  const getPriceRange = () => {
-    if (variants.length === 0) return { price_min: 0, price_max: 0 };
-    const prices = variants.filter(v => v.status === 'active').map(v => v.price);
-    if (prices.length === 0) return { price_min: 0, price_max: 0 };
-    return {
-      price_min: Math.min(...prices),
-      price_max: Math.max(...prices),
-    };
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -139,10 +122,8 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         throw new Error('Name, slug, and manufacturer are required');
       }
 
-      // Use form prices if set, otherwise auto-calculate from variants
-      const variantPrices = getPriceRange();
-      const finalPriceMin = price_min || variantPrices.price_min || 0;
-      const finalPriceMax = price_max || variantPrices.price_max || 0;
+      const finalPriceMin = price_min || 0;
+      const finalPriceMax = price_max || 0;
 
       const vehicleData = {
         name,
@@ -193,46 +174,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
 
         if (error) throw error;
 
-        // Save draft variants if any
-        if (newVehicle && variants.length > 0) {
-          const variantInserts = variants.map((v, index) => ({
-            vehicle_id: newVehicle.id,
-            name: v.name,
-            slug: v.slug || v.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-            short_name: v.short_name || null,
-            price: v.price,
-            range_km: v.range_km || null,
-            battery_capacity_kwh: v.battery_capacity_kwh || null,
-            motor_power_kw: v.motor_power_kw || null,
-            top_speed_kmh: v.top_speed_kmh || null,
-            charging_time_hrs: v.charging_time_hrs || null,
-            kerb_weight: v.kerb_weight || null,
-            image_url: v.image_url || null,
-            color: v.colors?.[0] || v.color || null,
-            color_hex: v.color_hexes?.[0] || v.color_hex || null,
-            colors: v.colors || null,
-            color_hexes: v.color_hexes || null,
-            sort_order: index,
-            is_available: v.is_available ?? true,
-            is_featured: v.is_featured ?? false,
-            status: v.status || 'active',
-            specifications: v.specifications || {},
-          }));
-
-          const { error: variantError } = await supabase
-            .from('vehicle_variants')
-            .insert(variantInserts);
-
-          if (variantError) {
-            console.error('Failed to save variants:', variantError);
-            // Still show success for vehicle, but note the issue
-            setSuccess('Vehicle created, but some variants failed to save.');
-          } else {
-            setSuccess('Vehicle created with ' + variants.length + ' variants!');
-          }
-        } else {
-          setSuccess('Vehicle created successfully!');
-        }
+        setSuccess('Vehicle created successfully! Add variants from the Variant Management page.');
       }
 
       setTimeout(() => router.push('/admin/vehicles'), 1500);
@@ -379,19 +321,6 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
                 <p className="text-xs text-gray-500 mt-1">Highest variant price</p>
               </div>
             </div>
-            {variants.length > 0 && (
-              <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-100">
-                <div className="text-xs font-semibold text-green-800 mb-1">Variant Price Range (Auto-calculated from variants)</div>
-                <div className="text-sm text-green-700">
-                  {(() => {
-                    const { price_min, price_max } = getPriceRange();
-                    if (price_min === 0 && price_max === 0) return 'Add active variants to calculate';
-                    if (price_min === price_max) return `₹${price_min.toLocaleString('en-IN')}`;
-                    return `₹${price_min.toLocaleString('en-IN')} - ₹${price_max.toLocaleString('en-IN')}`;
-                  })()}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Description */}
@@ -619,13 +548,29 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
             </div>
           </div>
 
-          {/* Variants Section */}
+          {/* Variants Summary Card */}
           <div className="admin-card p-6">
-            <VariantManager
-              vehicleId={vehicleId}
-              onVariantsChange={handleVariantsChange}
-              isDraft={!vehicleId}
-            />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Power size={18} className="text-[#145a2c]" />
+                Variants
+              </h2>
+              {vehicleId && (
+                <a
+                  href={`/admin/variants?vehicle=${vehicleId}`}
+                  className="admin-btn-primary text-xs"
+                >
+                  Manage Variants <ChevronRight size={14} />
+                </a>
+              )}
+            </div>
+            {vehicleId ? (
+              <VariantSummary vehicleId={vehicleId} />
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-700">
+                Save the vehicle first to manage its variants. After saving, you can add variants from the Variant Management page.
+              </div>
+            )}
           </div>
         </div>
 
@@ -902,5 +847,49 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
         </button>
       </div>
     </form>
+  );
+}
+
+function VariantSummary({ vehicleId }: { vehicleId: string }) {
+  const [stats, setStats] = useState({ total: 0, defaultName: 'None', loading: true });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('vehicle_variants')
+          .select('id, name, is_featured, status')
+          .eq('vehicle_id', vehicleId)
+          .order('sort_order', { ascending: true });
+        if (error) throw error;
+        const variants = data || [];
+        const featured = variants.find((v: any) => v.is_featured && v.status === 'active');
+        setStats({
+          total: variants.length,
+          defaultName: featured?.name || (variants.length > 0 ? variants[0].name : 'None'),
+          loading: false,
+        });
+      } catch {
+        setStats(s => ({ ...s, loading: false }));
+      }
+    };
+    fetchStats();
+  }, [vehicleId]);
+
+  if (stats.loading) {
+    return <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 size={14} className="animate-spin" /> Loading variant info...</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div className="bg-gray-50 rounded-lg p-3">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Variants</p>
+        <p className="text-2xl font-bold text-[#145a2c] mt-1">{stats.total}</p>
+      </div>
+      <div className="bg-gray-50 rounded-lg p-3">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Default Variant</p>
+        <p className="text-sm font-semibold text-gray-900 mt-1">{stats.defaultName}</p>
+      </div>
+    </div>
   );
 }
