@@ -7,7 +7,7 @@ import { Vehicle, Manufacturer, VehicleVariant } from '@/lib/types';
 import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2, Power } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
-import VariantsInlineEditor from './VariantsInlineEditor';
+import VariantManager from './VariantManager';
 
 interface VehicleFormProps {
   vehicleId?: string;
@@ -621,7 +621,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
 
           {/* Variants Section */}
           <div className="admin-card p-6">
-            <VariantsInlineEditor
+            <VariantManager
               vehicleId={vehicleId}
               onVariantsChange={handleVariantsChange}
               isDraft={!vehicleId}

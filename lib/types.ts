@@ -88,6 +88,7 @@ export interface Vehicle {
   seo_title?: string;
   seo_description?: string;
   seo_keywords?: string[];
+  default_variant_id?: string | null;
   created_at: string;
   updated_at?: string;
   manufacturers?: Manufacturer;
@@ -208,6 +209,10 @@ export interface VehicleVariant {
   colors?: string[];
   color_hexes?: string[];
   specifications: Record<string, string>;
+  features: string[];
+  short_description: string | null;
+  gallery_urls: string[];
+  brochure_url: string | null;
   is_available: boolean;
   is_featured: boolean;
   status: 'active' | 'discontinued' | 'upcoming';

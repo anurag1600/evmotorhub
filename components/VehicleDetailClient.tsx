@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Zap, Gauge, Battery, Clock, MapPin, ChevronRight, Scale, Calculator, ShoppingBag,
-  ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Palette, ChevronLeft
+  ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Palette, ChevronLeft, FileText
 } from 'lucide-react';
 import { Vehicle, VehicleVariant, PricingState, PricingCity, NewsArticle, PricingRule, PricingSlab, PricingSubsidy, VehiclePricingCategory, OnRoadPriceBreakdown } from '@/lib/types';
 import { formatPrice, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
@@ -22,7 +22,8 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const manufacturer = vehicle.manufacturers;
 
   // State
-  const defaultVariant = variants.find(v => v.is_featured && v.status === 'active') ||
+  const defaultVariant = variants.find(v => v.id === vehicle.default_variant_id) ||
+                         variants.find(v => v.is_featured && v.status === 'active') ||
                          variants.find(v => v.status === 'active') ||
                          (variants.length > 0 ? variants[0] : null);
   const [selectedVariant, setSelectedVariant] = useState<VehicleVariant | null>(defaultVariant);
@@ -32,9 +33,21 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   // Gallery state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const galleryImages = useMemo(() => {
-    const imgs = [vehicle.image_url, ...(vehicle.image_gallery || vehicle.gallery_urls || [])].filter(Boolean);
+    // Use variant gallery if available, otherwise fall back to vehicle gallery
+    const variantGallery = selectedVariant?.gallery_urls && selectedVariant.gallery_urls.length > 0
+      ? selectedVariant.gallery_urls
+      : null;
+    const primaryImage = selectedVariant?.image_url || vehicle.image_url;
+    const imgs = variantGallery
+      ? variantGallery
+      : [primaryImage, ...(vehicle.image_gallery || vehicle.gallery_urls || [])].filter(Boolean);
     return imgs.length > 0 ? imgs : ['/placeholder-vehicle.png'];
-  }, [vehicle]);
+  }, [vehicle, selectedVariant]);
+
+  // Reset image index when variant changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [selectedVariant?.id]);
 
   // Modals
   const [showCityModal, setShowCityModal] = useState(false);
@@ -500,6 +513,13 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                   <ShoppingBag size={16} /> Get Offers
                 </button>
               </div>
+
+              {/* Brochure Download */}
+              {selectedVariant?.brochure_url && (
+                <a href={selectedVariant.brochure_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 border border-gray-300 text-gray-700 rounded-xl py-2.5 font-medium hover:bg-gray-50 transition-colors text-sm">
+                  <FileText size={16} /> Download Brochure
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -538,21 +558,26 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
             </section>
 
             {/* FEATURES Section */}
-            {vehicle.features && vehicle.features.length > 0 && (
-              <section className="bg-white rounded-xl border p-5">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Features & Details</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {vehicle.features.map((feature, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
-                      <div className="w-5 h-5 bg-[#145a2c] rounded-full flex items-center justify-center flex-shrink-0">
-                        <Check size={12} className="text-white" />
+            {(() => {
+              const displayFeatures = selectedVariant?.features && selectedVariant.features.length > 0
+                ? selectedVariant.features
+                : vehicle.features;
+              return displayFeatures && displayFeatures.length > 0 ? (
+                <section className="bg-white rounded-xl border p-5">
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">Features & Details</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {displayFeatures.map((feature, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg">
+                        <div className="w-5 h-5 bg-[#145a2c] rounded-full flex items-center justify-center flex-shrink-0">
+                          <Check size={12} className="text-white" />
+                        </div>
+                        <span className="text-sm text-gray-700">{feature}</span>
                       </div>
-                      <span className="text-sm text-gray-700">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                    ))}
+                  </div>
+                </section>
+              ) : null;
+            })()}
 
             {/* PROS & CONS Section */}
             {(vehicle.pros?.length > 0 || vehicle.cons?.length > 0) && (

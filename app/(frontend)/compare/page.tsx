@@ -428,23 +428,55 @@ export default function ComparePage() {
             })}
 
             {/* Variant-specific specs */}
-            {selectedVariant?.specifications && comparedVariant?.specifications && (
+            {(selectedVariant?.specifications || comparedVariant?.specifications) && (
               <>
-                {Object.keys(selectedVariant.specifications).slice(0, 6).map((key, i) => (
+                {Array.from(new Set([
+                  ...Object.keys(selectedVariant?.specifications || {}),
+                  ...Object.keys(comparedVariant?.specifications || {}),
+                ])).slice(0, 6).map((key, i) => (
                   <div key={key} className={cn('grid grid-cols-3 border-b border-gray-50', (compareFields.length + i) % 2 === 0 ? 'bg-white' : 'bg-gray-50/50')}>
                     <div className="p-4 border-r border-gray-100">
                       <span className="text-sm text-gray-600 font-medium">{key}</span>
                     </div>
                     <div className="p-4 border-r border-gray-100">
-                      <span className="text-sm text-gray-800">{(selectedVariant.specifications as any)[key] || '—'}</span>
+                      <span className="text-sm text-gray-800">{(selectedVariant?.specifications as any)?.[key] || '—'}</span>
                     </div>
                     <div className="p-4">
-                      <span className="text-sm text-gray-800">{(comparedVariant.specifications as any)?.[key] || '—'}</span>
+                      <span className="text-sm text-gray-800">{(comparedVariant?.specifications as any)?.[key] || '—'}</span>
                     </div>
                   </div>
                 ))}
               </>
             )}
+
+            {/* Variant features comparison */}
+            {(selectedVariant?.features?.length || comparedVariant?.features?.length) ? (
+              <div className="grid grid-cols-3 border-b border-gray-50 bg-gray-50/50">
+                <div className="p-4 border-r border-gray-100">
+                  <span className="text-sm text-gray-600 font-medium">Key Features</span>
+                </div>
+                <div className="p-4 border-r border-gray-100">
+                  <ul className="space-y-1">
+                    {(selectedVariant?.features || []).slice(0, 5).map((f, i) => (
+                      <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                        <CheckCircle2 size={12} className="text-green-500 mt-0.5 flex-shrink-0" /> {f}
+                      </li>
+                    ))}
+                    {(!selectedVariant?.features || selectedVariant.features.length === 0) && <span className="text-sm text-gray-400">—</span>}
+                  </ul>
+                </div>
+                <div className="p-4">
+                  <ul className="space-y-1">
+                    {(comparedVariant?.features || []).slice(0, 5).map((f, i) => (
+                      <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                        <CheckCircle2 size={12} className="text-blue-500 mt-0.5 flex-shrink-0" /> {f}
+                      </li>
+                    ))}
+                    {(!comparedVariant?.features || comparedVariant.features.length === 0) && <span className="text-sm text-gray-400">—</span>}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
 
             {/* CTA Row */}
             <div className="grid grid-cols-3 bg-gray-50 p-4">

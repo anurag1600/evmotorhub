@@ -78,7 +78,7 @@ function BreadcrumbSchema({ vehicle, manufacturer }: { vehicle: Vehicle & { manu
 async function getVehicle(slug: string) {
   const { data } = await supabase
     .from('vehicles')
-    .select('id, name, slug, type, segment, price_min, price_max, range_km, top_speed_kmh, charging_time_hrs, battery_capacity_kwh, motor_power_kw, image_url, image_gallery, gallery_urls, description, is_upcoming, is_latest, is_featured, launch_date, colors, specifications, features, pros, cons, manufacturers:id, manufacturers(*)')
+    .select('id, name, slug, type, segment, price_min, price_max, range_km, top_speed_kmh, charging_time_hrs, battery_capacity_kwh, motor_power_kw, image_url, image_gallery, gallery_urls, video_url, description, is_upcoming, is_latest, is_featured, launch_date, colors, specifications, features, pros, cons, related_news_ids, similar_vehicle_ids, default_variant_id, manufacturers:id, manufacturers(*)')
     .eq('slug', slug)
     .maybeSingle();
   return data as (Vehicle & { manufacturers: any }) | null;
