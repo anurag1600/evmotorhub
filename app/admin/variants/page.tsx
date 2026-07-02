@@ -5,12 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, VehicleVariant, Manufacturer } from '@/lib/types';
 import { useVariants, VariantInput } from '@/hooks/useVariants';
-import {
-  Power, Plus, Pencil, Trash2, Copy, Star, Search, Loader as Loader2,
-  Image as ImageIcon, FileText, CircleAlert as AlertCircle, ChevronDown,
-  Car, Battery, TrendingUp, Clock, Zap, Archive, X, Filter, Grid, List,
-  Package, ArrowRight, Upload
-} from 'lucide-react';
+import { Power, Plus, Pencil, Trash2, Copy, Star, Search, Loader as Loader2, Image as ImageIcon, FileText, CircleAlert as AlertCircle, ChevronDown, Car, Battery, TrendingUp, Clock, Zap, Archive, X, Filter, Grid2x2 as Grid, List, Package, ArrowRight, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import VariantDrawer from '@/components/admin/VariantDrawer';
@@ -79,18 +74,27 @@ export default function VariantsAdminPage() {
         .select(`
           id, name, slug, type, segment, image_url, manufacturer_id,
           status, updated_at, default_variant_id,
-          manufacturers:id(id, name, slug, logo_url)
+          manufacturers(id, name, slug, logo_url)
         `)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        toast.error(`Query error: ${error.message}`);
+        setVehiclesLoading(false);
+        return;
+      }
 
       // Get variant counts
       const vehicleIds = (data || []).map(v => v.id);
-      const { data: variantData } = await supabase
+      const { data: variantData, error: variantError } = await supabase
         .from('vehicle_variants')
         .select('vehicle_id, id, name, is_featured, status')
         .in('vehicle_id', vehicleIds);
+
+      if (variantError) {
+        console.error('Variant query error:', variantError);
+      }
 
       const variantCounts: Record<string, number> = {};
       const defaultVariants: Record<string, string> = {};
@@ -111,7 +115,8 @@ export default function VariantsAdminPage() {
 
       setVehicles(vehiclesWithCounts);
     } catch (e: any) {
-      toast.error('Failed to load vehicles');
+      console.error('Failed to fetch vehicles:', e);
+      toast.error(`Failed to load vehicles: ${e.message}`);
     } finally {
       setVehiclesLoading(false);
     }

@@ -65,7 +65,7 @@ export default function VehiclesManagementPage() {
           id, name, slug, type, segment, image_url, manufacturer_id,
           price_min, price_max, status, is_featured, is_upcoming, is_latest,
           updated_at, created_at, default_variant_id,
-          manufacturers:id(id, name, slug, logo_url)
+          manufacturers(id, name, slug, logo_url)
         `)
         .order('updated_at', { ascending: false });
 
@@ -78,13 +78,23 @@ export default function VehiclesManagementPage() {
 
       const [{ count }, { data, error }] = await Promise.all([countQuery, dataQuery]);
 
-      if (!error && data) {
+      if (error) {
+        console.error('Supabase query error:', error);
+        toast.error(`Query error: ${error.message}`);
+        return;
+      }
+
+      if (data) {
         // Fetch variant counts for each vehicle
         const vehicleIds = data.map(v => v.id);
-        const { data: variantData } = await supabase
+        const { data: variantData, error: variantError } = await supabase
           .from('vehicle_variants')
           .select('vehicle_id, id, name, is_featured')
           .in('vehicle_id', vehicleIds);
+
+        if (variantError) {
+          console.error('Variant query error:', variantError);
+        }
 
         const variantCounts: Record<string, number> = {};
         const defaultVariants: Record<string, string> = {};
