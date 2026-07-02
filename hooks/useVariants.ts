@@ -35,6 +35,8 @@ export interface VariantInput {
   colors?: string[] | null;
   color_hexes?: string[] | null;
   features?: string[];
+  pros?: string[];
+  cons?: string[];
   specifications?: Record<string, string>;
   status?: string;
   is_available?: boolean;
@@ -98,6 +100,8 @@ export function useVariants(vehicleId: string | null | undefined) {
       colors: input.colors || null,
       color_hexes: input.color_hexes || null,
       features: input.features || [],
+      pros: input.pros || [],
+      cons: input.cons || [],
       specifications: input.specifications || {},
       status: input.status || 'active',
       is_available: input.is_available ?? true,
@@ -141,6 +145,8 @@ export function useVariants(vehicleId: string | null | undefined) {
     if (input.colors !== undefined) { updateData.colors = input.colors || null; updateData.color = input.colors?.[0] || null; }
     if (input.color_hexes !== undefined) { updateData.color_hexes = input.color_hexes || null; updateData.color_hex = input.color_hexes?.[0] || null; }
     if (input.features !== undefined) updateData.features = input.features || [];
+    if (input.pros !== undefined) updateData.pros = input.pros || [];
+    if (input.cons !== undefined) updateData.cons = input.cons || [];
     if (input.specifications !== undefined) updateData.specifications = input.specifications || {};
     if (input.status !== undefined) updateData.status = input.status;
     if (input.is_available !== undefined) updateData.is_available = input.is_available;
@@ -201,6 +207,8 @@ export function useVariants(vehicleId: string | null | undefined) {
       color: variant.color, color_hex: variant.color_hex,
       colors: variant.colors, color_hexes: variant.color_hexes,
       features: variant.features || [],
+      pros: variant.pros || [],
+      cons: variant.cons || [],
       specifications: variant.specifications || {},
       status: variant.status, is_available: variant.is_available,
       is_featured: false, sort_order: variants.length,

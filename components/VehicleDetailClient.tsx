@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Zap, Gauge, Battery, Clock, MapPin, ChevronRight, Scale, Calculator, ShoppingBag,
   ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Palette, ChevronLeft, FileText
@@ -20,13 +21,26 @@ interface VehicleDetailClientProps {
 
 export default function VehicleDetailClient({ vehicle, variants, similar }: VehicleDetailClientProps) {
   const manufacturer = vehicle.manufacturers;
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  // State
-  const defaultVariant = variants.find(v => v.id === vehicle.default_variant_id) ||
-                         variants.find(v => v.is_featured && v.status === 'active') ||
-                         variants.find(v => v.status === 'active') ||
-                         (variants.length > 0 ? variants[0] : null);
-  const [selectedVariant, setSelectedVariant] = useState<VehicleVariant | null>(defaultVariant);
+  // State - initialize from URL param if present
+  const getDefaultVariant = useCallback(() => {
+    const variantParam = searchParams.get('variant');
+    if (variantParam) {
+      // Try to find by ID first, then by slug
+      const byId = variants.find(v => v.id === variantParam);
+      if (byId) return byId;
+      const bySlug = variants.find(v => v.slug === variantParam);
+      if (bySlug) return bySlug;
+    }
+    return variants.find(v => v.id === vehicle.default_variant_id) ||
+           variants.find(v => v.is_featured && v.status === 'active') ||
+           variants.find(v => v.status === 'active') ||
+           (variants.length > 0 ? variants[0] : null);
+  }, [searchParams, variants, vehicle.default_variant_id]);
+
+  const [selectedVariant, setSelectedVariant] = useState<VehicleVariant | null>(getDefaultVariant);
   const [selectedCity, setSelectedCity] = useState<PricingCity | null>(null);
   const [selectedState, setSelectedState] = useState<PricingState | null>(null);
 
@@ -319,7 +333,14 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const activeVariants = variants.filter(v => v.status === 'active');
 
   const handleSelectCity = useCallback((city: PricingCity) => { setSelectedCity(city); if (city.state) setSelectedState(city.state as PricingState); setShowCityModal(false); setCitySearch(''); }, []);
-  const handleSelectVariant = useCallback((v: VehicleVariant) => { setSelectedVariant(v); }, []);
+  const handleSelectVariant = useCallback((v: VehicleVariant) => {
+    setSelectedVariant(v);
+    // Update URL with variant slug for SEO-friendly sharing
+    const variantSlug = v.slug || v.id;
+    const url = new URL(window.location.href);
+    url.searchParams.set('variant', String(variantSlug));
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
 
   const nextImage = useCallback(() => setCurrentImageIndex(i => (i + 1) % galleryImages.length), [galleryImages.length]);
   const prevImage = useCallback(() => setCurrentImageIndex(i => (i - 1 + galleryImages.length) % galleryImages.length), [galleryImages.length]);
@@ -579,26 +600,31 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
               ) : null;
             })()}
 
-            {/* PROS & CONS Section */}
-            {(vehicle.pros?.length > 0 || vehicle.cons?.length > 0) && (
-              <section className="bg-white rounded-xl border p-5">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Pros & Cons</h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {vehicle.pros?.length > 0 && (
-                    <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-                      <h3 className="text-sm font-semibold text-green-700 flex items-center gap-2 mb-3"><ThumbsUp size={14} /> Pros</h3>
-                      <ul className="space-y-2">{vehicle.pros.map((p, i) => <li key={i} className="flex gap-2 text-sm text-gray-700"><Check size={14} className="text-green-500 mt-0.5 flex-shrink-0" />{p}</li>)}</ul>
-                    </div>
-                  )}
-                  {vehicle.cons?.length > 0 && (
-                    <div className="bg-red-50 rounded-xl p-4 border border-red-100">
-                      <h3 className="text-sm font-semibold text-red-700 flex items-center gap-2 mb-3"><ThumbsDown size={14} /> Cons</h3>
-                      <ul className="space-y-2">{vehicle.cons.map((c, i) => <li key={i} className="flex gap-2 text-sm text-gray-700"><X size={14} className="text-red-400 mt-0.5 flex-shrink-0" />{c}</li>)}</ul>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+            {/* PROS & CONS Section - variant-level with vehicle fallback */}
+            {(() => {
+              const displayPros = (selectedVariant?.pros?.length ?? 0) > 0 ? selectedVariant!.pros : vehicle.pros;
+              const displayCons = (selectedVariant?.cons?.length ?? 0) > 0 ? selectedVariant!.cons : vehicle.cons;
+              if (!displayPros?.length && !displayCons?.length) return null;
+              return (
+                <section className="bg-white rounded-xl border p-5">
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">Pros & Cons</h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {displayPros?.length > 0 && (
+                      <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                        <h3 className="text-sm font-semibold text-green-700 flex items-center gap-2 mb-3"><ThumbsUp size={14} /> Pros</h3>
+                        <ul className="space-y-2">{displayPros.map((p, i) => <li key={i} className="flex gap-2 text-sm text-gray-700"><Check size={14} className="text-green-500 mt-0.5 flex-shrink-0" />{p}</li>)}</ul>
+                      </div>
+                    )}
+                    {displayCons?.length > 0 && (
+                      <div className="bg-red-50 rounded-xl p-4 border border-red-100">
+                        <h3 className="text-sm font-semibold text-red-700 flex items-center gap-2 mb-3"><ThumbsDown size={14} /> Cons</h3>
+                        <ul className="space-y-2">{displayCons.map((c, i) => <li key={i} className="flex gap-2 text-sm text-gray-700"><X size={14} className="text-red-400 mt-0.5 flex-shrink-0" />{c}</li>)}</ul>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* VARIANTS Section */}
             <section className="bg-white rounded-xl border p-5">

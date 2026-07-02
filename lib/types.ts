@@ -210,6 +210,8 @@ export interface VehicleVariant {
   color_hexes?: string[];
   specifications: Record<string, string>;
   features: string[];
+  pros: string[];
+  cons: string[];
   short_description: string | null;
   gallery_urls: string[];
   brochure_url: string | null;

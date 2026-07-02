@@ -74,6 +74,8 @@ const defaultFormState: VariantInput = {
   colors: [],
   color_hexes: [],
   features: [],
+  pros: [],
+  cons: [],
   specifications: {},
   status: 'active',
   is_available: true,
@@ -122,6 +124,8 @@ export default function VariantDrawer({
   const [colorInput, setColorInput] = useState('');
   const [colorHexInput, setColorHexInput] = useState('#9ca3af');
   const [featureInput, setFeatureInput] = useState('');
+  const [proInput, setProInput] = useState('');
+  const [conInput, setConInput] = useState('');
   const [galleryInput, setGalleryInput] = useState('');
   const [specKey, setSpecKey] = useState('');
   const [specValue, setSpecValue] = useState('');
@@ -162,6 +166,8 @@ export default function VariantDrawer({
           colors: variant.colors || [],
           color_hexes: variant.color_hexes || [],
           features: variant.features || [],
+          pros: variant.pros || [],
+          cons: variant.cons || [],
           specifications: variant.specifications || {},
           status: variant.status || 'active',
           is_available: variant.is_available ?? true,
@@ -229,6 +235,30 @@ export default function VariantDrawer({
 
   const removeFeature = (index: number) => {
     setFormData({ ...formData, features: (formData.features || []).filter((_, i) => i !== index) });
+  };
+
+  const addPro = () => {
+    const value = proInput.trim();
+    if (value && !(formData.pros || []).includes(value)) {
+      setFormData({ ...formData, pros: [...(formData.pros || []), value] });
+      setProInput('');
+    }
+  };
+
+  const removePro = (index: number) => {
+    setFormData({ ...formData, pros: (formData.pros || []).filter((_, i) => i !== index) });
+  };
+
+  const addCon = () => {
+    const value = conInput.trim();
+    if (value && !(formData.cons || []).includes(value)) {
+      setFormData({ ...formData, cons: [...(formData.cons || []), value] });
+      setConInput('');
+    }
+  };
+
+  const removeCon = (index: number) => {
+    setFormData({ ...formData, cons: (formData.cons || []).filter((_, i) => i !== index) });
   };
 
   const addGalleryUrl = () => {
@@ -648,6 +678,62 @@ export default function VariantDrawer({
                       <span key={i} className="bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs flex items-center gap-1">
                         {feature}
                         <button type="button" onClick={() => removeFeature(i)} className="hover:text-red-600">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pros */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Pros / Advantages</h3>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={proInput}
+                      onChange={(e) => setProInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPro())}
+                      placeholder="Add pro..."
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                    />
+                    <button type="button" onClick={() => addPro()} className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors">
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(formData.pros || []).map((pro, i) => (
+                      <span key={i} className="bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs flex items-center gap-1">
+                        {pro}
+                        <button type="button" onClick={() => removePro(i)} className="hover:text-red-600">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cons */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Cons / Disadvantages</h3>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={conInput}
+                      onChange={(e) => setConInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCon())}
+                      placeholder="Add con..."
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                    />
+                    <button type="button" onClick={() => addCon()} className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors">
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(formData.cons || []).map((con, i) => (
+                      <span key={i} className="bg-red-50 text-red-700 px-2 py-1 rounded-full text-xs flex items-center gap-1">
+                        {con}
+                        <button type="button" onClick={() => removeCon(i)} className="hover:text-red-600">
                           <X size={12} />
                         </button>
                       </span>
