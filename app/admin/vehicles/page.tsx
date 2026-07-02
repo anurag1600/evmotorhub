@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Vehicle } from '@/lib/types';
-import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye } from 'lucide-react';
+import { Vehicle, Manufacturer } from '@/lib/types';
+import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Power, Star, Settings } from 'lucide-react';
 import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -16,6 +17,12 @@ const statusColors: Record<string, string> = {
   published: 'bg-green-100 text-green-700',
   archived: 'bg-gray-100 text-gray-700',
 };
+
+interface VehicleWithManufacturer extends Vehicle {
+  manufacturers?: Manufacturer;
+  variant_count?: number;
+  default_variant_name?: string;
+}
 
 const EXPORT_COLS = [
   'id', 'name', 'slug', 'type', 'segment', 'manufacturer_id',
@@ -37,7 +44,8 @@ const IMPORT_COLS = [
 ];
 
 export default function VehiclesManagementPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const router = useRouter();
+  const [vehicles, setVehicles] = useState<VehicleWithManufacturer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
@@ -51,7 +59,15 @@ export default function VehiclesManagementPage() {
     setLoading(true);
     try {
       let countQuery = supabase.from('vehicles').select('id', { count: 'exact', head: true });
-      let dataQuery = supabase.from('vehicles').select('*').order('updated_at', { ascending: false });
+      let dataQuery = supabase
+        .from('vehicles')
+        .select(`
+          id, name, slug, type, segment, image_url, manufacturer_id,
+          price_min, price_max, status, is_featured, is_upcoming, is_latest,
+          updated_at, created_at, default_variant_id,
+          manufacturers:id(id, name, slug, logo_url)
+        `)
+        .order('updated_at', { ascending: false });
 
       if (type) { countQuery = countQuery.eq('type', type); dataQuery = dataQuery.eq('type', type); }
       if (status) { countQuery = countQuery.eq('status', status); dataQuery = dataQuery.eq('status', status); }
@@ -61,8 +77,39 @@ export default function VehiclesManagementPage() {
       dataQuery = dataQuery.range(from, from + pageSize - 1);
 
       const [{ count }, { data, error }] = await Promise.all([countQuery, dataQuery]);
-      if (!error && data) { setVehicles(data as Vehicle[]); setTotal(count ?? 0); }
-    } catch (err) { console.error('Failed to fetch vehicles:', err); }
+
+      if (!error && data) {
+        // Fetch variant counts for each vehicle
+        const vehicleIds = data.map(v => v.id);
+        const { data: variantData } = await supabase
+          .from('vehicle_variants')
+          .select('vehicle_id, id, name, is_featured')
+          .in('vehicle_id', vehicleIds);
+
+        const variantCounts: Record<string, number> = {};
+        const defaultVariants: Record<string, string> = {};
+
+        (variantData || []).forEach((v: any) => {
+          variantCounts[v.vehicle_id] = (variantCounts[v.vehicle_id] || 0) + 1;
+          if (v.is_featured) {
+            defaultVariants[v.vehicle_id] = v.name;
+          }
+        });
+
+        const vehiclesWithVariants = data.map(v => ({
+          ...v,
+          manufacturers: v.manufacturers as unknown as Manufacturer,
+          variant_count: variantCounts[v.id] || 0,
+          default_variant_name: defaultVariants[v.id] || 'None'
+        })) as VehicleWithManufacturer[];
+
+        setVehicles(vehiclesWithVariants);
+        setTotal(count ?? 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch vehicles:', err);
+      toast.error('Failed to load vehicles');
+    }
     finally { setLoading(false); }
   }, [search, type, status, page, pageSize]);
 
@@ -70,18 +117,25 @@ export default function VehiclesManagementPage() {
   useEffect(() => { setPage(1); }, [search, type, status]);
 
   const deleteVehicle = async (id: string) => {
-    if (!confirm('Delete this vehicle?')) return;
+    if (!confirm('Delete this vehicle and all its variants? This action cannot be undone.')) return;
     setDeleting(id);
     try {
+      // First delete all variants
+      await supabase.from('vehicle_variants').delete().eq('vehicle_id', id);
+      // Then delete the vehicle
       await supabase.from('vehicles').delete().eq('id', id);
       setVehicles(vehicles.filter(v => v.id !== id));
       setTotal(t => t - 1);
-      toast.success('Item deleted successfully');
+      toast.success('Vehicle deleted successfully');
     } catch (err) {
       console.error('Delete failed:', err);
-      toast.error('Failed to delete');
+      toast.error('Failed to delete vehicle');
     }
     finally { setDeleting(null); }
+  };
+
+  const handleManageVariants = (vehicleId: string) => {
+    router.push(`/admin/variants?vehicle=${vehicleId}`);
   };
 
   const handleImport = async (rows: Record<string, string>[]) => {
@@ -89,26 +143,19 @@ export default function VehiclesManagementPage() {
     let success = 0;
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      // Only name is strictly required
       if (!row.name?.trim()) { errors.push(`Row ${i + 1}: name is required`); continue; }
 
-      // Auto-generate slug from name if not provided
       const slug = row.slug?.trim() || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-      // Default type to 'scooter' if not provided or invalid
       const validTypes = ['scooter', 'bike', 'car'];
       const type = validTypes.includes(row.type?.toLowerCase()) ? row.type.toLowerCase() : 'scooter';
 
-      // Parse array fields (semicolon-separated)
       const parseArray = (val: string | undefined) =>
         val ? val.split(';').map(s => s.trim()).filter(Boolean) : [];
 
-      // Parse JSON fields - supports both JSON format and key:value;key:value format
       const parseJson = (val: string | undefined): Record<string, string> => {
         if (!val) return {};
-        try {
-          return JSON.parse(val);
-        } catch {
+        try { return JSON.parse(val); }
+        catch {
           const obj: Record<string, string> = {};
           val.split(';').forEach(pair => {
             const [k, v] = pair.split(':').map(s => s.trim());
@@ -170,7 +217,7 @@ export default function VehiclesManagementPage() {
               <Car size={28} className="text-[#145a2c]" />
               Vehicle Management
             </h1>
-            <p className="admin-subtitle">Manage all electric vehicles</p>
+            <p className="admin-subtitle">Manage parent vehicles - Add variants from Variant Management</p>
           </div>
           <div className="flex items-center gap-2">
             <ImportExport
@@ -224,42 +271,75 @@ export default function VehiclesManagementPage() {
                 <table className="admin-table">
                   <thead className="admin-table-head">
                     <tr>
-                      <th>Name</th>
+                      <th className="w-16">Image</th>
+                      <th>Vehicle</th>
+                      <th>Brand</th>
                       <th>Type</th>
-                      <th>Price</th>
+                      <th className="text-center">Variants</th>
                       <th>Status</th>
-                      <th>Featured</th>
                       <th>Updated</th>
-                      <th>Actions</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="admin-table-body">
                     {vehicles.map((vehicle) => (
-                      <tr key={vehicle.id}>
-                        <td className="font-medium text-gray-900">{vehicle.name}</td>
-                        <td>{getVehicleTypeLabel(vehicle.type)}</td>
-                        <td className="font-medium text-[#145a2c]">{formatPrice(vehicle.price_min)}</td>
+                      <tr key={vehicle.id} className="group">
+                        <td>
+                          {vehicle.image_url ? (
+                            <img src={vehicle.image_url} alt={vehicle.name} className="w-10 h-10 rounded-lg object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                              <Car size={16} className="text-gray-400" />
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div className="font-medium text-gray-900">{vehicle.name}</div>
+                          {vehicle.is_featured && (
+                            <span className="text-xs text-yellow-600 flex items-center gap-0.5 mt-0.5">
+                              <Star size={10} className="fill-yellow-400" /> Featured
+                            </span>
+                          )}
+                        </td>
+                        <td className="text-gray-600">{vehicle.manufacturers?.name || '—'}</td>
+                        <td>
+                          <span className="capitalize">{getVehicleTypeLabel(vehicle.type)}</span>
+                        </td>
+                        <td className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="font-semibold text-[#145a2c]">{vehicle.variant_count || 0}</span>
+                            {vehicle.default_variant_name && vehicle.default_variant_name !== 'None' && (
+                              <span className="text-xs text-gray-400">({vehicle.default_variant_name})</span>
+                            )}
+                          </div>
+                        </td>
                         <td>
                           <span className={cn('admin-badge', statusColors[vehicle.status || 'published'])}>
                             {vehicle.status || 'published'}
                           </span>
                         </td>
-                        <td>{vehicle.is_featured ? '✓' : '—'}</td>
                         <td className="text-xs text-gray-500">{timeAgo(vehicle.updated_at || vehicle.created_at)}</td>
                         <td>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center justify-end gap-1">
                             <Link
                               href={`/vehicles/${vehicle.slug}`}
                               target="_blank"
                               className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="View"
+                              title="Preview"
                             >
                               <Eye size={14} />
                             </Link>
+                            <button
+                              onClick={() => handleManageVariants(vehicle.id)}
+                              className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
+                              title="Manage Variants"
+                            >
+                              <Power size={14} />
+                            </button>
                             <Link
                               href={`/admin/vehicles/${vehicle.id}/edit`}
                               className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg transition-colors"
-                              title="Edit (including variants)"
+                              title="Edit Vehicle"
                             >
                               <Pencil size={14} />
                             </Link>
