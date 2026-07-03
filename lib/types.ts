@@ -345,6 +345,101 @@ export interface PricingSubsidy {
   city?: PricingCity;
 }
 
+// New Pricing Engine types
+export type PricingProfileStatus = 'draft' | 'published' | 'archived';
+
+export interface PricingProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  city_id: string | null;
+  vehicle_category: VehiclePricingCategory;
+  status: PricingProfileStatus;
+
+  // Percentage charges
+  rto_percentage: number;
+  insurance_percentage: number;
+
+  // Fixed charges
+  registration_fee: number;
+  hsrp_fee: number;
+  fastag_fee: number;
+  handling_charges: number;
+  dealer_charges: number;
+  delivery_charges: number;
+  accessories_charges: number;
+  other_charges: number;
+  misc_charges: number;
+
+  // Visibility toggles
+  show_rto: boolean;
+  show_insurance: boolean;
+  show_registration: boolean;
+  show_hsrp: boolean;
+  show_fastag: boolean;
+  show_handling: boolean;
+  show_dealer: boolean;
+  show_delivery: boolean;
+  show_accessories: boolean;
+  show_other: boolean;
+  show_misc: boolean;
+
+  // Calculation order
+  calculation_order: string[];
+
+  // Rule conditions
+  brand_id: string | null;
+  vehicle_id: string | null;
+  variant_id: string | null;
+  vehicle_type: VehicleType | null;
+  battery_min_kwh: number | null;
+  battery_max_kwh: number | null;
+  price_range_min: number | null;
+  price_range_max: number | null;
+  priority: number;
+  effective_date: string | null;
+
+  // Subsidy
+  has_subsidy: boolean;
+  subsidy_type: SubsidyType;
+  subsidy_value: number;
+  subsidy_title: string | null;
+  subsidy_badge_text: string | null;
+  subsidy_description: string | null;
+  subsidy_start_date: string | null;
+  subsidy_end_date: string | null;
+
+  // Metadata
+  created_at: string;
+  updated_at: string;
+
+  // Relations
+  city?: PricingCity;
+  slabs?: PricingProfileSlab[];
+}
+
+export interface PricingProfileVersion {
+  id: string;
+  profile_id: string;
+  version_number: number;
+  snapshot: Record<string, any>;
+  changed_by: string | null;
+  change_description: string | null;
+  created_at: string;
+}
+
+export interface PricingProfileSlab {
+  id: string;
+  profile_id: string;
+  min_price: number;
+  max_price: number | null;
+  tax_percentage: number;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OnRoadPriceBreakdown {
   ex_showroom: number;
   rto: number;

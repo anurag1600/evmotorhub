@@ -2,21 +2,17 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PricingState, PricingCity, PricingRule, PricingSlab, PricingSubsidy, VehiclePricingCategory } from '@/lib/types';
-import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, X, Star, Download, Upload, FileText, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Eye, EyeOff, Percent, IndianRupee, Layers, Gift, Car, Bike, CircleDot as Circle, ChevronDown, ChevronUp, Settings } from 'lucide-react';
+import { PricingState, PricingCity, VehiclePricingCategory } from '@/lib/types';
+import { usePricingProfiles } from '@/hooks/usePricingProfiles';
+import { ProfileFormData } from '@/components/admin/PricingProfileDrawer';
+import PricingProfileDrawer from '@/components/admin/PricingProfileDrawer';
+import VersionHistoryModal from '@/components/admin/VersionHistoryModal';
+import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, X, Star, Eye, EyeOff, Percent, IndianRupee, Gift, Car, Bike, CircleDot as Circle, ChevronDown, ChevronUp, Settings, History, Copy, Archive, FileText, CircleCheck as CheckCircle, Clock, CircleAlert as AlertCircle, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface CityWithState extends PricingCity {
   state?: PricingState;
-}
-
-interface RuleWithCity extends PricingRule {
-  city?: CityWithState;
-}
-
-interface SubsidyWithCity extends PricingSubsidy {
-  city?: CityWithState;
 }
 
 const VEHICLE_CATEGORIES: { value: VehiclePricingCategory; label: string; icon: React.ReactNode }[] = [
@@ -31,27 +27,22 @@ const CATEGORY_LABELS: Record<VehiclePricingCategory, string> = {
   electric_bike: 'Electric Bike',
 };
 
+const STATUS_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
+  published: { bg: 'bg-green-100', text: 'text-green-700', icon: <CheckCircle size={12} /> },
+  draft: { bg: 'bg-amber-100', text: 'text-amber-700', icon: <Clock size={12} /> },
+  archived: { bg: 'bg-gray-100', text: 'text-gray-600', icon: <Archive size={12} /> },
+};
+
 export default function PricingManagementPage() {
   const [states, setStates] = useState<PricingState[]>([]);
   const [cities, setCities] = useState<CityWithState[]>([]);
-  const [rules, setRules] = useState<RuleWithCity[]>([]);
-  const [slabs, setSlabs] = useState<PricingSlab[]>([]);
-  const [subsidies, setSubsidies] = useState<SubsidyWithCity[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'cities' | 'rules' | 'slabs' | 'subsidies'>('cities');
+  const [activeTab, setActiveTab] = useState<'cities' | 'profiles'>('cities');
 
-  // Form states
+  // City form states
   const [editingCity, setEditingCity] = useState<CityWithState | null>(null);
-  const [editingRule, setEditingRule] = useState<RuleWithCity | null>(null);
-  const [editingSlab, setEditingSlab] = useState<PricingSlab | null>(null);
-  const [editingSubsidy, setEditingSubsidy] = useState<SubsidyWithCity | null>(null);
   const [showCityForm, setShowCityForm] = useState(false);
-  const [showRuleForm, setShowRuleForm] = useState(false);
-  const [showSlabForm, setShowSlabForm] = useState(false);
-  const [showSubsidyForm, setShowSubsidyForm] = useState(false);
-  const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
-
   const [cityForm, setCityForm] = useState({
     state_id: '',
     name: '',
@@ -60,58 +51,57 @@ export default function PricingManagementPage() {
     is_active: true,
   });
 
-  const [ruleForm, setRuleForm] = useState({
-    city_id: '',
-    vehicle_category: 'electric_car' as VehiclePricingCategory,
-    rto_percentage: '8',
-    insurance_percentage: '3.5',
-    registration_fee: '1000',
-    hsrp_fee: '500',
-    fastag_fee: '500',
-    other_charges: '1000',
-    show_rto: true,
-    show_insurance: true,
-    show_registration: true,
-    show_hsrp: true,
-    show_fastag: true,
-    show_other: true,
-  });
+  // Pricing profiles
+  const {
+    profiles,
+    loading: profilesLoading,
+    error: profilesError,
+    fetchProfiles,
+    createProfile,
+    updateProfile,
+    deleteProfile,
+    duplicateProfile,
+    publishProfile,
+    archiveProfile,
+    getVersions,
+    restoreVersion,
+    copyToCities,
+  } = usePricingProfiles();
 
-  const [slabForm, setSlabForm] = useState({
-    rule_id: '',
-    min_price: '0',
-    max_price: '',
-    tax_percentage: '8',
-    sort_order: '1',
-  });
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<any>(null);
+  const [profileMode, setProfileMode] = useState<'create' | 'edit' | 'duplicate'>('create');
+  const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null);
 
-  const [subsidyForm, setSubsidyForm] = useState({
-    city_id: '',
-    vehicle_category: 'electric_car' as VehiclePricingCategory,
-    subsidy_type: 'fixed' as 'fixed' | 'percentage',
-    value: '0',
-    description: '',
-  });
+  // Version history
+  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [versionProfileId, setVersionProfileId] = useState<string | null>(null);
+  const [versionProfileName, setVersionProfileName] = useState('');
+
+  // Filters
+  const [profileFilter, setProfileFilter] = useState<{
+    status?: 'draft' | 'published' | 'archived';
+    city_id?: string;
+    vehicle_category?: VehiclePricingCategory;
+  }>({});
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    fetchProfiles(profileFilter);
+  }, [profileFilter]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statesRes, citiesRes, rulesRes, slabsRes, subsidiesRes] = await Promise.all([
+      const [statesRes, citiesRes] = await Promise.all([
         supabase.from('pricing_states').select('*').order('name'),
         supabase.from('pricing_cities').select('*, state:pricing_states(*)').order('is_popular', { ascending: false }).order('name'),
-        supabase.from('pricing_rules').select('*, city:pricing_cities(*, state:pricing_states(*))').order('created_at'),
-        supabase.from('pricing_slabs').select('*').order('sort_order'),
-        supabase.from('pricing_subsidies').select('*, city:pricing_cities(*, state:pricing_states(*))').order('created_at'),
       ]);
       setStates((statesRes.data || []) as PricingState[]);
       setCities((citiesRes.data || []) as CityWithState[]);
-      setRules((rulesRes.data || []) as RuleWithCity[]);
-      setSlabs((slabsRes.data || []) as PricingSlab[]);
-      setSubsidies((subsidiesRes.data || []) as SubsidyWithCity[]);
     } catch (err) {
       toast.error('Failed to load pricing data');
     } finally {
@@ -119,7 +109,7 @@ export default function PricingManagementPage() {
     }
   };
 
-  // ==================== CITY CRUD ====================
+  // City CRUD
   const handleSaveCity = async () => {
     if (!cityForm.state_id || !cityForm.name) {
       toast.error('State and city name are required');
@@ -161,7 +151,7 @@ export default function PricingManagementPage() {
   };
 
   const handleDeleteCity = async (id: string) => {
-    if (!confirm('Delete this city? All associated rules, slabs, and subsidies will also be deleted.')) return;
+    if (!confirm('Delete this city? All associated pricing profiles will also be deleted.')) return;
     try {
       await supabase.from('pricing_cities').delete().eq('id', id);
       toast.success('City deleted');
@@ -171,166 +161,93 @@ export default function PricingManagementPage() {
     }
   };
 
-  // ==================== RULE CRUD ====================
-  const handleSaveRule = async () => {
-    if (!ruleForm.city_id) {
-      toast.error('City is required');
-      return;
-    }
+  // Profile CRUD
+  const handleOpenProfileDrawer = (mode: 'create' | 'edit' | 'duplicate', profile?: any) => {
+    setProfileMode(mode);
+    setEditingProfile(profile || null);
+    setShowProfileDrawer(true);
+  };
 
-    setSaving(true);
-    try {
-      const payload = {
-        city_id: ruleForm.city_id,
-        vehicle_category: ruleForm.vehicle_category,
-        rto_percentage: parseFloat(ruleForm.rto_percentage) || 0,
-        insurance_percentage: parseFloat(ruleForm.insurance_percentage) || 0,
-        registration_fee: parseInt(ruleForm.registration_fee) || 0,
-        hsrp_fee: parseInt(ruleForm.hsrp_fee) || 0,
-        fastag_fee: parseInt(ruleForm.fastag_fee) || 0,
-        other_charges: parseInt(ruleForm.other_charges) || 0,
-        show_rto: ruleForm.show_rto,
-        show_insurance: ruleForm.show_insurance,
-        show_registration: ruleForm.show_registration,
-        show_hsrp: ruleForm.show_hsrp,
-        show_fastag: ruleForm.show_fastag,
-        show_other: ruleForm.show_other,
-      };
-
-      if (editingRule) {
-        const { error } = await supabase.from('pricing_rules').update(payload).eq('id', editingRule.id);
-        if (error) throw error;
-        toast.success('Rule updated');
-      } else {
-        const { error } = await supabase.from('pricing_rules').insert([payload]);
-        if (error) throw error;
-        toast.success('Rule added');
+  const handleSaveProfile = async (data: ProfileFormData) => {
+    if (profileMode === 'create' || profileMode === 'duplicate') {
+      const newProfile = await createProfile(data);
+      if (newProfile) {
+        // Create slabs
+        for (const slab of data.slabs) {
+          await supabase.from('pricing_profile_slabs').insert([{
+            profile_id: newProfile.id,
+            ...slab,
+          }]);
+        }
+        toast.success('Profile created successfully');
       }
+    } else if (profileMode === 'edit' && editingProfile) {
+      await updateProfile(editingProfile.id, data);
 
-      setShowRuleForm(false);
-      setEditingRule(null);
-      setRuleForm({
-        city_id: '', vehicle_category: 'electric_car', rto_percentage: '8', insurance_percentage: '3.5',
-        registration_fee: '1000', hsrp_fee: '500', fastag_fee: '500', other_charges: '1000',
-        show_rto: true, show_insurance: true, show_registration: true, show_hsrp: true, show_fastag: true, show_other: true,
-      });
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save rule');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteRule = async (id: string) => {
-    if (!confirm('Delete this rule? All associated slabs will also be deleted.')) return;
-    try {
-      await supabase.from('pricing_rules').delete().eq('id', id);
-      toast.success('Rule deleted');
-      fetchData();
-    } catch (err) {
-      toast.error('Failed to delete rule');
-    }
-  };
-
-  // ==================== SLAB CRUD ====================
-  const handleSaveSlab = async () => {
-    if (!slabForm.rule_id) {
-      toast.error('Rule is required');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = {
-        rule_id: slabForm.rule_id,
-        min_price: parseInt(slabForm.min_price) || 0,
-        max_price: slabForm.max_price ? parseInt(slabForm.max_price) : null,
-        tax_percentage: parseFloat(slabForm.tax_percentage) || 0,
-        sort_order: parseInt(slabForm.sort_order) || 1,
-        is_active: true,
-      };
-
-      if (editingSlab) {
-        const { error } = await supabase.from('pricing_slabs').update(payload).eq('id', editingSlab.id);
-        if (error) throw error;
-        toast.success('Slab updated');
-      } else {
-        const { error } = await supabase.from('pricing_slabs').insert([payload]);
-        if (error) throw error;
-        toast.success('Slab added');
+      // Update slabs
+      if (editingProfile.slabs) {
+        for (const existingSlab of editingProfile.slabs) {
+          await supabase.from('pricing_profile_slabs').delete().eq('id', existingSlab.id);
+        }
       }
-
-      setShowSlabForm(false);
-      setEditingSlab(null);
-      setSlabForm({ rule_id: '', min_price: '0', max_price: '', tax_percentage: '8', sort_order: '1' });
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save slab');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteSlab = async (id: string) => {
-    if (!confirm('Delete this slab?')) return;
-    try {
-      await supabase.from('pricing_slabs').delete().eq('id', id);
-      toast.success('Slab deleted');
-      fetchData();
-    } catch (err) {
-      toast.error('Failed to delete slab');
-    }
-  };
-
-  // ==================== SUBSIDY CRUD ====================
-  const handleSaveSubsidy = async () => {
-    if (!subsidyForm.city_id) {
-      toast.error('City is required');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = {
-        city_id: subsidyForm.city_id,
-        vehicle_category: subsidyForm.vehicle_category,
-        subsidy_type: subsidyForm.subsidy_type,
-        value: parseFloat(subsidyForm.value) || 0,
-        description: subsidyForm.description.trim() || null,
-        is_active: true,
-      };
-
-      if (editingSubsidy) {
-        const { error } = await supabase.from('pricing_subsidies').update(payload).eq('id', editingSubsidy.id);
-        if (error) throw error;
-        toast.success('Subsidy updated');
-      } else {
-        const { error } = await supabase.from('pricing_subsidies').insert([payload]);
-        if (error) throw error;
-        toast.success('Subsidy added');
+      for (const slab of data.slabs) {
+        await supabase.from('pricing_profile_slabs').insert([{
+          profile_id: editingProfile.id,
+          ...slab,
+        }]);
       }
-
-      setShowSubsidyForm(false);
-      setEditingSubsidy(null);
-      setSubsidyForm({ city_id: '', vehicle_category: 'electric_car', subsidy_type: 'fixed', value: '0', description: '' });
-      fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save subsidy');
-    } finally {
-      setSaving(false);
+      toast.success('Profile updated successfully');
     }
   };
 
-  const handleDeleteSubsidy = async (id: string) => {
-    if (!confirm('Delete this subsidy?')) return;
+  const handleDeleteProfile = async (id: string) => {
+    if (!confirm('Delete this pricing profile?')) return;
     try {
-      await supabase.from('pricing_subsidies').delete().eq('id', id);
-      toast.success('Subsidy deleted');
-      fetchData();
+      await deleteProfile(id);
+      toast.success('Profile deleted');
     } catch (err) {
-      toast.error('Failed to delete subsidy');
+      toast.error('Failed to delete profile');
     }
+  };
+
+  const handleDuplicateProfile = async (profile: any) => {
+    try {
+      const newProfile = await duplicateProfile(profile);
+      if (newProfile) {
+        toast.success('Profile duplicated');
+      }
+    } catch (err) {
+      toast.error('Failed to duplicate profile');
+    }
+  };
+
+  const handlePublishProfile = async (id: string) => {
+    try {
+      await publishProfile(id);
+      toast.success('Profile published');
+    } catch (err) {
+      toast.error('Failed to publish profile');
+    }
+  };
+
+  const handleArchiveProfile = async (id: string) => {
+    try {
+      await archiveProfile(id);
+      toast.success('Profile archived');
+    } catch (err) {
+      toast.error('Failed to archive profile');
+    }
+  };
+
+  const handleOpenVersionHistory = (profileId: string, profileName: string) => {
+    setVersionProfileId(profileId);
+    setVersionProfileName(profileName);
+    setShowVersionModal(true);
+  };
+
+  const handleRestoreVersion = async (versionNumber: number) => {
+    if (!versionProfileId) return;
+    await restoreVersion(versionProfileId, versionNumber);
   };
 
   const formatCurrency = (val: number) => `Rs. ${val.toLocaleString('en-IN')}`;
@@ -343,7 +260,13 @@ export default function PricingManagementPage() {
     return max ? `${format(min)} - ${format(max)}` : `${format(min)}+`;
   };
 
-  const getRuleSlabs = (ruleId: string) => slabs.filter(s => s.rule_id === ruleId).sort((a, b) => a.sort_order - b.sort_order);
+  const isSubsidyActive = (profile: any): boolean => {
+    if (!profile.has_subsidy) return false;
+    const today = new Date().toISOString().split('T')[0];
+    if (profile.subsidy_start_date && today < profile.subsidy_start_date) return false;
+    if (profile.subsidy_end_date && today > profile.subsidy_end_date) return false;
+    return true;
+  };
 
   return (
     <div className="admin-page">
@@ -351,10 +274,10 @@ export default function PricingManagementPage() {
         <div className="admin-header">
           <div>
             <h1 className="admin-title flex items-center gap-3">
-              <MapPin size={28} className="text-[#145a2c]" />
-              Pricing Management
+              <Settings size={28} className="text-[#145a2c]" />
+              Pricing Engine
             </h1>
-            <p className="admin-subtitle">Configure dynamic percentage-based pricing for on-road price calculation</p>
+            <p className="admin-subtitle">Configure dynamic pricing profiles for on-road price calculation</p>
           </div>
         </div>
 
@@ -362,9 +285,7 @@ export default function PricingManagementPage() {
         <div className="flex flex-wrap gap-2 mb-6">
           {[
             { key: 'cities', label: 'Cities', count: cities.length, icon: <MapPin size={14} /> },
-            { key: 'rules', label: 'Tax Rules', count: rules.length, icon: <Percent size={14} /> },
-            { key: 'slabs', label: 'Tax Slabs', count: slabs.length, icon: <Layers size={14} /> },
-            { key: 'subsidies', label: 'Subsidies', count: subsidies.length, icon: <Gift size={14} /> },
+            { key: 'profiles', label: 'Pricing Profiles', count: profiles.length, icon: <Percent size={14} /> },
           ].map(tab => (
             <button
               key={tab.key}
@@ -391,7 +312,7 @@ export default function PricingManagementPage() {
           </div>
         ) : (
           <>
-            {/* ==================== CITIES TAB ==================== */}
+            {/* Cities Tab */}
             {activeTab === 'cities' && (
               <div className="space-y-4">
                 <div className="flex justify-end">
@@ -549,655 +470,360 @@ export default function PricingManagementPage() {
               </div>
             )}
 
-            {/* ==================== TAX RULES TAB ==================== */}
-            {activeTab === 'rules' && (
+            {/* Pricing Profiles Tab */}
+            {activeTab === 'profiles' && (
               <div className="space-y-4">
-                <div className="flex justify-end">
+                {/* Filters & Actions */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Filter size={14} className="text-gray-400" />
+                    <select
+                      value={profileFilter.status || ''}
+                      onChange={(e) => setProfileFilter(prev => ({ ...prev, status: e.target.value as any || undefined }))}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="">All Status</option>
+                      <option value="published">Published</option>
+                      <option value="draft">Draft</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                    <select
+                      value={profileFilter.city_id || ''}
+                      onChange={(e) => setProfileFilter(prev => ({ ...prev, city_id: e.target.value || undefined }))}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="">All Cities</option>
+                      {cities.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={profileFilter.vehicle_category || ''}
+                      onChange={(e) => setProfileFilter(prev => ({ ...prev, vehicle_category: e.target.value as any || undefined }))}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="">All Categories</option>
+                      {VEHICLE_CATEGORIES.map(c => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   <button
-                    onClick={() => {
-                      setShowRuleForm(true);
-                      setEditingRule(null);
-                      setRuleForm({
-                        city_id: cities[0]?.id || '',
-                        vehicle_category: 'electric_car',
-                        rto_percentage: '8',
-                        insurance_percentage: '3.5',
-                        registration_fee: '1000',
-                        hsrp_fee: '500',
-                        fastag_fee: '500',
-                        other_charges: '1000',
-                        show_rto: true,
-                        show_insurance: true,
-                        show_registration: true,
-                        show_hsrp: true,
-                        show_fastag: true,
-                        show_other: true,
-                      });
-                    }}
+                    onClick={() => handleOpenProfileDrawer('create')}
                     className="admin-btn-primary flex items-center gap-2"
                   >
                     <Plus size={14} />
-                    Add Tax Rule
+                    Create Profile
                   </button>
                 </div>
 
-                {showRuleForm && (
-                  <div className="admin-card p-5">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900">{editingRule ? 'Edit Tax Rule' : 'Add New Tax Rule'}</h3>
-                      <button onClick={() => setShowRuleForm(false)} className="text-gray-400 hover:text-gray-600">
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">City *</label>
-                        <select
-                          value={ruleForm.city_id}
-                          onChange={(e) => setRuleForm({ ...ruleForm, city_id: e.target.value })}
-                          className="admin-select"
-                          disabled={!!editingRule}
-                        >
-                          <option value="">Select City</option>
-                          {cities.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}, {c.state?.code}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Vehicle Category *</label>
-                        <select
-                          value={ruleForm.vehicle_category}
-                          onChange={(e) => setRuleForm({ ...ruleForm, vehicle_category: e.target.value as VehiclePricingCategory })}
-                          className="admin-select"
-                          disabled={!!editingRule}
-                        >
-                          {VEHICLE_CATEGORIES.map((cat) => (
-                            <option key={cat.value} value={cat.value}>{cat.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">RTO / Road Tax %</label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.1"
-                            value={ruleForm.rto_percentage}
-                            onChange={(e) => setRuleForm({ ...ruleForm, rto_percentage: e.target.value })}
-                            className="admin-input pr-8"
-                          />
-                          <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Insurance %</label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.1"
-                            value={ruleForm.insurance_percentage}
-                            onChange={(e) => setRuleForm({ ...ruleForm, insurance_percentage: e.target.value })}
-                            className="admin-input pr-8"
-                          />
-                          <Percent size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Fixed Charges (Rs.)</p>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Registration Fee</label>
-                        <input
-                          type="number"
-                          value={ruleForm.registration_fee}
-                          onChange={(e) => setRuleForm({ ...ruleForm, registration_fee: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">HSRP Fee</label>
-                        <input
-                          type="number"
-                          value={ruleForm.hsrp_fee}
-                          onChange={(e) => setRuleForm({ ...ruleForm, hsrp_fee: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">FASTag Fee</label>
-                        <input
-                          type="number"
-                          value={ruleForm.fastag_fee}
-                          onChange={(e) => setRuleForm({ ...ruleForm, fastag_fee: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Other Charges</label>
-                        <input
-                          type="number"
-                          value={ruleForm.other_charges}
-                          onChange={(e) => setRuleForm({ ...ruleForm, other_charges: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                    </div>
-
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Visibility Toggles</p>
-                    <div className="flex flex-wrap gap-4 mb-4">
-                      {[
-                        { key: 'show_rto', label: 'RTO' },
-                        { key: 'show_insurance', label: 'Insurance' },
-                        { key: 'show_registration', label: 'Registration' },
-                        { key: 'show_hsrp', label: 'HSRP' },
-                        { key: 'show_fastag', label: 'FASTag' },
-                        { key: 'show_other', label: 'Other' },
-                      ].map(({ key, label }) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={ruleForm[key as keyof typeof ruleForm] as boolean}
-                            onChange={(e) => setRuleForm({ ...ruleForm, [key]: e.target.checked })}
-                            className="w-4 h-4 rounded accent-[#145a2c]"
-                          />
-                          <span className="text-sm text-gray-700">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-end">
-                      <button onClick={handleSaveRule} disabled={saving} className="admin-btn-primary flex items-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {editingRule ? 'Update' : 'Add Rule'}
-                      </button>
-                    </div>
+                {profilesLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 size={32} className="animate-spin text-gray-400" />
                   </div>
-                )}
+                ) : profiles.length === 0 ? (
+                  <div className="admin-card p-12 text-center">
+                    <Percent size={48} className="mx-auto mb-4 text-gray-300" />
+                    <p className="text-gray-500 mb-2">No pricing profiles found</p>
+                    <p className="text-sm text-gray-400 mb-4">Create your first pricing profile to get started</p>
+                    <button
+                      onClick={() => handleOpenProfileDrawer('create')}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#145a2c] text-white rounded-lg hover:bg-[#0d4221]"
+                    >
+                      <Plus size={14} />
+                      Create Profile
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {profiles.map((profile) => {
+                      const isExpanded = expandedProfileId === profile.id;
+                      const statusStyle = STATUS_STYLES[profile.status] || STATUS_STYLES.draft;
+                      const subsidyActive = isSubsidyActive(profile);
 
-                {/* Rules List */}
-                <div className="space-y-3">
-                  {rules.map((rule) => {
-                    const ruleSlabs = getRuleSlabs(rule.id);
-                    const isExpanded = expandedRuleId === rule.id;
-
-                    return (
-                      <div key={rule.id} className="admin-card">
-                        <div className="p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center',
-                                rule.vehicle_category === 'electric_car' ? 'bg-blue-100 text-blue-600' :
-                                rule.vehicle_category === 'electric_scooter' ? 'bg-purple-100 text-purple-600' :
+                      return (
+                        <div key={profile.id} className="admin-card">
+                          {/* Profile Header */}
+                          <div className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center',
+                                profile.vehicle_category === 'electric_car' ? 'bg-blue-100 text-blue-600' :
+                                profile.vehicle_category === 'electric_scooter' ? 'bg-purple-100 text-purple-600' :
                                 'bg-orange-100 text-orange-600'
                               )}>
-                                {rule.vehicle_category === 'electric_car' ? <Car size={16} /> :
-                                 rule.vehicle_category === 'electric_scooter' ? <Circle size={16} /> :
-                                 <Bike size={16} />}
+                                {profile.vehicle_category === 'electric_car' ? <Car size={18} /> :
+                                 profile.vehicle_category === 'electric_scooter' ? <Circle size={18} /> :
+                                 <Bike size={18} />}
                               </div>
                               <div>
-                                <p className="font-medium text-gray-900">{rule.city?.name}, {rule.city?.state?.code}</p>
-                                <p className="text-xs text-gray-500">{CATEGORY_LABELS[rule.vehicle_category]}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <p className="text-sm font-semibold text-gray-900">RTO: {rule.rto_percentage}%</p>
-                              <p className="text-xs text-gray-500">Insurance: {rule.insurance_percentage}%</p>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setExpandedRuleId(isExpanded ? null : rule.id)}
-                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                              >
-                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingRule(rule);
-                                  setRuleForm({
-                                    city_id: rule.city_id,
-                                    vehicle_category: rule.vehicle_category,
-                                    rto_percentage: rule.rto_percentage.toString(),
-                                    insurance_percentage: rule.insurance_percentage.toString(),
-                                    registration_fee: rule.registration_fee.toString(),
-                                    hsrp_fee: rule.hsrp_fee.toString(),
-                                    fastag_fee: rule.fastag_fee.toString(),
-                                    other_charges: rule.other_charges.toString(),
-                                    show_rto: rule.show_rto,
-                                    show_insurance: rule.show_insurance,
-                                    show_registration: rule.show_registration,
-                                    show_hsrp: rule.show_hsrp,
-                                    show_fastag: rule.show_fastag,
-                                    show_other: rule.show_other,
-                                  });
-                                  setShowRuleForm(true);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRule(rule.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {isExpanded && (
-                          <div className="border-t border-gray-100 p-4 bg-gray-50">
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="text-xs font-semibold text-gray-500 uppercase">Tax Slabs ({ruleSlabs.length})</p>
-                              <button
-                                onClick={() => {
-                                  setEditingSlab(null);
-                                  setSlabForm({
-                                    rule_id: rule.id,
-                                    min_price: '0',
-                                    max_price: '',
-                                    tax_percentage: rule.rto_percentage.toString(),
-                                    sort_order: (ruleSlabs.length + 1).toString(),
-                                  });
-                                  setShowSlabForm(true);
-                                }}
-                                className="text-xs flex items-center gap-1 text-[#145a2c] hover:underline"
-                              >
-                                <Plus size={12} />
-                                Add Slab
-                              </button>
-                            </div>
-                            {ruleSlabs.length > 0 ? (
-                              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {ruleSlabs.map((slab) => (
-                                  <div key={slab.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-900">
-                                        {formatPriceRange(slab.min_price, slab.max_price)}
-                                      </p>
-                                      <p className="text-xs text-gray-500">Tax: {slab.tax_percentage}%</p>
-                                    </div>
-                                    <div className="flex gap-1">
-                                      <button
-                                        onClick={() => {
-                                          setEditingSlab(slab);
-                                          setSlabForm({
-                                            rule_id: slab.rule_id,
-                                            min_price: slab.min_price.toString(),
-                                            max_price: slab.max_price?.toString() || '',
-                                            tax_percentage: slab.tax_percentage.toString(),
-                                            sort_order: slab.sort_order.toString(),
-                                          });
-                                          setShowSlabForm(true);
-                                        }}
-                                        className="p-1 text-gray-400 hover:text-[#145a2c]"
-                                      >
-                                        <Pencil size={12} />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteSlab(slab.id)}
-                                        className="p-1 text-gray-400 hover:text-red-600"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-xs text-gray-500 italic">No slabs defined. Base RTO % will be used.</p>
-                            )}
-
-                            <div className="mt-4 grid grid-cols-3 sm:grid-cols-6 gap-2">
-                              {[
-                                { key: 'show_rto', label: 'RTO' },
-                                { key: 'show_insurance', label: 'Insurance' },
-                                { key: 'show_registration', label: 'Registration' },
-                                { key: 'show_hsrp', label: 'HSRP' },
-                                { key: 'show_fastag', label: 'FASTag' },
-                                { key: 'show_other', label: 'Other' },
-                              ].map(({ key, label }) => (
-                                <div key={key} className={cn('flex items-center gap-1 text-xs px-2 py-1 rounded',
-                                  rule[key as keyof PricingRule] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                                )}>
-                                  {rule[key as keyof PricingRule] ? <Eye size={12} /> : <EyeOff size={12} />}
-                                  {label}
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-gray-900">{profile.name}</p>
+                                  <span className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full', statusStyle.bg, statusStyle.text)}>
+                                    {statusStyle.icon}
+                                    {profile.status}
+                                  </span>
+                                  {subsidyActive && (
+                                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                      <Gift size={10} />
+                                      Subsidy
+                                    </span>
+                                  )}
                                 </div>
-                              ))}
+                                <p className="text-sm text-gray-500">
+                                  {profile.city?.name}, {profile.city?.state?.name || 'Unknown'} &middot; {CATEGORY_LABELS[profile.vehicle_category]}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
-            {/* ==================== SLABS TAB ==================== */}
-            {activeTab === 'slabs' && (
-              <div className="space-y-4">
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowSlabForm(true);
-                      setEditingSlab(null);
-                      setSlabForm({ rule_id: rules[0]?.id || '', min_price: '0', max_price: '', tax_percentage: '8', sort_order: '1' });
-                    }}
-                    className="admin-btn-primary flex items-center gap-2"
-                  >
-                    <Plus size={14} />
-                    Add Slab
-                  </button>
-                </div>
+                            <div className="flex items-center gap-6">
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-gray-900">RTO: {profile.rto_percentage}%</p>
+                                <p className="text-xs text-gray-500">Insurance: {profile.insurance_percentage}%</p>
+                              </div>
 
-                {showSlabForm && (
-                  <div className="admin-card p-5">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900">{editingSlab ? 'Edit Slab' : 'Add New Slab'}</h3>
-                      <button onClick={() => setShowSlabForm(false)} className="text-gray-400 hover:text-gray-600">
-                        <X size={16} />
-                      </button>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Rule / City</label>
-                        <select
-                          value={slabForm.rule_id}
-                          onChange={(e) => setSlabForm({ ...slabForm, rule_id: e.target.value })}
-                          className="admin-select"
-                        >
-                          <option value="">Select Rule</option>
-                          {rules.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.city?.name} - {CATEGORY_LABELS[r.vehicle_category]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Min Price (Rs.)</label>
-                        <input
-                          type="number"
-                          value={slabForm.min_price}
-                          onChange={(e) => setSlabForm({ ...slabForm, min_price: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Max Price (Rs.)</label>
-                        <input
-                          type="number"
-                          value={slabForm.max_price}
-                          onChange={(e) => setSlabForm({ ...slabForm, max_price: e.target.value })}
-                          placeholder="Leave empty for no limit"
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Tax %</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={slabForm.tax_percentage}
-                          onChange={(e) => setSlabForm({ ...slabForm, tax_percentage: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Sort Order</label>
-                        <input
-                          type="number"
-                          value={slabForm.sort_order}
-                          onChange={(e) => setSlabForm({ ...slabForm, sort_order: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <button onClick={handleSaveSlab} disabled={saving} className="admin-btn-primary flex items-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {editingSlab ? 'Update' : 'Add Slab'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="admin-card overflow-hidden">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>City / Category</th>
-                        <th>Price Range</th>
-                        <th>Tax %</th>
-                        <th>Order</th>
-                        <th className="text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {slabs.map((slab) => {
-                        const rule = rules.find(r => r.id === slab.rule_id);
-                        return (
-                          <tr key={slab.id}>
-                            <td className="font-medium text-gray-900">
-                              {rule ? `${rule.city?.name} - ${CATEGORY_LABELS[rule.vehicle_category]}` : '-'}
-                            </td>
-                            <td>{formatPriceRange(slab.min_price, slab.max_price)}</td>
-                            <td>
-                              <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm font-medium">
-                                {slab.tax_percentage}%
-                              </span>
-                            </td>
-                            <td>{slab.sort_order}</td>
-                            <td>
-                              <div className="flex gap-1 justify-center">
+                              <div className="flex items-center gap-1">
                                 <button
-                                  onClick={() => {
-                                    setEditingSlab(slab);
-                                    setSlabForm({
-                                      rule_id: slab.rule_id,
-                                      min_price: slab.min_price.toString(),
-                                      max_price: slab.max_price?.toString() || '',
-                                      tax_percentage: slab.tax_percentage.toString(),
-                                      sort_order: slab.sort_order.toString(),
-                                    });
-                                    setShowSlabForm(true);
-                                  }}
+                                  onClick={() => setExpandedProfileId(isExpanded ? null : profile.id)}
+                                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                                  title="Toggle details"
+                                >
+                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </button>
+                                <button
+                                  onClick={() => handleOpenVersionHistory(profile.id, profile.name)}
                                   className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                                  title="Version history"
+                                >
+                                  <History size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDuplicateProfile(profile)}
+                                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                  title="Duplicate"
+                                >
+                                  <Copy size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenProfileDrawer('edit', profile)}
+                                  className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                                  title="Edit"
                                 >
                                   <Pencil size={14} />
                                 </button>
+                                {profile.status === 'draft' && (
+                                  <button
+                                    onClick={() => handlePublishProfile(profile.id)}
+                                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                                    title="Publish"
+                                  >
+                                    <CheckCircle size={14} />
+                                  </button>
+                                )}
+                                {profile.status === 'published' && (
+                                  <button
+                                    onClick={() => handleArchiveProfile(profile.id)}
+                                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                                    title="Archive"
+                                  >
+                                    <Archive size={14} />
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => handleDeleteSlab(slab.id)}
+                                  onClick={() => handleDeleteProfile(profile.id)}
                                   className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                  title="Delete"
                                 >
                                   <Trash2 size={14} />
                                 </button>
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                            </div>
+                          </div>
 
-            {/* ==================== SUBSIDIES TAB ==================== */}
-            {activeTab === 'subsidies' && (
-              <div className="space-y-4">
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowSubsidyForm(true);
-                      setEditingSubsidy(null);
-                      setSubsidyForm({
-                        city_id: cities[0]?.id || '',
-                        vehicle_category: 'electric_car',
-                        subsidy_type: 'fixed',
-                        value: '0',
-                        description: ''
-                      });
-                    }}
-                    className="admin-btn-primary flex items-center gap-2"
-                  >
-                    <Plus size={14} />
-                    Add Subsidy
-                  </button>
-                </div>
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-100 p-4 bg-gray-50">
+                              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {/* Charges */}
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Charges</h4>
+                                  <div className="space-y-1.5">
+                                    {profile.show_rto && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Road Tax</span>
+                                        <span className="font-medium">{profile.rto_percentage}%</span>
+                                      </div>
+                                    )}
+                                    {profile.show_insurance && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Insurance</span>
+                                        <span className="font-medium">{profile.insurance_percentage}%</span>
+                                      </div>
+                                    )}
+                                    {profile.show_registration && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Registration</span>
+                                        <span className="font-medium">{formatCurrency(profile.registration_fee)}</span>
+                                      </div>
+                                    )}
+                                    {profile.show_hsrp && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">HSRP</span>
+                                        <span className="font-medium">{formatCurrency(profile.hsrp_fee)}</span>
+                                      </div>
+                                    )}
+                                    {profile.show_fastag && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">FASTag</span>
+                                        <span className="font-medium">{formatCurrency(profile.fastag_fee)}</span>
+                                      </div>
+                                    )}
+                                    {profile.show_handling && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Handling</span>
+                                        <span className="font-medium">{formatCurrency(profile.handling_charges)}</span>
+                                      </div>
+                                    )}
+                                    {profile.show_dealer && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Dealer</span>
+                                        <span className="font-medium">{formatCurrency(profile.dealer_charges)}</span>
+                                      </div>
+                                    )}
+                                    {profile.show_delivery && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Delivery</span>
+                                        <span className="font-medium">{formatCurrency(profile.delivery_charges)}</span>
+                                      </div>
+                                    )}
+                                    {profile.show_other && (
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Other</span>
+                                        <span className="font-medium">{formatCurrency(profile.other_charges)}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
 
-                {showSubsidyForm && (
-                  <div className="admin-card p-5">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900">{editingSubsidy ? 'Edit Subsidy' : 'Add New Subsidy'}</h3>
-                      <button onClick={() => setShowSubsidyForm(false)} className="text-gray-400 hover:text-gray-600">
-                        <X size={16} />
-                      </button>
-                    </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">City *</label>
-                        <select
-                          value={subsidyForm.city_id}
-                          onChange={(e) => setSubsidyForm({ ...subsidyForm, city_id: e.target.value })}
-                          className="admin-select"
-                          disabled={!!editingSubsidy}
-                        >
-                          <option value="">Select City</option>
-                          {cities.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name}, {c.state?.code}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Vehicle Category *</label>
-                        <select
-                          value={subsidyForm.vehicle_category}
-                          onChange={(e) => setSubsidyForm({ ...subsidyForm, vehicle_category: e.target.value as VehiclePricingCategory })}
-                          className="admin-select"
-                          disabled={!!editingSubsidy}
-                        >
-                          {VEHICLE_CATEGORIES.map((cat) => (
-                            <option key={cat.value} value={cat.value}>{cat.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Type</label>
-                        <select
-                          value={subsidyForm.subsidy_type}
-                          onChange={(e) => setSubsidyForm({ ...subsidyForm, subsidy_type: e.target.value as 'fixed' | 'percentage' })}
-                          className="admin-select"
-                        >
-                          <option value="fixed">Fixed Amount (Rs.)</option>
-                          <option value="percentage">Percentage (%)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">
-                          {subsidyForm.subsidy_type === 'fixed' ? 'Amount (Rs.)' : 'Percentage (%)'}
-                        </label>
-                        <input
-                          type="number"
-                          step={subsidyForm.subsidy_type === 'percentage' ? '0.1' : '1'}
-                          value={subsidyForm.value}
-                          onChange={(e) => setSubsidyForm({ ...subsidyForm, value: e.target.value })}
-                          className="admin-input"
-                        />
-                      </div>
-                      <div className="sm:col-span-2 lg:col-span-1">
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
-                        <input
-                          type="text"
-                          value={subsidyForm.description}
-                          onChange={(e) => setSubsidyForm({ ...subsidyForm, description: e.target.value })}
-                          placeholder="e.g., FAME II Subsidy"
-                          className="admin-input"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <button onClick={handleSaveSubsidy} disabled={saving} className="admin-btn-primary flex items-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {editingSubsidy ? 'Update' : 'Add Subsidy'}
-                      </button>
-                    </div>
+                                {/* Subsidy */}
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Subsidy</h4>
+                                  {profile.has_subsidy ? (
+                                    <div className="space-y-1.5">
+                                      {profile.subsidy_title && (
+                                        <p className="text-sm font-medium text-gray-900">{profile.subsidy_title}</p>
+                                      )}
+                                      <div className="flex items-center gap-2">
+                                        <span className={cn('text-sm font-semibold', subsidyActive ? 'text-green-600' : 'text-gray-400')}>
+                                          {profile.subsidy_type === 'percentage'
+                                            ? `${profile.subsidy_value}% off`
+                                            : `${formatCurrency(profile.subsidy_value)} off`}
+                                        </span>
+                                        {!subsidyActive && (
+                                          <span className="text-xs text-gray-400">(Expired)</span>
+                                        )}
+                                      </div>
+                                      {profile.subsidy_badge_text && (
+                                        <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                          {profile.subsidy_badge_text}
+                                        </span>
+                                      )}
+                                      {profile.subsidy_end_date && (
+                                        <p className="text-xs text-gray-500">Valid until: {profile.subsidy_end_date}</p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic">No subsidy configured</p>
+                                  )}
+                                </div>
+
+                                {/* Tax Slabs */}
+                                <div>
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Tax Slabs ({profile.slabs?.length || 0})</h4>
+                                  {profile.slabs && profile.slabs.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                      {profile.slabs.map((slab, i) => (
+                                        <div key={i} className="flex justify-between text-sm">
+                                          <span className="text-gray-600">{formatPriceRange(slab.min_price, slab.max_price)}</span>
+                                          <span className="font-medium">{slab.tax_percentage}%</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-gray-400 italic">No tax slabs. Base RTO % used.</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Conditions Summary */}
+                              {(profile.vehicle_type || profile.battery_min_kwh || profile.price_range_min || profile.priority > 0) && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Conditions</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {profile.vehicle_type && (
+                                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                                        Vehicle Type: {profile.vehicle_type}
+                                      </span>
+                                    )}
+                                    {profile.battery_min_kwh && (
+                                      <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
+                                        Battery: {profile.battery_min_kwh}{profile.battery_max_kwh ? `-${profile.battery_max_kwh}` : '+'} kWh
+                                      </span>
+                                    )}
+                                    {profile.price_range_min && (
+                                      <span className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded">
+                                        Price: {formatCurrency(profile.price_range_min)}{profile.price_range_max ? ` - ${formatCurrency(profile.price_range_max)}` : '+'}
+                                      </span>
+                                    )}
+                                    {profile.priority > 0 && (
+                                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                        Priority: {profile.priority}
+                                      </span>
+                                    )}
+                                    {profile.effective_date && (
+                                      <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
+                                        Effective: {profile.effective_date}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-
-                <div className="admin-card overflow-hidden">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>City</th>
-                        <th>Category</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th>Description</th>
-                        <th className="text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {subsidies.map((sub) => (
-                        <tr key={sub.id}>
-                          <td className="font-medium text-gray-900">{sub.city?.name || '-'}</td>
-                          <td>{CATEGORY_LABELS[sub.vehicle_category]}</td>
-                          <td>
-                            <span className={cn('text-xs px-2 py-0.5 rounded-full',
-                              sub.subsidy_type === 'fixed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                            )}>
-                              {sub.subsidy_type === 'fixed' ? 'Fixed' : 'Percentage'}
-                            </span>
-                          </td>
-                          <td className="font-semibold">
-                            {sub.subsidy_type === 'fixed'
-                              ? formatCurrency(sub.value)
-                              : `${sub.value}%`}
-                          </td>
-                          <td className="text-sm text-gray-600">{sub.description || '-'}</td>
-                          <td>
-                            <div className="flex gap-1 justify-center">
-                              <button
-                                onClick={() => {
-                                  setEditingSubsidy(sub);
-                                  setSubsidyForm({
-                                    city_id: sub.city_id,
-                                    vehicle_category: sub.vehicle_category,
-                                    subsidy_type: sub.subsidy_type,
-                                    value: sub.value.toString(),
-                                    description: sub.description || '',
-                                  });
-                                  setShowSubsidyForm(true);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSubsidy(sub.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               </div>
             )}
           </>
         )}
+
+        {/* Profile Drawer */}
+        <PricingProfileDrawer
+          isOpen={showProfileDrawer}
+          onClose={() => {
+            setShowProfileDrawer(false);
+            setEditingProfile(null);
+          }}
+          onSave={handleSaveProfile}
+          profile={editingProfile}
+          cities={cities}
+          mode={profileMode}
+        />
+
+        {/* Version History Modal */}
+        <VersionHistoryModal
+          isOpen={showVersionModal}
+          onClose={() => {
+            setShowVersionModal(false);
+            setVersionProfileId(null);
+          }}
+          profileId={versionProfileId}
+          profileName={versionProfileName}
+          onRestore={handleRestoreVersion}
+        />
       </div>
     </div>
   );
