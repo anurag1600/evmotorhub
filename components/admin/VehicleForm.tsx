@@ -164,6 +164,7 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
 
         if (error) throw error;
         setSuccess('Vehicle updated successfully!');
+        setTimeout(() => router.push('/admin/vehicles'), 1500);
       } else {
         // Insert new vehicle and get the ID
         const { data: newVehicle, error } = await supabase
@@ -174,10 +175,14 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
 
         if (error) throw error;
 
-        setSuccess('Vehicle created successfully! Add variants from the Variant Management page.');
+        setSuccess('Vehicle created successfully! Redirecting to add variants...');
+        // Redirect to variant management to add first variant
+        if (newVehicle?.id) {
+          setTimeout(() => router.push(`/admin/variants?vehicle=${newVehicle.id}`), 1500);
+        } else {
+          setTimeout(() => router.push('/admin/vehicles'), 1500);
+        }
       }
-
-      setTimeout(() => router.push('/admin/vehicles'), 1500);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -293,32 +298,32 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
             </div>
             <div className="grid md:grid-cols-2 gap-4 mt-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (Rs.)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Starting Price (Rs.) <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
                   <input
                     type="number"
                     value={formData.price_min || ''}
                     onChange={(e) => setFormData({ ...formData, price_min: parseInt(e.target.value) || 0 })}
-                    placeholder="Minimum price"
+                    placeholder="Auto-calculated from variants"
                     className="admin-input pl-7"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Base price (ex-showroom)</p>
+                <p className="text-xs text-gray-500 mt-1">Leave 0 to auto-calculate from variant prices</p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (Rs.)</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Max Price (Rs.) <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₹</span>
                   <input
                     type="number"
                     value={formData.price_max || ''}
                     onChange={(e) => setFormData({ ...formData, price_max: parseInt(e.target.value) || 0 })}
-                    placeholder="Maximum price"
+                    placeholder="Auto-calculated from variants"
                     className="admin-input pl-7"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Highest variant price</p>
+                <p className="text-xs text-gray-500 mt-1">Leave 0 to auto-calculate from variant prices</p>
               </div>
             </div>
           </div>
@@ -335,10 +340,15 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
             />
           </div>
 
-          {/* Additional Specifications */}
+          {/* Common Specifications (Fallback) */}
           <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Additional Specifications</h2>
-            <p className="text-xs text-gray-500">Add custom key-value pairs like Kerb Weight, Tyre Type, Boot Space, etc.</p>
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h2 className="text-lg font-bold">Common Specifications</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Fallback specs used when variants don't provide values</p>
+              </div>
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Optional</span>
+            </div>
             <div className="space-y-2">
               {Object.entries(formData.specifications).map(([key, value], idx, arr) => (
                 <div key={key} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2.5">
@@ -447,9 +457,15 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
             </div>
           </div>
 
-          {/* Features & Details */}
+          {/* Common Features & Details (Fallback) */}
           <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold">Features & Details</h2>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-lg font-bold">Common Features & Details</h2>
+                <p className="text-xs text-gray-500">Fallback values used when variants don't provide them</p>
+              </div>
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Optional</span>
+            </div>
 
             {/* Colors */}
             <div>

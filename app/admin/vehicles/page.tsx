@@ -22,6 +22,7 @@ interface VehicleWithManufacturer extends Vehicle {
   manufacturers?: Manufacturer;
   variant_count?: number;
   default_variant_name?: string;
+  starting_price?: number;
 }
 
 const EXPORT_COLS = [
@@ -85,11 +86,11 @@ export default function VehiclesManagementPage() {
       }
 
       if (data) {
-        // Fetch variant counts for each vehicle
+        // Fetch variant counts and prices for each vehicle
         const vehicleIds = data.map(v => v.id);
         const { data: variantData, error: variantError } = await supabase
           .from('vehicle_variants')
-          .select('vehicle_id, id, name, is_featured')
+          .select('vehicle_id, id, name, is_featured, price, status')
           .in('vehicle_id', vehicleIds);
 
         if (variantError) {
@@ -98,11 +99,18 @@ export default function VehiclesManagementPage() {
 
         const variantCounts: Record<string, number> = {};
         const defaultVariants: Record<string, string> = {};
+        const startingPrices: Record<string, number> = {};
 
         (variantData || []).forEach((v: any) => {
           variantCounts[v.vehicle_id] = (variantCounts[v.vehicle_id] || 0) + 1;
-          if (v.is_featured) {
+          if (v.is_featured && v.status === 'active') {
             defaultVariants[v.vehicle_id] = v.name;
+          }
+          // Track minimum price from active variants
+          if (v.status === 'active' && v.price > 0) {
+            if (!startingPrices[v.vehicle_id] || v.price < startingPrices[v.vehicle_id]) {
+              startingPrices[v.vehicle_id] = v.price;
+            }
           }
         });
 
@@ -110,7 +118,8 @@ export default function VehiclesManagementPage() {
           ...v,
           manufacturers: v.manufacturers as unknown as Manufacturer,
           variant_count: variantCounts[v.id] || 0,
-          default_variant_name: defaultVariants[v.id] || 'None'
+          default_variant_name: defaultVariants[v.id] || 'None',
+          starting_price: startingPrices[v.id] || v.price_min || 0,
         })) as VehicleWithManufacturer[];
 
         setVehicles(vehiclesWithVariants);
@@ -286,6 +295,7 @@ export default function VehiclesManagementPage() {
                       <th>Brand</th>
                       <th>Type</th>
                       <th className="text-center">Variants</th>
+                      <th className="text-right">Starting Price</th>
                       <th>Status</th>
                       <th>Updated</th>
                       <th className="text-right">Actions</th>
@@ -322,6 +332,11 @@ export default function VehiclesManagementPage() {
                               <span className="text-xs text-gray-400">({vehicle.default_variant_name})</span>
                             )}
                           </div>
+                        </td>
+                        <td className="text-right">
+                          <span className="font-semibold text-gray-900">
+                            {(vehicle as any).starting_price > 0 ? formatPrice((vehicle as any).starting_price) : '—'}
+                          </span>
                         </td>
                         <td>
                           <span className={cn('admin-badge', statusColors[vehicle.status || 'published'])}>
