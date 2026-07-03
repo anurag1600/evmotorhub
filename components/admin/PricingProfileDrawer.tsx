@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Save, Loader2, Percent, IndianRupee, Gift, Calendar, Tag, Filter, Layers, Plus, Trash2, ChevronUp, ChevronDown, AlertCircle } from 'lucide-react';
+import { X, Save, Loader as Loader2, Percent, IndianRupee, Gift, Calendar, Tag, Filter, Layers, Plus, Trash2, ChevronUp, ChevronDown, CircleAlert as AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PricingProfile, PricingCity, PricingProfileSlab, VehiclePricingCategory, VehicleType, Manufacturer, Vehicle, VehicleVariant } from '@/lib/types';
