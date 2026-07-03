@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PricingState, PricingCity, VehiclePricingCategory } from '@/lib/types';
 import { usePricingProfiles } from '@/hooks/usePricingProfiles';
-import { ProfileFormData } from '@/components/admin/PricingProfileDrawer';
 import PricingProfileDrawer from '@/components/admin/PricingProfileDrawer';
 import VersionHistoryModal from '@/components/admin/VersionHistoryModal';
-import { MapPin, Plus, Pencil, Trash2, Save, Loader as Loader2, X, Star, Eye, EyeOff, Percent, IndianRupee, Gift, Car, Bike, CircleDot as Circle, ChevronDown, ChevronUp, Settings, History, Copy, Archive, FileText, CircleCheck as CheckCircle, Clock, CircleAlert as AlertCircle, Filter } from 'lucide-react';
+import { MapPin, Plus, Pencil, Trash2, Loader as Loader2, X, Star, Eye, EyeOff, Percent, IndianRupee, Gift, Car, Bike, CircleDot, ChevronDown, ChevronUp, Settings, History, Copy, Archive, CircleCheck as CheckCircle, Clock, Filter, Search, Download, Upload, MoveVertical as MoreVertical, Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +16,7 @@ interface CityWithState extends PricingCity {
 
 const VEHICLE_CATEGORIES: { value: VehiclePricingCategory; label: string; icon: React.ReactNode }[] = [
   { value: 'electric_car', label: 'Electric Car', icon: <Car size={14} /> },
-  { value: 'electric_scooter', label: 'Electric Scooter', icon: <Circle size={14} /> },
+  { value: 'electric_scooter', label: 'Electric Scooter', icon: <CircleDot size={14} /> },
   { value: 'electric_bike', label: 'Electric Bike', icon: <Bike size={14} /> },
 ];
 
@@ -28,9 +27,9 @@ const CATEGORY_LABELS: Record<VehiclePricingCategory, string> = {
 };
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
-  published: { bg: 'bg-green-100', text: 'text-green-700', icon: <CheckCircle size={12} /> },
-  draft: { bg: 'bg-amber-100', text: 'text-amber-700', icon: <Clock size={12} /> },
-  archived: { bg: 'bg-gray-100', text: 'text-gray-600', icon: <Archive size={12} /> },
+  published: { bg: 'bg-emerald-50', text: 'text-emerald-700', icon: <CheckCircle size={12} /> },
+  draft: { bg: 'bg-amber-50', text: 'text-amber-700', icon: <Clock size={12} /> },
+  archived: { bg: 'bg-slate-100', text: 'text-slate-600', icon: <Archive size={12} /> },
 };
 
 export default function PricingManagementPage() {
@@ -40,11 +39,16 @@ export default function PricingManagementPage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'cities' | 'profiles'>('cities');
 
+  // Search and filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [profileSearchQuery, setProfileSearchQuery] = useState('');
+
   // City form states
   const [editingCity, setEditingCity] = useState<CityWithState | null>(null);
   const [showCityForm, setShowCityForm] = useState(false);
   const [cityForm, setCityForm] = useState({
-    state_id: '',
+    state_name: '',
+    state_code: '',
     name: '',
     pincode: '',
     is_popular: false,
@@ -55,7 +59,6 @@ export default function PricingManagementPage() {
   const {
     profiles,
     loading: profilesLoading,
-    error: profilesError,
     fetchProfiles,
     createProfile,
     updateProfile,
@@ -63,9 +66,7 @@ export default function PricingManagementPage() {
     duplicateProfile,
     publishProfile,
     archiveProfile,
-    getVersions,
     restoreVersion,
-    copyToCities,
   } = usePricingProfiles();
 
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
@@ -109,17 +110,66 @@ export default function PricingManagementPage() {
     }
   };
 
-  // City CRUD
+  // Filtered cities based on search
+  const filteredCities = useMemo(() => {
+    if (!searchQuery.trim()) return cities;
+    const query = searchQuery.toLowerCase();
+    return cities.filter(city =>
+      city.name.toLowerCase().includes(query) ||
+      city.state?.name.toLowerCase().includes(query) ||
+      city.pincode?.toLowerCase().includes(query)
+    );
+  }, [cities, searchQuery]);
+
+  // Filtered profiles based on search
+  const filteredProfiles = useMemo(() => {
+    if (!profileSearchQuery.trim()) return profiles;
+    const query = profileSearchQuery.toLowerCase();
+    return profiles.filter(profile =>
+      profile.name.toLowerCase().includes(query) ||
+      profile.city?.name.toLowerCase().includes(query)
+    );
+  }, [profiles, profileSearchQuery]);
+
+  // City CRUD with inline state creation
   const handleSaveCity = async () => {
-    if (!cityForm.state_id || !cityForm.name) {
+    if (!cityForm.state_name.trim() || !cityForm.name.trim()) {
       toast.error('State and city name are required');
       return;
     }
 
     setSaving(true);
     try {
+      let stateId = editingCity?.state_id;
+
+      // Find or create state
+      const existingState = states.find(s => s.name.toLowerCase() === cityForm.state_name.trim().toLowerCase());
+      if (existingState) {
+        stateId = existingState.id;
+      } else {
+        // Create new state
+        const stateCode = cityForm.state_code.trim().toUpperCase() || cityForm.state_name.trim().substring(0, 2).toUpperCase();
+        const { data: newState, error: stateError } = await supabase
+          .from('pricing_states')
+          .insert([{
+            name: cityForm.state_name.trim(),
+            code: stateCode,
+            rto_percentage: 8,
+            road_tax_percentage: 8,
+            other_charges: 0,
+            subsidy_amount: 0,
+            is_active: true,
+          }])
+          .select()
+          .single();
+
+        if (stateError) throw stateError;
+        stateId = newState.id;
+        setStates(prev => [...prev, newState as PricingState]);
+      }
+
       const payload = {
-        state_id: cityForm.state_id,
+        state_id: stateId,
         name: cityForm.name.trim(),
         pincode: cityForm.pincode.trim() || null,
         is_popular: cityForm.is_popular,
@@ -127,6 +177,7 @@ export default function PricingManagementPage() {
         rto_charge: 0,
         insurance_charge: 0,
         other_charges: 0,
+        state_code: cityForm.state_code.trim().toUpperCase() || null,
       };
 
       if (editingCity) {
@@ -141,7 +192,7 @@ export default function PricingManagementPage() {
 
       setShowCityForm(false);
       setEditingCity(null);
-      setCityForm({ state_id: '', name: '', pincode: '', is_popular: false, is_active: true });
+      setCityForm({ state_name: '', state_code: '', name: '', pincode: '', is_popular: false, is_active: true });
       fetchData();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save city');
@@ -168,12 +219,11 @@ export default function PricingManagementPage() {
     setShowProfileDrawer(true);
   };
 
-  const handleSaveProfile = async (data: ProfileFormData) => {
+  const handleSaveProfile = async (data: any) => {
     if (profileMode === 'create' || profileMode === 'duplicate') {
       const newProfile = await createProfile(data);
       if (newProfile) {
-        // Create slabs
-        for (const slab of data.slabs) {
+        for (const slab of data.slabs || []) {
           await supabase.from('pricing_profile_slabs').insert([{
             profile_id: newProfile.id,
             ...slab,
@@ -183,14 +233,12 @@ export default function PricingManagementPage() {
       }
     } else if (profileMode === 'edit' && editingProfile) {
       await updateProfile(editingProfile.id, data);
-
-      // Update slabs
       if (editingProfile.slabs) {
         for (const existingSlab of editingProfile.slabs) {
           await supabase.from('pricing_profile_slabs').delete().eq('id', existingSlab.id);
         }
       }
-      for (const slab of data.slabs) {
+      for (const slab of data.slabs || []) {
         await supabase.from('pricing_profile_slabs').insert([{
           profile_id: editingProfile.id,
           ...slab,
@@ -213,9 +261,7 @@ export default function PricingManagementPage() {
   const handleDuplicateProfile = async (profile: any) => {
     try {
       const newProfile = await duplicateProfile(profile);
-      if (newProfile) {
-        toast.success('Profile duplicated');
-      }
+      if (newProfile) toast.success('Profile duplicated');
     } catch (err) {
       toast.error('Failed to duplicate profile');
     }
@@ -251,14 +297,6 @@ export default function PricingManagementPage() {
   };
 
   const formatCurrency = (val: number) => `Rs. ${val.toLocaleString('en-IN')}`;
-  const formatPriceRange = (min: number, max: number | null) => {
-    const format = (n: number) => {
-      if (n >= 10000000) return `Rs. ${(n / 10000000).toFixed(1)}Cr`;
-      if (n >= 100000) return `Rs. ${(n / 100000).toFixed(1)}L`;
-      return `Rs. ${n.toLocaleString('en-IN')}`;
-    };
-    return max ? `${format(min)} - ${format(max)}` : `${format(min)}+`;
-  };
 
   const isSubsidyActive = (profile: any): boolean => {
     if (!profile.has_subsidy) return false;
@@ -269,37 +307,43 @@ export default function PricingManagementPage() {
   };
 
   return (
-    <div className="admin-page">
-      <div className="admin-container">
-        <div className="admin-header">
-          <div>
-            <h1 className="admin-title flex items-center gap-3">
-              <Settings size={28} className="text-[#145a2c]" />
-              Pricing Engine
-            </h1>
-            <p className="admin-subtitle">Configure dynamic pricing profiles for on-road price calculation</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Settings size={20} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Pricing Engine</h1>
+              <p className="text-sm text-slate-500">Configure dynamic pricing profiles for on-road price calculation</p>
+            </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
           {[
-            { key: 'cities', label: 'Cities', count: cities.length, icon: <MapPin size={14} /> },
-            { key: 'profiles', label: 'Pricing Profiles', count: profiles.length, icon: <Percent size={14} /> },
+            { key: 'cities', label: 'Cities', count: cities.length, icon: <MapPin size={16} /> },
+            { key: 'profiles', label: 'Pricing Profiles', count: profiles.length, icon: <Percent size={16} /> },
           ].map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as any)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
                 activeTab === tab.key
-                  ? 'bg-[#145a2c] text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50'
               )}
             >
               {tab.icon}
               {tab.label}
-              <span className={cn('px-1.5 py-0.5 rounded text-xs', activeTab === tab.key ? 'bg-white/20' : 'bg-gray-100')}>
+              <span className={cn(
+                'px-2 py-0.5 rounded-lg text-xs font-semibold',
+                activeTab === tab.key ? 'bg-white/20' : 'bg-slate-100'
+              )}>
                 {tab.count}
               </span>
             </button>
@@ -307,180 +351,248 @@ export default function PricingManagementPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 size={32} className="animate-spin text-gray-400" />
+          <div className="flex justify-center py-16">
+            <div className="relative">
+              <Loader2 size={40} className="animate-spin text-emerald-600" />
+              <div className="absolute inset-0 animate-ping">
+                <Loader2 size={40} className="text-emerald-200" />
+              </div>
+            </div>
           </div>
         ) : (
           <>
             {/* Cities Tab */}
             {activeTab === 'cities' && (
-              <div className="space-y-4">
-                <div className="flex justify-end">
+              <div className="space-y-6">
+                {/* Search & Actions */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                  <div className="relative flex-1 max-w-md">
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search cities, states, pincodes..."
+                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                    />
+                  </div>
                   <button
                     onClick={() => {
                       setShowCityForm(true);
                       setEditingCity(null);
-                      setCityForm({ state_id: states[0]?.id || '', name: '', pincode: '', is_popular: false, is_active: true });
+                      setCityForm({ state_name: '', state_code: '', name: '', pincode: '', is_popular: false, is_active: true });
                     }}
-                    className="admin-btn-primary flex items-center gap-2"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all text-sm"
                   >
-                    <Plus size={14} />
+                    <Plus size={16} />
                     Add City
                   </button>
                 </div>
 
+                {/* City Form */}
                 {showCityForm && (
-                  <div className="admin-card p-5">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-semibold text-gray-900">{editingCity ? 'Edit City' : 'Add New City'}</h3>
-                      <button onClick={() => setShowCityForm(false)} className="text-gray-400 hover:text-gray-600">
-                        <X size={16} />
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-semibold text-slate-900">{editingCity ? 'Edit City' : 'Add New City'}</h3>
+                      <button onClick={() => setShowCityForm(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                        <X size={18} className="text-slate-400" />
                       </button>
                     </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">State *</label>
-                        <select
-                          value={cityForm.state_id}
-                          onChange={(e) => setCityForm({ ...cityForm, state_id: e.target.value })}
-                          className="admin-select"
-                        >
-                          <option value="">Select State</option>
-                          {states.map((s) => (
-                            <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
-                          ))}
-                        </select>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1.5">State *</label>
+                        <input
+                          type="text"
+                          value={cityForm.state_name}
+                          onChange={(e) => {
+                            const name = e.target.value;
+                            setCityForm(prev => ({
+                              ...prev,
+                              state_name: name,
+                              state_code: name.substring(0, 2).toUpperCase()
+                            }));
+                          }}
+                          placeholder="e.g., Maharashtra"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                          list="states-list"
+                        />
+                        <datalist id="states-list">
+                          {states.map(s => <option key={s.id} value={s.name} />)}
+                        </datalist>
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">City Name *</label>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1.5">State Code</label>
+                        <input
+                          type="text"
+                          value={cityForm.state_code}
+                          onChange={(e) => setCityForm(prev => ({ ...prev, state_code: e.target.value }))}
+                          placeholder="e.g., MH"
+                          maxLength={2}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm uppercase"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1.5">City Name *</label>
                         <input
                           type="text"
                           value={cityForm.name}
-                          onChange={(e) => setCityForm({ ...cityForm, name: e.target.value })}
+                          onChange={(e) => setCityForm(prev => ({ ...prev, name: e.target.value }))}
                           placeholder="e.g., Mumbai"
-                          className="admin-input"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Pincode</label>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1.5">Pincode <span className="text-slate-400 font-normal">(optional)</span></label>
                         <input
                           type="text"
                           value={cityForm.pincode}
-                          onChange={(e) => setCityForm({ ...cityForm, pincode: e.target.value })}
+                          onChange={(e) => setCityForm(prev => ({ ...prev, pincode: e.target.value }))}
                           placeholder="e.g., 400001"
-                          className="admin-input"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
                         />
                       </div>
-                      <div className="flex items-end gap-4 pb-2">
+                      <div className="flex items-end gap-3 pb-1">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={cityForm.is_popular}
-                            onChange={(e) => setCityForm({ ...cityForm, is_popular: e.target.checked })}
-                            className="w-4 h-4 rounded accent-[#145a2c]"
+                            onChange={(e) => setCityForm(prev => ({ ...prev, is_popular: e.target.checked }))}
+                            className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                           />
-                          <span className="text-sm text-gray-700">Popular</span>
+                          <span className="text-sm text-slate-700">Popular</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={cityForm.is_active}
-                            onChange={(e) => setCityForm({ ...cityForm, is_active: e.target.checked })}
-                            className="w-4 h-4 rounded accent-[#145a2c]"
+                            onChange={(e) => setCityForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                            className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                           />
-                          <span className="text-sm text-gray-700">Active</span>
+                          <span className="text-sm text-slate-700">Active</span>
                         </label>
                       </div>
                     </div>
-                    <div className="flex justify-end mt-4">
-                      <button onClick={handleSaveCity} disabled={saving} className="admin-btn-primary flex items-center gap-2">
-                        {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                        {editingCity ? 'Update' : 'Add City'}
+                    <div className="flex justify-end mt-6 pt-4 border-t border-slate-100">
+                      <button
+                        onClick={handleSaveCity}
+                        disabled={saving}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl disabled:opacity-50 transition-all text-sm"
+                      >
+                        {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                        {editingCity ? 'Update City' : 'Add City'}
                       </button>
                     </div>
                   </div>
                 )}
 
-                <div className="admin-card overflow-hidden">
-                  <table className="admin-table">
-                    <thead>
-                      <tr>
-                        <th>City</th>
-                        <th>Pincode</th>
-                        <th>State</th>
-                        <th className="text-center">Popular</th>
-                        <th className="text-center">Active</th>
-                        <th className="text-center">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cities.map((city) => (
-                        <tr key={city.id}>
-                          <td className="font-medium text-gray-900">{city.name}</td>
-                          <td>
-                            <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded">
-                              {city.pincode || '-'}
-                            </span>
-                          </td>
-                          <td>{city.state?.name || '-'}</td>
-                          <td className="text-center">
-                            {city.is_popular && (
-                              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full">
-                                <Star size={10} />
-                                Popular
-                              </span>
-                            )}
-                          </td>
-                          <td className="text-center">
-                            <span className={cn('text-xs px-2 py-0.5 rounded-full', city.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
-                              {city.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="flex gap-1 justify-center">
-                              <button
-                                onClick={() => {
-                                  setEditingCity(city);
-                                  setCityForm({
-                                    state_id: city.state_id,
-                                    name: city.name,
-                                    pincode: city.pincode || '',
-                                    is_popular: city.is_popular || false,
-                                    is_active: city.is_active !== false,
-                                  });
-                                  setShowCityForm(true);
-                                }}
-                                className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCity(city.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
+                {/* Cities Table */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">City</th>
+                          <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">State</th>
+                          <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pincode</th>
+                          <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                          <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredCities.map((city, idx) => (
+                          <tr key={city.id} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                  <MapPin size={16} className="text-emerald-600" />
+                                </div>
+                                <span className="font-medium text-slate-900">{city.name}</span>
+                                {city.is_popular && (
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">
+                                    <Star size={10} className="fill-amber-500" />
+                                    Popular
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-slate-600">{city.state?.name || '-'}</td>
+                            <td className="px-6 py-4">
+                              <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded-lg text-slate-600">
+                                {city.pincode || '—'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className={cn(
+                                'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium',
+                                city.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                              )}>
+                                {city.is_active ? <CheckCircle size={12} /> : <X size={12} />}
+                                {city.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => {
+                                    setEditingCity(city);
+                                    setCityForm({
+                                      state_name: city.state?.name || '',
+                                      state_code: city.state?.code || '',
+                                      name: city.name,
+                                      pincode: city.pincode || '',
+                                      is_popular: city.is_popular || false,
+                                      is_active: city.is_active !== false,
+                                    });
+                                    setShowCityForm(true);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCity(city.id)}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filteredCities.length === 0 && (
+                    <div className="text-center py-16">
+                      <MapPin size={48} className="mx-auto mb-4 text-slate-200" />
+                      <p className="text-slate-500 font-medium">No cities found</p>
+                      <p className="text-sm text-slate-400 mt-1">Add your first city to get started</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {/* Pricing Profiles Tab */}
             {activeTab === 'profiles' && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Filters & Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Filter size={14} className="text-gray-400" />
+                <div className="flex flex-col lg:flex-row gap-4 justify-between">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative">
+                      <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={profileSearchQuery}
+                        onChange={(e) => setProfileSearchQuery(e.target.value)}
+                        placeholder="Search profiles..."
+                        className="pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm w-64"
+                      />
+                    </div>
                     <select
                       value={profileFilter.status || ''}
                       onChange={(e) => setProfileFilter(prev => ({ ...prev, status: e.target.value as any || undefined }))}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                      className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm text-slate-600"
                     >
                       <option value="">All Status</option>
                       <option value="published">Published</option>
@@ -490,7 +602,7 @@ export default function PricingManagementPage() {
                     <select
                       value={profileFilter.city_id || ''}
                       onChange={(e) => setProfileFilter(prev => ({ ...prev, city_id: e.target.value || undefined }))}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                      className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm text-slate-600"
                     >
                       <option value="">All Cities</option>
                       {cities.map(c => (
@@ -500,7 +612,7 @@ export default function PricingManagementPage() {
                     <select
                       value={profileFilter.vehicle_category || ''}
                       onChange={(e) => setProfileFilter(prev => ({ ...prev, vehicle_category: e.target.value as any || undefined }))}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+                      className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm text-slate-600"
                     >
                       <option value="">All Categories</option>
                       {VEHICLE_CATEGORIES.map(c => (
@@ -511,130 +623,145 @@ export default function PricingManagementPage() {
 
                   <button
                     onClick={() => handleOpenProfileDrawer('create')}
-                    className="admin-btn-primary flex items-center gap-2"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all text-sm"
                   >
-                    <Plus size={14} />
+                    <Plus size={16} />
                     Create Profile
                   </button>
                 </div>
 
+                {/* Profiles List */}
                 {profilesLoading ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 size={32} className="animate-spin text-gray-400" />
+                  <div className="flex justify-center py-16">
+                    <Loader2 size={40} className="animate-spin text-emerald-600" />
                   </div>
-                ) : profiles.length === 0 ? (
-                  <div className="admin-card p-12 text-center">
-                    <Percent size={48} className="mx-auto mb-4 text-gray-300" />
-                    <p className="text-gray-500 mb-2">No pricing profiles found</p>
-                    <p className="text-sm text-gray-400 mb-4">Create your first pricing profile to get started</p>
+                ) : filteredProfiles.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+                      <Percent size={28} className="text-emerald-600" />
+                    </div>
+                    <p className="text-slate-700 font-medium">No pricing profiles found</p>
+                    <p className="text-sm text-slate-400 mt-1 mb-6">Create your first pricing profile to get started</p>
                     <button
                       onClick={() => handleOpenProfileDrawer('create')}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#145a2c] text-white rounded-lg hover:bg-[#0d4221]"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl transition-all"
                     >
-                      <Plus size={14} />
+                      <Plus size={16} />
                       Create Profile
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {profiles.map((profile) => {
+                  <div className="grid gap-4">
+                    {filteredProfiles.map((profile) => {
                       const isExpanded = expandedProfileId === profile.id;
                       const statusStyle = STATUS_STYLES[profile.status] || STATUS_STYLES.draft;
                       const subsidyActive = isSubsidyActive(profile);
 
                       return (
-                        <div key={profile.id} className="admin-card">
+                        <div
+                          key={profile.id}
+                          className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-200 overflow-hidden group"
+                        >
                           {/* Profile Header */}
-                          <div className="p-4 flex items-center justify-between">
+                          <div className="p-5 flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                              <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center',
-                                profile.vehicle_category === 'electric_car' ? 'bg-blue-100 text-blue-600' :
-                                profile.vehicle_category === 'electric_scooter' ? 'bg-purple-100 text-purple-600' :
-                                'bg-orange-100 text-orange-600'
+                              <div className={cn(
+                                'w-12 h-12 rounded-xl flex items-center justify-center',
+                                profile.vehicle_category === 'electric_car' ? 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600' :
+                                profile.vehicle_category === 'electric_scooter' ? 'bg-gradient-to-br from-purple-100 to-purple-200 text-purple-600' :
+                                'bg-gradient-to-br from-orange-100 to-orange-200 text-orange-600'
                               )}>
-                                {profile.vehicle_category === 'electric_car' ? <Car size={18} /> :
-                                 profile.vehicle_category === 'electric_scooter' ? <Circle size={18} /> :
-                                 <Bike size={18} />}
+                                {profile.vehicle_category === 'electric_car' ? <Car size={20} /> :
+                                 profile.vehicle_category === 'electric_scooter' ? <CircleDot size={20} /> :
+                                 <Bike size={20} />}
                               </div>
                               <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium text-gray-900">{profile.name}</p>
-                                  <span className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full', statusStyle.bg, statusStyle.text)}>
+                                <div className="flex items-center gap-2.5 mb-1">
+                                  <h3 className="font-semibold text-slate-900">{profile.name}</h3>
+                                  <span className={cn(
+                                    'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium',
+                                    statusStyle.bg, statusStyle.text
+                                  )}>
                                     {statusStyle.icon}
                                     {profile.status}
                                   </span>
                                   {subsidyActive && (
-                                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                                       <Gift size={10} />
-                                      Subsidy
+                                      Subsidy Active
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-sm text-gray-500">
-                                  {profile.city?.name}, {profile.city?.state?.name || 'Unknown'} &middot; {CATEGORY_LABELS[profile.vehicle_category]}
-                                </p>
+                                <div className="flex items-center gap-3 text-sm text-slate-500">
+                                  <span className="flex items-center gap-1.5">
+                                    <MapPin size={14} className="text-slate-400" />
+                                    {profile.city?.name}, {profile.city?.state?.name || 'Unknown'}
+                                  </span>
+                                  <span className="text-slate-300">|</span>
+                                  <span>{CATEGORY_LABELS[profile.vehicle_category]}</span>
+                                </div>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-6">
-                              <div className="text-right">
-                                <p className="text-sm font-semibold text-gray-900">RTO: {profile.rto_percentage}%</p>
-                                <p className="text-xs text-gray-500">Insurance: {profile.insurance_percentage}%</p>
+                              <div className="text-right hidden sm:block">
+                                <p className="text-sm font-semibold text-slate-900">RTO: {profile.rto_percentage}%</p>
+                                <p className="text-xs text-slate-500">Insurance: {profile.insurance_percentage}%</p>
                               </div>
 
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => setExpandedProfileId(isExpanded ? null : profile.id)}
-                                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                                  title="Toggle details"
+                                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                  title={isExpanded ? 'Collapse' : 'Expand'}
                                 >
-                                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                  {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                                 </button>
                                 <button
                                   onClick={() => handleOpenVersionHistory(profile.id, profile.name)}
-                                  className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                   title="Version history"
                                 >
-                                  <History size={14} />
+                                  <History size={16} />
                                 </button>
                                 <button
                                   onClick={() => handleDuplicateProfile(profile)}
-                                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                   title="Duplicate"
                                 >
-                                  <Copy size={14} />
+                                  <Copy size={16} />
                                 </button>
                                 <button
                                   onClick={() => handleOpenProfileDrawer('edit', profile)}
-                                  className="p-1.5 text-gray-400 hover:text-[#145a2c] hover:bg-green-50 rounded-lg"
+                                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                   title="Edit"
                                 >
-                                  <Pencil size={14} />
+                                  <Pencil size={16} />
                                 </button>
                                 {profile.status === 'draft' && (
                                   <button
                                     onClick={() => handlePublishProfile(profile.id)}
-                                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                     title="Publish"
                                   >
-                                    <CheckCircle size={14} />
+                                    <CheckCircle size={16} />
                                   </button>
                                 )}
                                 {profile.status === 'published' && (
                                   <button
                                     onClick={() => handleArchiveProfile(profile.id)}
-                                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                                     title="Archive"
                                   >
-                                    <Archive size={14} />
+                                    <Archive size={16} />
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleDeleteProfile(profile.id)}
-                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Delete"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={16} />
                                 </button>
                               </div>
                             </div>
@@ -642,64 +769,46 @@ export default function PricingManagementPage() {
 
                           {/* Expanded Details */}
                           {isExpanded && (
-                            <div className="border-t border-gray-100 p-4 bg-gray-50">
+                            <div className="border-t border-slate-100 bg-slate-50/50 p-5 animate-in slide-in-from-top-2 duration-200">
                               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {/* Charges */}
                                 <div>
-                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Charges</h4>
-                                  <div className="space-y-1.5">
+                                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Charges</h4>
+                                  <div className="space-y-2">
                                     {profile.show_rto && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Road Tax</span>
-                                        <span className="font-medium">{profile.rto_percentage}%</span>
+                                      <div className="flex justify-between text-sm bg-white p-2.5 rounded-lg">
+                                        <span className="text-slate-600">Road Tax</span>
+                                        <span className="font-semibold text-slate-900">{profile.rto_percentage}%</span>
                                       </div>
                                     )}
                                     {profile.show_insurance && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Insurance</span>
-                                        <span className="font-medium">{profile.insurance_percentage}%</span>
+                                      <div className="flex justify-between text-sm bg-white p-2.5 rounded-lg">
+                                        <span className="text-slate-600">Insurance</span>
+                                        <span className="font-semibold text-slate-900">{profile.insurance_percentage}%</span>
                                       </div>
                                     )}
                                     {profile.show_registration && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Registration</span>
-                                        <span className="font-medium">{formatCurrency(profile.registration_fee)}</span>
+                                      <div className="flex justify-between text-sm bg-white p-2.5 rounded-lg">
+                                        <span className="text-slate-600">Registration</span>
+                                        <span className="font-semibold text-slate-900">{formatCurrency(profile.registration_fee)}</span>
                                       </div>
                                     )}
                                     {profile.show_hsrp && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">HSRP</span>
-                                        <span className="font-medium">{formatCurrency(profile.hsrp_fee)}</span>
+                                      <div className="flex justify-between text-sm bg-white p-2.5 rounded-lg">
+                                        <span className="text-slate-600">HSRP</span>
+                                        <span className="font-semibold text-slate-900">{formatCurrency(profile.hsrp_fee)}</span>
                                       </div>
                                     )}
                                     {profile.show_fastag && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">FASTag</span>
-                                        <span className="font-medium">{formatCurrency(profile.fastag_fee)}</span>
+                                      <div className="flex justify-between text-sm bg-white p-2.5 rounded-lg">
+                                        <span className="text-slate-600">FASTag</span>
+                                        <span className="font-semibold text-slate-900">{formatCurrency(profile.fastag_fee)}</span>
                                       </div>
                                     )}
                                     {profile.show_handling && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Handling</span>
-                                        <span className="font-medium">{formatCurrency(profile.handling_charges)}</span>
-                                      </div>
-                                    )}
-                                    {profile.show_dealer && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Dealer</span>
-                                        <span className="font-medium">{formatCurrency(profile.dealer_charges)}</span>
-                                      </div>
-                                    )}
-                                    {profile.show_delivery && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Delivery</span>
-                                        <span className="font-medium">{formatCurrency(profile.delivery_charges)}</span>
-                                      </div>
-                                    )}
-                                    {profile.show_other && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Other</span>
-                                        <span className="font-medium">{formatCurrency(profile.other_charges)}</span>
+                                      <div className="flex justify-between text-sm bg-white p-2.5 rounded-lg">
+                                        <span className="text-slate-600">Handling</span>
+                                        <span className="font-semibold text-slate-900">{formatCurrency(profile.handling_charges)}</span>
                                       </div>
                                     )}
                                   </div>
@@ -707,87 +816,60 @@ export default function PricingManagementPage() {
 
                                 {/* Subsidy */}
                                 <div>
-                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Subsidy</h4>
+                                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Subsidy</h4>
                                   {profile.has_subsidy ? (
-                                    <div className="space-y-1.5">
+                                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
                                       {profile.subsidy_title && (
-                                        <p className="text-sm font-medium text-gray-900">{profile.subsidy_title}</p>
+                                        <p className="font-medium text-slate-900 mb-2">{profile.subsidy_title}</p>
                                       )}
-                                      <div className="flex items-center gap-2">
-                                        <span className={cn('text-sm font-semibold', subsidyActive ? 'text-green-600' : 'text-gray-400')}>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <span className={cn(
+                                          'text-lg font-bold',
+                                          subsidyActive ? 'text-emerald-600' : 'text-slate-400'
+                                        )}>
                                           {profile.subsidy_type === 'percentage'
                                             ? `${profile.subsidy_value}% off`
                                             : `${formatCurrency(profile.subsidy_value)} off`}
                                         </span>
                                         {!subsidyActive && (
-                                          <span className="text-xs text-gray-400">(Expired)</span>
+                                          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">(Expired)</span>
                                         )}
                                       </div>
-                                      {profile.subsidy_badge_text && (
-                                        <span className="inline-block text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                                      {profile.subsidy_badge_text && subsidyActive && (
+                                        <span className="inline-flex items-center gap-1 text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-full font-medium animate-pulse">
+                                          <Gift size={10} />
                                           {profile.subsidy_badge_text}
                                         </span>
                                       )}
-                                      {profile.subsidy_end_date && (
-                                        <p className="text-xs text-gray-500">Valid until: {profile.subsidy_end_date}</p>
-                                      )}
                                     </div>
                                   ) : (
-                                    <p className="text-sm text-gray-400 italic">No subsidy configured</p>
+                                    <div className="text-sm text-slate-400 italic bg-white p-4 rounded-xl text-center">
+                                      No subsidy configured
+                                    </div>
                                   )}
                                 </div>
 
                                 {/* Tax Slabs */}
                                 <div>
-                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Tax Slabs ({profile.slabs?.length || 0})</h4>
+                                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Tax Slabs ({profile.slabs?.length || 0})</h4>
                                   {profile.slabs && profile.slabs.length > 0 ? (
-                                    <div className="space-y-1.5">
+                                    <div className="space-y-2">
                                       {profile.slabs.map((slab, i) => (
-                                        <div key={i} className="flex justify-between text-sm">
-                                          <span className="text-gray-600">{formatPriceRange(slab.min_price, slab.max_price)}</span>
-                                          <span className="font-medium">{slab.tax_percentage}%</span>
+                                        <div key={i} className="flex justify-between bg-white p-2.5 rounded-lg text-sm">
+                                          <span className="text-slate-600">
+                                            Rs. {(slab.min_price / 100000).toFixed(1)}L{slab.max_price ? ` - Rs. ${(slab.max_price / 100000).toFixed(1)}L` : '+'}
+                                          </span>
+                                          <span className="font-semibold text-slate-900">{slab.tax_percentage}%</span>
                                         </div>
                                       ))}
                                     </div>
                                   ) : (
-                                    <p className="text-sm text-gray-400 italic">No tax slabs. Base RTO % used.</p>
+                                    <div className="text-sm text-slate-400 italic bg-white p-4 rounded-xl text-center">
+                                      No tax slabs. Base RTO % used.
+                                    </div>
                                   )}
                                 </div>
                               </div>
-
-                              {/* Conditions Summary */}
-                              {(profile.vehicle_type || profile.battery_min_kwh || profile.price_range_min || profile.priority > 0) && (
-                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Conditions</h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {profile.vehicle_type && (
-                                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                                        Vehicle Type: {profile.vehicle_type}
-                                      </span>
-                                    )}
-                                    {profile.battery_min_kwh && (
-                                      <span className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
-                                        Battery: {profile.battery_min_kwh}{profile.battery_max_kwh ? `-${profile.battery_max_kwh}` : '+'} kWh
-                                      </span>
-                                    )}
-                                    {profile.price_range_min && (
-                                      <span className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded">
-                                        Price: {formatCurrency(profile.price_range_min)}{profile.price_range_max ? ` - ${formatCurrency(profile.price_range_max)}` : '+'}
-                                      </span>
-                                    )}
-                                    {profile.priority > 0 && (
-                                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                        Priority: {profile.priority}
-                                      </span>
-                                    )}
-                                    {profile.effective_date && (
-                                      <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
-                                        Effective: {profile.effective_date}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           )}
                         </div>
