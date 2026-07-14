@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { HeroSlide } from '@/lib/types';
-import { Save, Loader2, AlertCircle } from 'lucide-react';
+import { Save, Loader as Loader2, CircleAlert as AlertCircle } from 'lucide-react';
+import ImageUpload from '@/components/ImageUpload';
 
 interface HeroSlideFormProps {
   id?: string;
@@ -170,17 +171,16 @@ export default function HeroSlideForm({ id }: HeroSlideFormProps) {
 
           <div className="admin-card p-6 space-y-4">
             <h2 className="font-bold text-lg">Image *</h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Banner Image URL</label>
-              <input
-                type="text"
-                value={form.image_url}
-                onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                className="admin-input"
-                placeholder="Paste image URL here"
-              />
-              <p className="text-xs text-gray-500 mt-1">Recommended: 1920x600px</p>
-            </div>
+            <ImageUpload
+              bucket="hero-images"
+              onImageUrl={(url) => setForm({ ...form, image_url: url })}
+              currentImageUrl={form.image_url}
+              label="Banner Image *"
+              aspectRatio="wide"
+              recommendedWidth={1920}
+              recommendedHeight={600}
+              helpText="Recommended: 1920×600px"
+            />
           </div>
 
           <div className="admin-card p-6 space-y-4">

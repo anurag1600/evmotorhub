@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Megaphone, ArrowLeft, Save, Loader as Loader2, Trash2 } from 'lucide-react';
+import { Megaphone, ArrowLeft, Save, Loader as Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import ImageUpload from '@/components/ImageUpload';
 
 const AD_SIZES = [
   { value: 'leaderboard', label: 'Leaderboard (728×90)' },
@@ -29,10 +30,10 @@ const AD_POSITIONS = [
   { value: 'mobile_sticky_bottom', label: 'Mobile - Sticky Bottom Banner' },
 ];
 
-function EditAdForm() {
+export default function EditAdvertisementPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const id = searchParams.get('id');
+  const params = useParams();
+  const id = params.id as string;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -76,6 +77,7 @@ function EditAdForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
+    if (!form.image_url) { toast.error('Please upload an advertisement image'); return; }
     setSaving(true);
     try {
       const payload = {
@@ -137,7 +139,7 @@ function EditAdForm() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Ad Position *</label>
             <select
@@ -167,22 +169,14 @@ function EditAdForm() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Image URL *</label>
-          <input
-            type="text"
-            value={form.image_url}
-            onChange={(e) => setForm(f => ({ ...f, image_url: e.target.value }))}
-            placeholder="https://..."
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
-            required
-          />
-          {form.image_url && (
-            <div className="mt-2 h-24 w-40 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-              <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
-            </div>
-          )}
-        </div>
+        <ImageUpload
+          bucket="advertisements"
+          onImageUrl={(url) => setForm(f => ({ ...f, image_url: url }))}
+          currentImageUrl={form.image_url}
+          label="Advertisement Image *"
+          aspectRatio="wide"
+          helpText="Upload will auto-compress to WEBP"
+        />
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Destination URL (Click Link)</label>
@@ -195,7 +189,7 @@ function EditAdForm() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
             <input
@@ -257,13 +251,5 @@ function EditAdForm() {
         </div>
       </form>
     </div>
-  );
-}
-
-export default function EditAdvertisementPage() {
-  return (
-    <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
-      <EditAdForm />
-    </Suspense>
   );
 }

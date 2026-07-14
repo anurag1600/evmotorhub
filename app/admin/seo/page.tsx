@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Search, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle, FileText, Globe, Code, Shield, ChartBar as BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
+import ImageUpload from '@/components/ImageUpload';
 
 interface SeoSettings {
   id: string;
@@ -252,8 +253,14 @@ export default function SEOSettingsPage() {
                     <input type="text" value={seo.site_name} onChange={(e) => setSeo({ ...seo, site_name: e.target.value })} className="admin-input" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Favicon URL</label>
-                    <input type="text" value={seo.favicon_url} onChange={(e) => setSeo({ ...seo, favicon_url: e.target.value })} className="admin-input" />
+                    <ImageUpload
+                      bucket="icons"
+                      onImageUrl={(url) => setSeo({ ...seo, favicon_url: url })}
+                      currentImageUrl={seo.favicon_url}
+                      label="Favicon"
+                      aspectRatio="square"
+                      helpText="PNG or ICO format"
+                    />
                   </div>
                 </div>
                 <div>
@@ -296,8 +303,16 @@ export default function SEOSettingsPage() {
                   <textarea value={seo.og_description} onChange={(e) => setSeo({ ...seo, og_description: e.target.value })} className="admin-input" rows={2} />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Default OG Image</label>
-                  <input type="text" value={seo.default_og_image} onChange={(e) => setSeo({ ...seo, default_og_image: e.target.value })} className="admin-input" placeholder="https://... (1200x630px)" />
+                  <ImageUpload
+                    bucket="og-images"
+                    onImageUrl={(url) => setSeo({ ...seo, default_og_image: url })}
+                    currentImageUrl={seo.default_og_image}
+                    label="Default OG Image"
+                    aspectRatio="wide"
+                    recommendedWidth={1200}
+                    recommendedHeight={630}
+                    helpText="Recommended: 1200×630px"
+                  />
                 </div>
               </div>
 

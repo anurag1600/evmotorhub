@@ -4,8 +4,9 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Megaphone, ArrowLeft, Save, Image as ImageIcon, Loader as Loader2 } from 'lucide-react';
+import { Megaphone, ArrowLeft, Save, Loader as Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import ImageUpload from '@/components/ImageUpload';
 
 const AD_SIZES = [
   { value: 'leaderboard', label: 'Leaderboard (728×90)' },
@@ -32,7 +33,7 @@ const AD_POSITIONS = [
 function NewAdForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     ad_type: 'banner',
@@ -48,6 +49,7 @@ function NewAdForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.image_url) { toast.error('Please upload an advertisement image'); return; }
     setSaving(true);
     try {
       const payload = {
@@ -78,18 +80,13 @@ function NewAdForm() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3 mb-6">
-        <Link
-          href="/admin/advertisements"
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
+        <Link href="/admin/advertisements" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft size={20} className="text-gray-600" />
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Megaphone size={22} className="text-[#145a2c]" />
-            Create Advertisement
-          </h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Megaphone size={22} className="text-[#145a2c]" />
+          Create Advertisement
+        </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
@@ -105,7 +102,7 @@ function NewAdForm() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Ad Position *</label>
             <select
@@ -119,7 +116,6 @@ function NewAdForm() {
               ))}
             </select>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Ad Size *</label>
             <select
@@ -135,22 +131,14 @@ function NewAdForm() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Image URL *</label>
-          <input
-            type="text"
-            value={form.image_url}
-            onChange={(e) => setForm(f => ({ ...f, image_url: e.target.value }))}
-            placeholder="https://..."
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
-            required
-          />
-          {form.image_url && (
-            <div className="mt-2 h-24 w-40 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-              <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
-            </div>
-          )}
-        </div>
+        <ImageUpload
+          bucket="advertisements"
+          onImageUrl={(url) => setForm(f => ({ ...f, image_url: url }))}
+          currentImageUrl={form.image_url}
+          label="Advertisement Image *"
+          aspectRatio="wide"
+          helpText="Upload will auto-compress to WEBP"
+        />
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Destination URL (Click Link)</label>
@@ -163,7 +151,7 @@ function NewAdForm() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
             <input
@@ -173,7 +161,6 @@ function NewAdForm() {
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">End Date</label>
             <input
@@ -208,19 +195,16 @@ function NewAdForm() {
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-          <Link
-            href="/admin/advertisements"
-            className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-          >
+          <Link href="/admin/advertisements" className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
             Cancel
           </Link>
           <button
             type="submit"
-            disabled={loading}
+            disabled={saving}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#145a2c] text-white rounded-xl text-sm font-semibold hover:bg-[#0f4020] transition-colors disabled:opacity-50"
           >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {loading ? 'Creating...' : 'Create Ad'}
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {saving ? 'Saving...' : 'Create Ad'}
           </button>
         </div>
       </form>
@@ -230,7 +214,7 @@ function NewAdForm() {
 
 export default function NewAdvertisementPage() {
   return (
-    <Suspense fallback={<div className="text-center py-12">Loading...</div>}>
+    <Suspense fallback={<div className="text-center py-12"><Loader2 size={24} className="animate-spin mx-auto text-gray-400" /></div>}>
       <NewAdForm />
     </Suspense>
   );
