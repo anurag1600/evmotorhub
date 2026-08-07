@@ -38,7 +38,7 @@ function NewAdForm() {
     name: '',
     ad_type: 'banner',
     ad_size: 'rectangle',
-    ad_position: searchParams.get('position') || 'vehicle_sidebar',
+    ad_position: '',
     image_url: '',
     destination_url: '',
     start_date: '',
@@ -111,6 +111,7 @@ function NewAdForm() {
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
               required
             >
+              <option value="" disabled>Select a position...</option>
               {AD_POSITIONS.map((pos) => (
                 <option key={pos.value} value={pos.value}>{pos.label}</option>
               ))}
@@ -158,7 +159,8 @@ function NewAdForm() {
               type="date"
               value={form.start_date}
               onChange={(e) => setForm(f => ({ ...f, start_date: e.target.value }))}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+              onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c] cursor-pointer"
             />
           </div>
           <div>
@@ -167,7 +169,8 @@ function NewAdForm() {
               type="date"
               value={form.end_date}
               onChange={(e) => setForm(f => ({ ...f, end_date: e.target.value }))}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+              onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c] cursor-pointer"
             />
           </div>
         </div>

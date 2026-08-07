@@ -44,7 +44,7 @@ export default function EMICalculatorPage() {
   const downPaymentPercent = Math.round((downPayment / vehiclePrice) * 100);
 
   useEffect(() => {
-    setDownPayment(Math.round(vehiclePrice * 0.2));
+    setDownPayment((prev) => (prev > vehiclePrice ? Math.round(vehiclePrice * 0.2) : prev));
   }, [vehiclePrice]);
 
   const principalPercent = totalPayment > 0 ? Math.round((loanAmount / totalPayment) * 100) : 0;
@@ -127,16 +127,16 @@ export default function EMICalculatorPage() {
               <input
                 type="range"
                 min="0"
-                max={vehiclePrice * 0.8}
+                max={vehiclePrice}
                 step="5000"
                 value={downPayment}
                 onChange={(e) => setDownPayment(Number(e.target.value))}
                 className="w-full h-2 rounded-full appearance-none cursor-pointer accent-blue-600"
-                style={{ background: `linear-gradient(to right, #1d4ed8 ${(downPayment / (vehiclePrice * 0.8)) * 100}%, #e5e7eb ${(downPayment / (vehiclePrice * 0.8)) * 100}%)` }}
+                style={{ background: `linear-gradient(to right, #1d4ed8 ${vehiclePrice > 0 ? (downPayment / vehiclePrice) * 100 : 0}%, #e5e7eb ${vehiclePrice > 0 ? (downPayment / vehiclePrice) * 100 : 0}%)` }}
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>0 (0%)</span>
-                <span>{(vehiclePrice * 0.8 / 100000).toFixed(1)}L (80%)</span>
+                <span>₹0 (0%)</span>
+                <span>{(vehiclePrice / 100000).toFixed(1)}L (100%)</span>
               </div>
             </div>
 

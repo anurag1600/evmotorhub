@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { FileSliders as Sliders, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Plus, X, Trash2 } from 'lucide-react';
+import { FileSliders as Sliders, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import ImageUpload from '@/components/ImageUpload';
+import ImageUpload from '@/components/ImageUpload';
 
 interface FooterConfig {
   id: string;
@@ -18,7 +20,9 @@ interface FooterConfig {
   footer_tagline: string;
   footer_description: string;
   footer_powered_by_text: string;
+  footer_logo_url: string;
   footer_custom_links: { label: string; url: string }[];
+  footer_logo_url: string;
   social_media: Record<string, string>;
   contact_info: Record<string, string>;
 }
@@ -35,6 +39,7 @@ const defaultConfig: FooterConfig = {
   footer_company_name: 'EVMotorHub',
   footer_tagline: "India's trusted EV marketplace",
   footer_description: "India's trusted EV marketplace. Research, compare, and find your perfect electric vehicle.",
+  footer_logo_url: '',
   footer_powered_by_text: 'Powered by clean energy data',
   footer_custom_links: [],
   social_media: {},
@@ -59,8 +64,10 @@ export default function FooterSettingsPage() {
       if (data) {
         setConfig({
           ...defaultConfig,
+          footer_logo_url: data.footer_logo_url || '',
           ...data,
           footer_custom_links: data.footer_custom_links || [],
+          footer_logo_url: data.footer_logo_url || '',
           social_media: data.social_media || {},
           contact_info: data.contact_info || {},
         });
@@ -129,7 +136,7 @@ export default function FooterSettingsPage() {
               <Sliders size={28} className="text-[#145a2c]" />
               Footer Settings
             </h1>
-            <p className="admin-subtitle">Control what sections appear in the website footer</p>
+            <p className="admin-subtitle">Control the complete footer — sections, brand, contact, social, and links</p>
           </div>
         </div>
 
@@ -167,7 +174,7 @@ export default function FooterSettingsPage() {
             </div>
           </div>
 
-          {/* Copyright Text */}
+          {/* Brand & Copyright */}
           <div className="admin-card p-6 space-y-4">
             <h2 className="text-lg font-bold border-b pb-3">Brand & Copyright</h2>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -221,6 +228,157 @@ export default function FooterSettingsPage() {
                   placeholder="Powered by clean energy data"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Footer Logo */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Footer Logo</h2>
+            <p className="text-xs text-gray-500">Upload a custom logo for the footer (use a white/light version). If empty, the default site logo is used.</p>
+            <ImageUpload
+              bucket="general"
+              onImageUrl={(url) => setConfig({ ...config, footer_logo_url: url })}
+              currentImageUrl={config.footer_logo_url}
+              label="Footer Logo (white version recommended)"
+              recommendedWidth={200}
+              recommendedHeight={50}
+            />
+          </div>
+
+          {/* Contact Information */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Contact Information</h2>
+            <p className="text-xs text-gray-500">This is the single source of truth for contact info shown in the footer.</p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number</label>
+                <input
+                  type="tel"
+                  value={config.contact_info.phone || ''}
+                  onChange={(e) => setConfig({ ...config, contact_info: { ...config.contact_info, phone: e.target.value } })}
+                  className="admin-input"
+                  placeholder="+91 80 4567 8900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  value={config.contact_info.email || ''}
+                  onChange={(e) => setConfig({ ...config, contact_info: { ...config.contact_info, email: e.target.value } })}
+                  className="admin-input"
+                  placeholder="hello@evmotorhub.in"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">WhatsApp Number</label>
+                <input
+                  type="tel"
+                  value={config.contact_info.whatsapp || ''}
+                  onChange={(e) => setConfig({ ...config, contact_info: { ...config.contact_info, whatsapp: e.target.value } })}
+                  className="admin-input"
+                  placeholder="+91 XXXXX XXXXX"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Address</label>
+                <input
+                  type="text"
+                  value={config.contact_info.address || ''}
+                  onChange={(e) => setConfig({ ...config, contact_info: { ...config.contact_info, address: e.target.value } })}
+                  className="admin-input"
+                  placeholder="Bengaluru, Karnataka, India"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Social Media Links */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Social Media Links</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {([
+                ['facebook', 'Facebook URL'],
+                ['instagram', 'Instagram URL'],
+                ['linkedin', 'LinkedIn URL'],
+                ['youtube', 'YouTube URL'],
+                ['twitter', 'X / Twitter URL'],
+              ] as [string, string][]).map(([key, label]) => (
+                <div key={key}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
+                  <input
+                    type="url"
+                    value={config.social_media[key] || ''}
+                    onChange={(e) => setConfig({ ...config, social_media: { ...config.social_media, [key]: e.target.value } })}
+                    className="admin-input"
+                    placeholder="https://"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer Logo */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Footer Logo</h2>
+            <p className="text-xs text-gray-500">These appear in the Legal/Custom links column when enabled.</p>
+            <p className="text-xs text-gray-500">Upload a custom logo for the footer (use a white/light version). If empty, the default site logo is used.</p>
+            <ImageUpload
+              bucket="site-assets"
+              onImageUrl={(url) => setConfig({ ...config, footer_logo_url: url })}
+              currentImageUrl={config.footer_logo_url}
+              label="Footer Logo (white version recommended)"
+              recommendedWidth={200}
+              recommendedHeight={50}
+            />
+          </div>
+
+          {/* Contact Information */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Contact Information</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {([
+                ['phone', 'Phone Number', 'tel', '+91 80 4567 8900'],
+                ['email', 'Email Address', 'email', 'hello@evmotorhub.in'],
+                ['address', 'Address', 'text', 'Bengaluru, Karnataka, India'],
+                ['whatsapp', 'WhatsApp Number', 'tel', '+91 XXXXX XXXXX'],
+              ] as [keyof FooterConfig['contact_info'], string, string, string][]).map(([key, label, type, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
+                  <input
+                    type={type}
+                    value={config.contact_info[key] || ''}
+                    onChange={(e) => setConfig({ ...config, contact_info: { ...config.contact_info, [key]: e.target.value } })}
+                    className="admin-input"
+                    placeholder={placeholder}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Social Media Links */}
+          <div className="admin-card p-6 space-y-4">
+            <h2 className="text-lg font-bold border-b pb-3">Social Media Links</h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {([
+                ['facebook', 'Facebook URL'],
+                ['instagram', 'Instagram URL'],
+                ['linkedin', 'LinkedIn URL'],
+                ['youtube', 'YouTube URL'],
+                ['twitter', 'X / Twitter URL'],
+              ] as [keyof FooterConfig['social_media'], string][]).map(([key, label]) => (
+                <div key={key}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
+                  <input
+                    type="url"
+                    value={config.social_media[key] || ''}
+                    onChange={(e) => setConfig({ ...config, social_media: { ...config.social_media, [key]: e.target.value } })}
+                    className="admin-input"
+                    placeholder="https://"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 

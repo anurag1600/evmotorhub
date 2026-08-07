@@ -25,6 +25,7 @@ export default function ChargingStationsPage() {
   const [selectedConnector, setSelectedConnector] = useState('');
   const [selectedStation, setSelectedStation] = useState<ChargingStation | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [stats, setStats] = useState({ stations: 0, cities: 0, chargers: 0 });
 
   useEffect(() => {
     const fetch = async () => {
@@ -40,6 +41,26 @@ export default function ChargingStationsPage() {
     };
     fetch();
   }, [selectedCity, search, selectedConnector]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const { data, error } = await supabase.from('charging_stations').select('city, total_chargers');
+      if (error) { console.error('Failed to fetch stats:', error); return; }
+      if (data) {
+        const uniqueCities = new Set(data.map((s: any) => s.city).filter(Boolean));
+        setStats({
+          stations: data.length,
+          cities: uniqueCities.size,
+          chargers: data.reduce((a: number, s: any) => a + (s.total_chargers || 0), 0),
+        });
+      }
+    };
+    fetchStats();
+    const channel = supabase.channel('charging-stations-stats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'charging_stations' }, () => fetchStats())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -83,9 +104,9 @@ export default function ChargingStationsPage() {
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           {[
-            { label: 'Stations Listed', value: stations.length || '12+', color: 'text-green-700 bg-green-50' },
-            { label: 'Cities Covered', value: '10+', color: 'text-blue-700 bg-blue-50' },
-            { label: 'Total Chargers', value: `${stations.reduce((a, s) => a + s.total_chargers, 0) || '100+'}`, color: 'text-amber-700 bg-amber-50' },
+            { label: 'Stations Listed', value: stats.stations, color: 'text-green-700 bg-green-50' },
+            { label: 'Cities Covered', value: stats.cities, color: 'text-blue-700 bg-blue-50' },
+            { label: 'Total Chargers', value: stats.chargers, color: 'text-amber-700 bg-amber-50' },
           ].map((s) => (
             <div key={s.label} className={cn('rounded-xl p-4 text-center', s.color)}>
               <div className="text-2xl font-extrabold">{s.value}</div>

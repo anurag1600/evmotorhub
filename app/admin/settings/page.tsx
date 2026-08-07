@@ -24,25 +24,6 @@ interface SiteConfig {
     show_manufacturers: boolean;
     show_charging_stations: boolean;
   };
-  homepage_stats: {
-    total_vehicles: number;
-    total_manufacturers: number;
-    total_charging_stations: number;
-    monthly_visitors: number;
-  };
-  contact_info: {
-    phone: string;
-    email: string;
-    address: string;
-    whatsapp: string;
-  };
-  social_media: {
-    facebook: string;
-    instagram: string;
-    linkedin: string;
-    youtube: string;
-    twitter: string;
-  };
 }
 
 const defaultConfig: SiteConfig = {
@@ -62,25 +43,6 @@ const defaultConfig: SiteConfig = {
     show_latest_news: true,
     show_manufacturers: true,
     show_charging_stations: true,
-  },
-  homepage_stats: {
-    total_vehicles: 50,
-    total_manufacturers: 8,
-    total_charging_stations: 12000,
-    monthly_visitors: 2000000,
-  },
-  contact_info: {
-    phone: '+91 80 4567 8900',
-    email: 'hello@evmotorhub.in',
-    address: 'Bengaluru, Karnataka, India',
-    whatsapp: '',
-  },
-  social_media: {
-    facebook: '',
-    instagram: '',
-    linkedin: '',
-    youtube: '',
-    twitter: '',
   },
 };
 
@@ -116,9 +78,6 @@ export default function HomepageSettingsPage() {
           ...defaultConfig,
           ...data,
           section_toggles: { ...defaultConfig.section_toggles, ...(data.section_toggles || {}) },
-          homepage_stats: { ...defaultConfig.homepage_stats, ...(data.homepage_stats || {}) },
-          contact_info: { ...defaultConfig.contact_info, ...(data.contact_info || {}) },
-          social_media: { ...defaultConfig.social_media, ...(data.social_media || {}) },
         });
         const ns = data.news_settings || {};
         setNewsPostsPerPage(ns.posts_per_page || 12);
@@ -181,15 +140,6 @@ export default function HomepageSettingsPage() {
   const setToggle = (key: keyof typeof config.section_toggles, val: boolean) =>
     setConfig({ ...config, section_toggles: { ...config.section_toggles, [key]: val } });
 
-  const setContact = (key: keyof typeof config.contact_info, val: string) =>
-    setConfig({ ...config, contact_info: { ...config.contact_info, [key]: val } });
-
-  const setSocial = (key: keyof typeof config.social_media, val: string) =>
-    setConfig({ ...config, social_media: { ...config.social_media, [key]: val } });
-
-  const setStat = (key: keyof typeof config.homepage_stats, val: number) =>
-    setConfig({ ...config, homepage_stats: { ...config.homepage_stats, [key]: val } });
-
   if (loading) {
     return (
       <div className="admin-page">
@@ -209,7 +159,7 @@ export default function HomepageSettingsPage() {
               <Home size={28} className="text-[#145a2c]" />
               Homepage Settings
             </h1>
-            <p className="admin-subtitle">Configure hero section, contact info, social media and section visibility</p>
+            <p className="admin-subtitle">Configure hero section and section visibility</p>
           </div>
         </div>
 
@@ -365,78 +315,6 @@ export default function HomepageSettingsPage() {
                   />
                   <span className="text-sm font-medium text-gray-700">{label}</span>
                 </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Homepage Stats */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Homepage Statistics</h2>
-            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {([
-                ['total_vehicles', 'Total Vehicles'],
-                ['total_manufacturers', 'Total Manufacturers'],
-                ['total_charging_stations', 'Charging Stations'],
-                ['monthly_visitors', 'Monthly Visitors'],
-              ] as [keyof typeof config.homepage_stats, string][]).map(([key, label]) => (
-                <div key={key}>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
-                  <input
-                    type="number"
-                    value={config.homepage_stats[key]}
-                    onChange={(e) => setStat(key, Number(e.target.value))}
-                    className="admin-input"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Contact Information</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {([
-                ['phone', 'Phone Number', 'tel', '+91 80 4567 8900'],
-                ['email', 'Email Address', 'email', 'hello@evmotorhub.in'],
-                ['address', 'Address', 'text', 'Bengaluru, Karnataka, India'],
-                ['whatsapp', 'WhatsApp Number', 'tel', '+91 XXXXX XXXXX'],
-              ] as [keyof typeof config.contact_info, string, string, string][]).map(([key, label, type, placeholder]) => (
-                <div key={key}>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
-                  <input
-                    type={type}
-                    value={config.contact_info[key]}
-                    onChange={(e) => setContact(key, e.target.value)}
-                    className="admin-input"
-                    placeholder={placeholder}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Social Media */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Social Media Links</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {([
-                ['facebook', 'Facebook URL'],
-                ['instagram', 'Instagram URL'],
-                ['linkedin', 'LinkedIn URL'],
-                ['youtube', 'YouTube URL'],
-                ['twitter', 'X / Twitter URL'],
-              ] as [keyof typeof config.social_media, string][]).map(([key, label]) => (
-                <div key={key}>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
-                  <input
-                    type="url"
-                    value={config.social_media[key]}
-                    onChange={(e) => setSocial(key, e.target.value)}
-                    className="admin-input"
-                    placeholder="https://"
-                  />
-                </div>
               ))}
             </div>
           </div>

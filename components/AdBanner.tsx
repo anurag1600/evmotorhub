@@ -50,7 +50,7 @@ export default function AdBanner({ position, className }: AdBannerProps) {
 
   const fetchAd = async () => {
     try {
-      const now = new Date().toISOString();
+      const now = new Date().toISOString().split('T')[0];
       const { data } = await supabase
         .from('advertisements')
         .select('*')
@@ -157,7 +157,7 @@ export function AdBannerMultiple({ position, limit = 3 }: { position: string; li
 
   const fetchAds = async () => {
     try {
-      const now = new Date().toISOString();
+      const now = new Date().toISOString().split('T')[0];
       const { data } = await supabase
         .from('advertisements')
         .select('*')
