@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { FileSliders as Sliders, Save, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageUpload from '@/components/ImageUpload';
-import ImageUpload from '@/components/ImageUpload';
 
 interface FooterConfig {
   id: string;
@@ -22,7 +21,6 @@ interface FooterConfig {
   footer_powered_by_text: string;
   footer_logo_url: string;
   footer_custom_links: { label: string; url: string }[];
-  footer_logo_url: string;
   social_media: Record<string, string>;
   contact_info: Record<string, string>;
 }
@@ -64,10 +62,9 @@ export default function FooterSettingsPage() {
       if (data) {
         setConfig({
           ...defaultConfig,
-          footer_logo_url: data.footer_logo_url || '',
           ...data,
-          footer_custom_links: data.footer_custom_links || [],
           footer_logo_url: data.footer_logo_url || '',
+          footer_custom_links: data.footer_custom_links || [],
           social_media: data.social_media || {},
           contact_info: data.contact_info || {},
         });
@@ -303,70 +300,6 @@ export default function FooterSettingsPage() {
                 ['linkedin', 'LinkedIn URL'],
                 ['youtube', 'YouTube URL'],
                 ['twitter', 'X / Twitter URL'],
-              ] as [string, string][]).map(([key, label]) => (
-                <div key={key}>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
-                  <input
-                    type="url"
-                    value={config.social_media[key] || ''}
-                    onChange={(e) => setConfig({ ...config, social_media: { ...config.social_media, [key]: e.target.value } })}
-                    className="admin-input"
-                    placeholder="https://"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer Logo */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Footer Logo</h2>
-            <p className="text-xs text-gray-500">These appear in the Legal/Custom links column when enabled.</p>
-            <p className="text-xs text-gray-500">Upload a custom logo for the footer (use a white/light version). If empty, the default site logo is used.</p>
-            <ImageUpload
-              bucket="site-assets"
-              onImageUrl={(url) => setConfig({ ...config, footer_logo_url: url })}
-              currentImageUrl={config.footer_logo_url}
-              label="Footer Logo (white version recommended)"
-              recommendedWidth={200}
-              recommendedHeight={50}
-            />
-          </div>
-
-          {/* Contact Information */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Contact Information</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {([
-                ['phone', 'Phone Number', 'tel', '+91 80 4567 8900'],
-                ['email', 'Email Address', 'email', 'hello@evmotorhub.in'],
-                ['address', 'Address', 'text', 'Bengaluru, Karnataka, India'],
-                ['whatsapp', 'WhatsApp Number', 'tel', '+91 XXXXX XXXXX'],
-              ] as [keyof FooterConfig['contact_info'], string, string, string][]).map(([key, label, type, placeholder]) => (
-                <div key={key}>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
-                  <input
-                    type={type}
-                    value={config.contact_info[key] || ''}
-                    onChange={(e) => setConfig({ ...config, contact_info: { ...config.contact_info, [key]: e.target.value } })}
-                    className="admin-input"
-                    placeholder={placeholder}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Social Media Links */}
-          <div className="admin-card p-6 space-y-4">
-            <h2 className="text-lg font-bold border-b pb-3">Social Media Links</h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {([
-                ['facebook', 'Facebook URL'],
-                ['instagram', 'Instagram URL'],
-                ['linkedin', 'LinkedIn URL'],
-                ['youtube', 'YouTube URL'],
-                ['twitter', 'X / Twitter URL'],
               ] as [keyof FooterConfig['social_media'], string][]).map(([key, label]) => (
                 <div key={key}>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}</label>
@@ -385,6 +318,7 @@ export default function FooterSettingsPage() {
           {/* Custom Footer Links */}
           <div className="admin-card p-6 space-y-4">
             <h2 className="text-lg font-bold border-b pb-3">Custom Footer Links</h2>
+            <p className="text-xs text-gray-500">These appear in the Legal/Custom links column when enabled.</p>
             <div className="space-y-2">
               {config.footer_custom_links.map((link, i) => (
                 <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2.5">

@@ -109,7 +109,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       {seo?.schema_breadcrumb !== false && <BreadcrumbSchema article={article} />}
       {/* Breadcrumb */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <nav className="flex items-center gap-1.5 text-xs text-gray-500">
             <Link href="/" className="hover:text-[#145a2c]">Home</Link>
             <ChevronRight size={12} />

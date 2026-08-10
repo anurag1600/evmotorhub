@@ -259,7 +259,26 @@ export default function Footer() {
       {/* Bottom Bar */}
       {showCopyright && (
         <div className="relative border-t border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* EV-themed animated wave background */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+            <svg width="100%" height="100%" viewBox="0 0 1200 80" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" className="opacity-[0.05]">
+              <path d="M0 40 Q 100 10 200 40 T 400 40 T 600 40 T 800 40 T 1000 40 T 1200 40" stroke="#22c55e" strokeWidth="2" fill="none">
+                <animate attributeName="d" dur="8s" repeatCount="indefinite"
+                  values="M0 40 Q 100 10 200 40 T 400 40 T 600 40 T 800 40 T 1000 40 T 1200 40;
+                          M0 40 Q 100 70 200 40 T 400 40 T 600 40 T 800 40 T 1000 40 T 1200 40;
+                          M0 40 Q 100 10 200 40 T 400 40 T 600 40 T 800 40 T 1000 40 T 1200 40" />
+              </path>
+              <path d="M0 50 Q 150 20 300 50 T 600 50 T 900 50 T 1200 50" stroke="#22c55e" strokeWidth="1.5" fill="none" opacity="0.5">
+                <animate attributeName="d" dur="10s" repeatCount="indefinite"
+                  values="M0 50 Q 150 20 300 50 T 600 50 T 900 50 T 1200 50;
+                          M0 50 Q 150 80 300 50 T 600 50 T 900 50 T 1200 50;
+                          M0 50 Q 150 20 300 50 T 600 50 T 900 50 T 1200 50" />
+              </path>
+              <path d="M80 55 L 86 45 L 82 45 L 88 33 L 84 43 L 88 43 L 82 55 Z" fill="#22c55e" opacity="0.3" />
+              <path d="M1120 55 L 1126 45 L 1122 45 L 1128 33 L 1124 43 L 1128 43 L 1122 55 Z" fill="#22c55e" opacity="0.3" />
+            </svg>
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <p className="text-xs text-gray-500 text-center sm:text-left leading-relaxed">
                 {config?.footer_copyright_text || '\u00A9 2024 EVMotorHub. All rights reserved. Prices are ex-showroom & subject to change.'}

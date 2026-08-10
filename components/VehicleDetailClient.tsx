@@ -840,18 +840,23 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
 function CityModal({ cities, popularCities, filteredCities, selectedCity, citySearch, setCitySearch, onSelect, onClose }: { cities: PricingCity[]; popularCities: PricingCity[]; filteredCities: PricingCity[]; selectedCity: PricingCity | null; citySearch: string; setCitySearch: (v: string) => void; onSelect: (c: PricingCity) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gradient-to-r from-green-50 to-emerald-50">
           <div className="flex items-center gap-2.5">
-            <MapPin size={22} className="text-[#145a2c]" />
-            <h3 className="text-lg font-bold text-gray-900">Select Your City</h3>
+            <div className="w-10 h-10 rounded-xl bg-[#145a2c] flex items-center justify-center animate-in zoom-in-50 duration-300">
+              <MapPin size={20} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Select Your City</h3>
+              <p className="text-xs text-gray-500">Choose your location for accurate pricing</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-gray-200/50 rounded-lg transition-colors">
             <X size={18} className="text-gray-400" />
           </button>
         </div>
         <div className="p-5">
-          <div className="relative mb-5">
+          <div className="relative mb-5 animate-in fade-in slide-in-from-top-2 duration-300">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={citySearch}
@@ -862,15 +867,18 @@ function CityModal({ cities, popularCities, filteredCities, selectedCity, citySe
             />
           </div>
           {!citySearch && (
-            <div className="mb-4">
-              <h4 className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">Popular Cities</h4>
+            <div className="mb-4 animate-in fade-in duration-300 delay-75">
+              <h4 className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin size={12} className="text-[#145a2c]" /> Popular Cities
+              </h4>
               <div className="flex flex-wrap gap-2">
-                {popularCities.map((c) => (
+                {popularCities.map((c, i) => (
                   <button
                     key={c.id}
                     onClick={() => onSelect(c)}
+                    style={{ animationDelay: `${i * 40}ms` }}
                     className={cn(
-                      'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105',
+                      'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-md animate-in fade-in zoom-in-75',
                       selectedCity?.id === c.id
                         ? 'bg-[#145a2c] text-white shadow-md'
                         : 'bg-gray-50 hover:bg-green-50 hover:text-[#145a2c] border border-gray-100'
@@ -885,18 +893,22 @@ function CityModal({ cities, popularCities, filteredCities, selectedCity, citySe
           {citySearch && (
             <div className="max-h-48 overflow-y-auto space-y-1">
               {filteredCities.length === 0 && <p className="text-center text-sm text-gray-400 py-4">No cities found</p>}
-              {filteredCities.map((c) => (
+              {filteredCities.map((c, i) => (
                 <button
                   key={c.id}
                   onClick={() => onSelect(c)}
+                  style={{ animationDelay: `${i * 30}ms` }}
                   className={cn(
-                    'w-full text-left px-4 py-3 rounded-xl transition-all duration-150 flex justify-between items-center',
+                    'w-full text-left px-4 py-3 rounded-xl transition-all duration-150 flex justify-between items-center animate-in fade-in slide-in-from-left-2',
                     selectedCity?.id === c.id ? 'bg-green-50 text-[#145a2c] border border-green-200' : 'hover:bg-gray-50 border border-transparent'
                   )}
                 >
-                  <div>
-                    <p className="text-sm font-semibold">{c.name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{c.state?.name || c.pincode}</p>
+                  <div className="flex items-center gap-2.5">
+                    <MapPin size={15} className="text-gray-400" />
+                    <div>
+                      <p className="text-sm font-semibold">{c.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{c.state?.name || c.pincode}</p>
+                    </div>
                   </div>
                   {selectedCity?.id === c.id && <Check size={16} className="text-[#145a2c]" />}
                 </button>
@@ -911,12 +923,12 @@ function CityModal({ cities, popularCities, filteredCities, selectedCity, citySe
 
 function EMIModal({ priceBreakdown, emiDownPayment, setEmiDownPayment, emiInterestRate, setEmiInterestRate, emiTenure, setEmiTenure, emiResult, onGetOffer, onClose }: { priceBreakdown: any; emiDownPayment: number; setEmiDownPayment: (v: number) => void; emiInterestRate: number; setEmiInterestRate: (v: number) => void; emiTenure: number; setEmiTenure: (v: number) => void; emiResult: any; onGetOffer: () => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b"><h3 className="text-lg font-bold">EMI Calculator</h3><button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={18} className="text-gray-400" /></button></div>
         <div className="p-4 space-y-4">
           <div><p className="text-xs text-gray-600 mb-1">Vehicle Price (On-road)</p><p className="text-base font-bold">{formatPrice(priceBreakdown.onRoadPrice)}</p></div>
-          <div><label className="text-xs text-gray-600 mb-2 block">Down Payment: <strong className="text-[#145a2c]">{formatPrice(emiDownPayment)}</strong></label><input type="range" min={0} max={priceBreakdown.onRoadPrice} step={5000} value={emiDownPayment} onChange={(e) => setEmiDownPayment(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#145a2c]" /><div className="flex justify-between text-[10px] text-gray-400 mt-1"><span>₹0</span><span>{formatPrice(priceBreakdown.onRoadPrice)}</span></div></div>
+          <div><label className="text-xs text-gray-600 mb-2 block">Down Payment: <strong className="text-[#145a2c]">{formatPrice(emiDownPayment)}</strong></label><input type="range" min={0} max={priceBreakdown.onRoadPrice} step={Math.max(100, Math.round(priceBreakdown.onRoadPrice / 1000))} value={emiDownPayment} onChange={(e) => setEmiDownPayment(parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#145a2c]" /><div className="flex justify-between text-[10px] text-gray-400 mt-1"><span>₹0</span><span>{formatPrice(priceBreakdown.onRoadPrice)}</span></div></div>
           <div><label className="text-xs text-gray-600 mb-2 block">Interest Rate: <strong className="text-[#145a2c]">{emiInterestRate}%</strong> p.a.</label><input type="range" min={5} max={15} step={0.25} value={emiInterestRate} onChange={(e) => setEmiInterestRate(parseFloat(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#145a2c]" /></div>
           <div><label className="text-xs text-gray-600 mb-2 block">Loan Tenure</label><div className="grid grid-cols-4 gap-2">{[12, 24, 36, 48].map((m) => <button key={m} onClick={() => setEmiTenure(m)} className={cn('py-2 rounded-lg text-sm font-semibold', emiTenure === m ? 'bg-[#145a2c] text-white' : 'bg-gray-100 hover:bg-gray-200')}>{m}mo</button>)}</div></div>
           <div className="bg-gradient-to-br from-[#145a2c] to-[#0f3d1e] rounded-lg p-4 text-white"><p className="text-xs text-green-200 mb-1">Monthly EMI</p><p className="text-2xl font-bold">{formatPrice(emiResult.emi)}</p><div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-white/20 text-sm"><div><p className="text-xs text-green-200">Loan Amount</p><p className="font-semibold">{formatPrice(emiResult.principal)}</p></div><div><p className="text-xs text-green-200">Total Interest</p><p className="font-semibold">{formatPrice(emiResult.totalInterest)}</p></div></div></div>

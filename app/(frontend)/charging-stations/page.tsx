@@ -44,7 +44,10 @@ export default function ChargingStationsPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data, error } = await supabase.from('charging_stations').select('city, total_chargers');
+      const { data, error } = await supabase
+        .from('charging_stations')
+        .select('city, total_chargers, status')
+        .in('status', ['active', 'coming_soon']);
       if (error) { console.error('Failed to fetch stats:', error); return; }
       if (data) {
         const uniqueCities = new Set(data.map((s: any) => s.city).filter(Boolean));
