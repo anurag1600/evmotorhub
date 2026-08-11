@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import {
-  Package, Check, X, Clock, Loader as Loader2, Eye,
-  Building2, Globe, Mail, Phone, MapPin, Calendar, User,
-  FileSpreadsheet, AlertCircle, ExternalLink
-} from 'lucide-react';
+import { Package, Check, X, Clock, Loader as Loader2, Eye, Building2, Globe, Mail, Phone, MapPin, Calendar, User, FileSpreadsheet, CircleAlert as AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { timeAgo } from '@/lib/format';

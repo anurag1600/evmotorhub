@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import {
-  Upload, Check, X, Clock, Loader as Loader2, Eye,
-  FileSpreadsheet, AlertCircle, Car, Zap, Building2
-} from 'lucide-react';
+import { Upload, Check, X, Clock, Loader as Loader2, Eye, FileSpreadsheet, CircleAlert as AlertCircle, Car, Zap, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { timeAgo, slugify } from '@/lib/format';
