@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Car, Calendar } from 'lucide-react';
+import { ArrowRight, Car, Calendar, Zap, Building2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Manufacturer, VehicleType } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -260,6 +260,41 @@ export default function ManufacturersClientPage() {
           </>
         )}
       </div>
+
+      {/* Manufacturer Registration CTA */}
+      <section className="py-14 md:py-20 bg-gradient-to-br from-[#0a2e14] to-[#145a2c] text-white relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none opacity-[0.06]" aria-hidden="true">
+          <svg width="100%" height="100%" viewBox="0 0 1200 300" fill="none" preserveAspectRatio="xMidYMid slice">
+            <path d="M0 200 H200 V100 H400 V50 H600 V170 H800 V90 H1000 V190 H1200" stroke="#22c55e" strokeWidth="2" fill="none" />
+            <circle cx="200" cy="100" r="5" fill="#22c55e" />
+            <circle cx="400" cy="50" r="5" fill="#22c55e" />
+            <circle cx="600" cy="170" r="5" fill="#22c55e" />
+            <circle cx="800" cy="90" r="5" fill="#22c55e" />
+            <circle cx="1000" cy="190" r="5" fill="#22c55e" />
+            <path d="M580 140 L 595 115 L 585 115 L 600 90 L 590 125 L 600 125 L 585 150 Z" fill="#22c55e" opacity="0.4" />
+          </svg>
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-green-500/15 border border-green-400/20 rounded-full px-4 py-1.5 mb-5">
+            <Zap size={14} className="text-green-400" />
+            <span className="text-xs font-semibold text-green-300 uppercase tracking-wider">For Manufacturers</span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl font-bold mb-4 leading-tight">
+            Are You an EV Manufacturer?
+          </h2>
+          <p className="text-green-100 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+            Register your company on EVMotorHub and showcase your electric vehicles to thousands of potential buyers across India.
+          </p>
+          <Link
+            href="/register-company"
+            className="inline-flex items-center gap-2 bg-white text-[#0a2e14] hover:bg-green-50 font-bold px-8 py-3.5 rounded-xl text-base transition-all duration-300 hover:scale-105 shadow-lg"
+          >
+            <Building2 size={18} />
+            Register Your Company
+            <ArrowRight size={18} />
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

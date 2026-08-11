@@ -487,6 +487,56 @@ export default async function HomePage() {
       {/* FAQ Section */}
       <HomePageFAQ />
 
+      {/* Manufacturer Registration CTA */}
+      <section className="py-14 md:py-20 bg-gradient-to-br from-[#0a2e14] to-[#145a2c] text-white relative overflow-hidden">
+        {/* Subtle EV circuit pattern */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.06]" aria-hidden="true">
+          <svg width="100%" height="100%" viewBox="0 0 1200 400" fill="none" preserveAspectRatio="xMidYMid slice">
+            <path d="M0 300 H200 V180 H400 V80 H600 V230 H800 V150 H1000 V280 H1200" stroke="#22c55e" strokeWidth="2" fill="none" />
+            <path d="M0 120 H150 V190 H350 V60 H550 V210 H750 V140 H950 V260 H1200" stroke="#22c55e" strokeWidth="1.5" fill="none" opacity="0.6" />
+            <circle cx="200" cy="180" r="5" fill="#22c55e" />
+            <circle cx="400" cy="80" r="5" fill="#22c55e" />
+            <circle cx="600" cy="230" r="5" fill="#22c55e" />
+            <circle cx="800" cy="150" r="5" fill="#22c55e" />
+            <circle cx="1000" cy="280" r="5" fill="#22c55e" />
+            <path d="M580 200 L 595 175 L 585 175 L 600 150 L 590 185 L 600 185 L 585 210 Z" fill="#22c55e" opacity="0.4" />
+          </svg>
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-green-500/15 border border-green-400/20 rounded-full px-4 py-1.5 mb-5">
+            <Zap size={14} className="text-green-400" />
+            <span className="text-xs font-semibold text-green-300 uppercase tracking-wider">For Manufacturers</span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl font-bold mb-4 leading-tight">
+            Are You an EV Manufacturer?
+          </h2>
+          <p className="text-green-100 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+            List your company and vehicles on India&apos;s leading EV marketplace. Reach thousands of buyers, showcase your products, and grow your brand.
+          </p>
+          <Link
+            href="/register-company"
+            className="inline-flex items-center gap-2 bg-white text-[#0a2e14] hover:bg-green-50 font-bold px-8 py-3.5 rounded-xl text-base transition-all duration-300 hover:scale-105 shadow-lg"
+          >
+            Register Your Company
+            <ArrowRight size={18} />
+          </Link>
+          <div className="mt-10 grid grid-cols-3 gap-4 sm:gap-8 max-w-2xl mx-auto">
+            <div className="text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-green-400">53+</div>
+              <div className="text-xs text-green-200 mt-1">Brands Listed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-green-400">1000+</div>
+              <div className="text-xs text-green-200 mt-1">Daily Visitors</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-green-400">Free</div>
+              <div className="text-xs text-green-200 mt-1">To Register</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Ad Banner - Above Footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-8">
         <AdBanner position="homepage_above_footer" className="mx-auto" />
