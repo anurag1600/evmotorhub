@@ -40,7 +40,6 @@ export default function AdminNav() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Redirect if not admin
-  { label: 'Charging Submissions', href: '/admin/charging-submissions', icon: Zap },
   useEffect(() => {
     if (!loading && !isAdmin) {
       router.push('/admin/login');
