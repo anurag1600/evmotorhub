@@ -117,12 +117,12 @@ export default function ManufacturersManagementPage() {
           </div>
         </div>
 
-        <div className="admin-card p-4 mb-6 flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
+        <div className="admin-search-toolbar">
+          <div className="admin-search-field">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search manufacturers..." className="admin-input pl-9" />
           </div>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="admin-select">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="admin-filter-select">
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>

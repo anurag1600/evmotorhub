@@ -301,49 +301,47 @@ export default function VariantsAdminPage() {
         </div>
 
         {/* Top Filters - Vehicle Selection */}
-        <div className="admin-card p-4 mb-4">
-          <div className="flex flex-col lg:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={vehicleSearch}
-                onChange={e => setVehicleSearch(e.target.value)}
-                placeholder="Search vehicles..."
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-              />
-            </div>
-            <select
-              value={brandFilter}
-              onChange={e => setBrandFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-            >
-              <option value="">All Brands</option>
-              {manufacturers.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-            <select
-              value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-            >
-              <option value="">All Types</option>
-              <option value="scooter">Scooters</option>
-              <option value="bike">Bikes</option>
-              <option value="car">Cars</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-            >
-              <option value="">All Status</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
-            </select>
+        <div className="admin-search-toolbar mb-4">
+          <div className="admin-search-field">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={vehicleSearch}
+              onChange={e => setVehicleSearch(e.target.value)}
+              placeholder="Search vehicles..."
+              className="admin-input pl-9"
+            />
           </div>
+          <select
+            value={brandFilter}
+            onChange={e => setBrandFilter(e.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="">All Brands</option>
+            {manufacturers.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+          <select
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="">All Types</option>
+            <option value="scooter">Scooters</option>
+            <option value="bike">Bikes</option>
+            <option value="car">Cars</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="admin-filter-select"
+          >
+            <option value="">All Status</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+            <option value="archived">Archived</option>
+          </select>
         </div>
 
         {/* Vehicle Cards Grid */}
@@ -461,21 +459,21 @@ export default function VariantsAdminPage() {
             {/* Variant Filters */}
             <div className="admin-card p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex flex-1 gap-3">
-                  <div className="relative flex-1 max-w-sm">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div className="flex flex-1 gap-3 min-w-0">
+                  <div className="admin-search-field max-w-sm">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       value={variantSearch}
                       onChange={e => setVariantSearch(e.target.value)}
                       placeholder="Search variants..."
-                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                      className="admin-input pl-9"
                     />
                   </div>
                   <select
                     value={variantStatusFilter}
                     onChange={e => setVariantStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                    className="admin-filter-select"
                   >
                     <option value="all">All Status</option>
                     <option value="active">Active</option>
@@ -485,14 +483,14 @@ export default function VariantsAdminPage() {
                   <select
                     value={sortBy}
                     onChange={e => setSortBy(e.target.value as any)}
-                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
+                    className="admin-filter-select"
                   >
                     <option value="name">Sort: Name</option>
                     <option value="price">Sort: Price</option>
                     <option value="updated">Sort: Updated</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg flex-shrink-0">
                   <button
                     onClick={() => setViewMode('table')}
                     className={cn(

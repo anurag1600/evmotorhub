@@ -15,7 +15,6 @@ const adminMenuItems = [
   { label: 'Variant Management', href: '/admin/variants', icon: Power },
   { label: 'Manufacturers', href: '/admin/manufacturers', icon: Package },
   { label: 'Charging Stations', href: '/admin/charging', icon: Zap },
-  { label: 'Charging Submissions', href: '/admin/charging-submissions', icon: Zap },
   { label: 'Pricing', href: '/admin/pricing', icon: MapPin },
   { label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
   { label: 'Popular Comparisons', href: '/admin/comparisons', icon: Scale },
@@ -40,6 +39,7 @@ export default function AdminNav() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Redirect if not admin
+  { label: 'Charging Submissions', href: '/admin/charging-submissions', icon: Zap },
   useEffect(() => {
     if (!loading && !isAdmin) {
       router.push('/admin/login');

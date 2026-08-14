@@ -54,6 +54,30 @@
   @apply admin-input appearance-none cursor-pointer;
 }
 
+.admin-search-toolbar {
+  @apply admin-card p-4 mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center;
+}
+
+.admin-search-field {
+  @apply flex-1 relative min-w-0 sm:min-w-[280px] sm:max-w-xl;
+}
+
+.admin-filter-select {
+  @apply admin-select sm:w-auto sm:min-w-[160px] sm:flex-shrink-0;
+}
+
+.admin-search-toolbar {
+  @apply admin-card p-4 mb-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center;
+}
+
+.admin-search-field {
+  @apply flex-1 relative min-w-0 sm:min-w-[280px] sm:max-w-xl;
+}
+
+.admin-filter-select {
+  @apply admin-select sm:w-auto sm:min-w-[160px] sm:flex-shrink-0;
+}
+
 .admin-table {
   @apply w-full border-collapse;
 }

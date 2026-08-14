@@ -161,8 +161,8 @@ export default function AdvertisementsManagementPage() {
           </Link>
         </div>
 
-        <div className="admin-card p-4 mb-6 flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
+        <div className="admin-search-toolbar">
+          <div className="admin-search-field">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -172,7 +172,7 @@ export default function AdvertisementsManagementPage() {
               className="admin-input pl-9"
             />
           </div>
-          <select value={position} onChange={(e) => setPosition(e.target.value)} className="admin-select">
+          <select value={position} onChange={(e) => setPosition(e.target.value)} className="admin-filter-select">
             <option value="">All Positions</option>
             {AD_POSITIONS.map((pos) => (
               <option key={pos.value} value={pos.value}>{pos.label}</option>

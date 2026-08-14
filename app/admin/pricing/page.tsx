@@ -373,7 +373,7 @@ export default function PricingManagementPage() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search cities, states, pincodes..."
-                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                      className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm min-w-[280px]"
                     />
                   </div>
                   <button
@@ -586,7 +586,7 @@ export default function PricingManagementPage() {
                         value={profileSearchQuery}
                         onChange={(e) => setProfileSearchQuery(e.target.value)}
                         placeholder="Search profiles..."
-                        className="pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm w-64"
+                        className="pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm min-w-[280px]"
                       />
                     </div>
                     <select
