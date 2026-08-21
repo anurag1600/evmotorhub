@@ -58,6 +58,7 @@ export default function VehiclesPage() {
       const { data } = await supabase
         .from('vehicles')
         .select('price_min')
+        .eq('status', 'published')
         .gt('price_min', 0)
         .order('price_min', { ascending: true });
 
@@ -119,7 +120,8 @@ export default function VehiclesPage() {
     setLoading(true);
     let query = supabase
       .from('vehicles')
-      .select('*, manufacturers(name, slug)');
+      .select('*, manufacturers(name, slug)')
+      .eq('status', 'published');
 
     if (selectedType) query = query.eq('type', selectedType);
 

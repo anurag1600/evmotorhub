@@ -11,7 +11,7 @@ export const revalidate = 300;
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const [seo, { data }] = await Promise.all([
     getSeoSettings(),
-    supabase.from('vehicles').select('*, manufacturers(name)').eq('slug', params.slug).maybeSingle(),
+    supabase.from('vehicles').select('*, manufacturers(name)').eq('slug', params.slug).eq('status', 'published').maybeSingle(),
   ]);
 
   if (!data) return { title: 'Vehicle Not Found' };
@@ -80,6 +80,7 @@ async function getVehicle(slug: string) {
     .from('vehicles')
     .select('id, name, slug, type, segment, price_min, price_max, range_km, top_speed_kmh, charging_time_hrs, battery_capacity_kwh, motor_power_kw, image_url, image_gallery, gallery_urls, video_url, description, is_upcoming, is_latest, is_featured, launch_date, colors, specifications, features, pros, cons, related_news_ids, similar_vehicle_ids, default_variant_id, manufacturers(*)')
     .eq('slug', slug)
+    .eq('status', 'published')
     .maybeSingle();
   return data as (Vehicle & { manufacturers: any }) | null;
 }
@@ -97,6 +98,7 @@ async function getSimilarVehicles(type: string, excludeId: string) {
   const { data } = await supabase
     .from('vehicles')
     .select('id, name, slug, type, segment, price_min, price_max, range_km, image_url, is_upcoming, is_latest, manufacturers(name, slug)')
+    .eq('status', 'published')
     .eq('type', type)
     .neq('id', excludeId)
     .limit(4);

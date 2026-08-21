@@ -27,6 +27,7 @@ export default function EMICalculatorPage() {
     supabase
       .from('vehicles')
       .select('name, price_min')
+      .eq('status', 'published')
       .eq('is_upcoming', false)
       .order('is_featured', { ascending: false })
       .limit(8)

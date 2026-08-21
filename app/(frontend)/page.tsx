@@ -22,6 +22,7 @@ async function getData() {
     supabase
       .from('vehicles')
       .select('*, manufacturers(name, slug)')
+      .eq('status', 'published')
       .or('is_featured.eq.true,is_latest.eq.true')
       .order('is_featured', { ascending: false })
       .limit(8),
@@ -56,19 +57,20 @@ async function getData() {
   const upcomingRes = await supabase
     .from('vehicles')
     .select('*, manufacturers(name, slug)')
+    .eq('status', 'published')
     .eq('is_upcoming', true)
     .limit(4);
 
   const [vehicleCountRes, manufacturerCountRes, newsCountRes] = await Promise.all([
-    supabase.from('vehicles').select('id', { count: 'exact', head: true }),
+    supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published'),
     supabase.from('manufacturers').select('id', { count: 'exact', head: true }),
     supabase.from('news').select('id', { count: 'exact', head: true }),
   ]);
 
   // Get vehicle counts per type for categories
-  const scooterCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'scooter');
-  const bikeCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'bike');
-  const carCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'car');
+  const scooterCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published').eq('type', 'scooter');
+  const bikeCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published').eq('type', 'bike');
+  const carCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published').eq('type', 'car');
 
   const vehicleCounts: Record<string, number> = {
     scooter: scooterCountRes.count || 0,
@@ -79,8 +81,8 @@ async function getData() {
   const comparisons = await Promise.all(
     (comparisonsRes.data || []).map(async (comp) => {
       const [v1Res, v2Res] = await Promise.all([
-        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('slug', comp.vehicle1_slug).maybeSingle(),
-        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('slug', comp.vehicle2_slug).maybeSingle(),
+        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('status', 'published').eq('slug', comp.vehicle1_slug).maybeSingle(),
+        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('status', 'published').eq('slug', comp.vehicle2_slug).maybeSingle(),
       ]);
       if (!v1Res.data || !v2Res.data) return null;
       return { ...comp, vehicle1: v1Res.data, vehicle2: v2Res.data };
