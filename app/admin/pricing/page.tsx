@@ -6,6 +6,7 @@ import { PricingState, PricingCity, VehiclePricingCategory } from '@/lib/types';
 import { usePricingProfiles } from '@/hooks/usePricingProfiles';
 import PricingProfileDrawer from '@/components/admin/PricingProfileDrawer';
 import VersionHistoryModal from '@/components/admin/VersionHistoryModal';
+import PricingBulkUpload from '@/components/admin/PricingBulkUpload';
 import { MapPin, Plus, Pencil, Trash2, Loader as Loader2, X, Star, Eye, EyeOff, Percent, IndianRupee, Gift, Car, Bike, CircleDot, ChevronDown, ChevronUp, Settings, History, Copy, Archive, CircleCheck as CheckCircle, Clock, Filter, Search, Download, Upload, MoveVertical as MoreVertical, Calculator } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -376,17 +377,25 @@ export default function PricingManagementPage() {
                       className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm min-w-[280px]"
                     />
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowCityForm(true);
-                      setEditingCity(null);
-                      setCityForm({ state_name: '', state_code: '', name: '', pincode: '', is_popular: false, is_active: true });
-                    }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all text-sm"
-                  >
-                    <Plus size={16} />
-                    Add City
-                  </button>
+                  <div className="flex gap-2">
+                    <PricingBulkUpload
+                      type="cities"
+                      states={states}
+                      cities={cities}
+                      onImported={fetchData}
+                    />
+                    <button
+                      onClick={() => {
+                        setShowCityForm(true);
+                        setEditingCity(null);
+                        setCityForm({ state_name: '', state_code: '', name: '', pincode: '', is_popular: false, is_active: true });
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all text-sm"
+                    >
+                      <Plus size={16} />
+                      Add City
+                    </button>
+                  </div>
                 </div>
 
                 {/* City Form */}
@@ -621,13 +630,21 @@ export default function PricingManagementPage() {
                     </select>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenProfileDrawer('create')}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all text-sm"
-                  >
-                    <Plus size={16} />
-                    Create Profile
-                  </button>
+                  <div className="flex gap-2">
+                    <PricingBulkUpload
+                      type="profiles"
+                      states={states}
+                      cities={cities}
+                      onImported={() => fetchProfiles(profileFilter)}
+                    />
+                    <button
+                      onClick={() => handleOpenProfileDrawer('create')}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all text-sm"
+                    >
+                      <Plus size={16} />
+                      Create Profile
+                    </button>
+                  </div>
                 </div>
 
                 {/* Profiles List */}
