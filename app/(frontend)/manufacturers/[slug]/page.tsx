@@ -66,7 +66,6 @@ export default async function ManufacturerDetailPage({ params }: { params: { slu
         <ImageWithFallback
           src={manufacturer.hero_image_url}
           alt={manufacturer.name}
-          fallbackCategory="manufacturer"
           fill
           className="object-cover"
           sizes="100vw"
