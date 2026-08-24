@@ -5,22 +5,26 @@ import { useState, useEffect } from 'react';
 
 const PLACEHOLDER_SVG = '/no-image-found.svg';
 
-export function getPlaceholderImage(): string {
+export function getPlaceholderImage(
+  fallbackCategory?: string
+): string {
   return PLACEHOLDER_SVG;
 }
 
 interface ImageWithFallbackProps extends Omit<ImageProps, 'onError' | 'src'> {
   src: string | null | undefined;
   fallbackSrc?: string;
+  fallbackCategory?: string;
 }
 
 export default function ImageWithFallback({
   src,
   fallbackSrc,
+  fallbackCategory,
   alt,
   ...props
 }: ImageWithFallbackProps) {
-  const resolvedSrc = src || fallbackSrc || PLACEHOLDER_SVG;
+  const resolvedSrc = src || fallbackSrc || getPlaceholderImage(fallbackCategory);
   const [imgSrc, setImgSrc] = useState(resolvedSrc);
   const [errored, setErrored] = useState(false);
 
