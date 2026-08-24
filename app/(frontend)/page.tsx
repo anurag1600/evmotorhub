@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   ArrowRight, Zap, Search,
   Car, Bike, Scale, Calculator, MapPin, ChevronRight,
@@ -22,6 +21,7 @@ async function getData() {
     supabase
       .from('vehicles')
       .select('*, manufacturers(name, slug)')
+      .eq('status', 'published')
       .or('is_featured.eq.true,is_latest.eq.true')
       .order('is_featured', { ascending: false })
       .limit(8),
@@ -56,19 +56,20 @@ async function getData() {
   const upcomingRes = await supabase
     .from('vehicles')
     .select('*, manufacturers(name, slug)')
+    .eq('status', 'published')
     .eq('is_upcoming', true)
     .limit(4);
 
   const [vehicleCountRes, manufacturerCountRes, newsCountRes] = await Promise.all([
-    supabase.from('vehicles').select('id', { count: 'exact', head: true }),
+    supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published'),
     supabase.from('manufacturers').select('id', { count: 'exact', head: true }),
     supabase.from('news').select('id', { count: 'exact', head: true }),
   ]);
 
   // Get vehicle counts per type for categories
-  const scooterCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'scooter');
-  const bikeCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'bike');
-  const carCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('type', 'car');
+  const scooterCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published').eq('type', 'scooter');
+  const bikeCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published').eq('type', 'bike');
+  const carCountRes = await supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published').eq('type', 'car');
 
   const vehicleCounts: Record<string, number> = {
     scooter: scooterCountRes.count || 0,
@@ -79,8 +80,8 @@ async function getData() {
   const comparisons = await Promise.all(
     (comparisonsRes.data || []).map(async (comp) => {
       const [v1Res, v2Res] = await Promise.all([
-        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('slug', comp.vehicle1_slug).maybeSingle(),
-        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('slug', comp.vehicle2_slug).maybeSingle(),
+        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('slug', comp.vehicle1_slug).eq('status', 'published').maybeSingle(),
+        supabase.from('vehicles').select('*, manufacturers(name, slug)').eq('slug', comp.vehicle2_slug).eq('status', 'published').maybeSingle(),
       ]);
       if (!v1Res.data || !v2Res.data) return null;
       return { ...comp, vehicle1: v1Res.data, vehicle2: v2Res.data };
@@ -182,7 +183,7 @@ export default async function HomePage() {
             <div className="grid sm:grid-cols-3 gap-5 md:gap-6">
               {categories.map((cat) => (
                 <Link key={cat.id} href={cat.link_url} className="group relative rounded-3xl overflow-hidden h-60 sm:h-72 block shadow-lg shadow-gray-200/50">
-                  <Image
+                  <ImageWithFallback
                     src={cat.image_url}
                     alt={cat.title}
                     fill
@@ -456,7 +457,7 @@ export default async function HomePage() {
                 className="group bg-white rounded-2xl border border-gray-100 p-5 flex flex-col items-center gap-3 hover:border-green-300 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 text-center hover:-translate-y-1"
               >
                 <div className="w-14 h-14 relative rounded-2xl overflow-hidden bg-gray-50 ring-1 ring-gray-100 group-hover:ring-green-200 transition-all">
-                  <Image
+                  <ImageWithFallback
                     src={m.logo_url || m.hero_image_url}
                     alt={m.name}
                     fill

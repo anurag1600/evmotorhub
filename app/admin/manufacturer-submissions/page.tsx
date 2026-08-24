@@ -277,7 +277,7 @@ export default function ManufacturerSubmissionsPage() {
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div className="flex items-center gap-3">
                           {submission.logo_url ? (
-                            <img src={submission.logo_url} alt={submission.company_name} className="w-12 h-12 rounded-lg object-cover bg-gray-50" />
+                            <img src={submission.logo_url} alt={submission.company_name} className="w-12 h-12 rounded-lg object-cover bg-gray-50" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           ) : (
                             <div className="w-12 h-12 rounded-lg bg-[#145a2c]/10 flex items-center justify-center">
                               <Building2 size={20} className="text-[#145a2c]" />
@@ -384,7 +384,7 @@ export default function ManufacturerSubmissionsPage() {
               {/* Company header */}
               <div className="flex items-center gap-4">
                 {selected.logo_url ? (
-                  <img src={selected.logo_url} alt={selected.company_name} className="w-16 h-16 rounded-xl object-cover bg-gray-50" />
+                  <img src={selected.logo_url} alt={selected.company_name} className="w-16 h-16 rounded-xl object-cover bg-gray-50" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                 ) : (
                   <div className="w-16 h-16 rounded-xl bg-[#145a2c]/10 flex items-center justify-center">
                     <Building2 size={28} className="text-[#145a2c]" />
@@ -402,7 +402,7 @@ export default function ManufacturerSubmissionsPage() {
               {selected.hero_image_url && (
                 <div>
                   <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Hero Banner</p>
-                  <img src={selected.hero_image_url} alt="Hero" className="w-full h-32 object-cover rounded-xl" />
+                  <img src={selected.hero_image_url} alt="Hero" className="w-full h-32 object-cover rounded-xl" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                 </div>
               )}
 

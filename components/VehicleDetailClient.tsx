@@ -7,10 +7,11 @@ import {
   Zap, Gauge, Battery, Clock, MapPin, ChevronRight, Scale, Calculator, ShoppingBag,
   ThumbsUp, ThumbsDown, Check, X, ChevronDown, Search, TrendingUp, Palette, ChevronLeft, FileText
 } from 'lucide-react';
-import { Vehicle, VehicleVariant, PricingState, PricingCity, NewsArticle, PricingRule, PricingSlab, PricingSubsidy, VehiclePricingCategory, OnRoadPriceBreakdown } from '@/lib/types';
+import { Vehicle, VehicleVariant, PricingState, PricingCity, NewsArticle, VehiclePricingCategory, OnRoadPriceBreakdown } from '@/lib/types';
 import { formatPrice, getVehicleTypeLabel, getSegmentLabel, getSegmentColor } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { findPricingProfile, calculateOnRoadPrice, PriceBreakdown as ProfilePriceBreakdown } from '@/lib/pricingCalculator';
 import OfferEnquiryModal from '@/components/OfferEnquiryModal';
 
 interface VehicleDetailClientProps {
@@ -72,10 +73,9 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
   const [adminSimilarVehicles, setAdminSimilarVehicles] = useState<any[]>([]);
   const [cities, setCities] = useState<PricingCity[]>([]);
-  const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
-  const [pricingSlabs, setPricingSlabs] = useState<PricingSlab[]>([]);
-  const [pricingSubsidies, setPricingSubsidies] = useState<PricingSubsidy[]>([]);
   const [citySearch, setCitySearch] = useState('');
+  const [profileBreakdown, setProfileBreakdown] = useState<ProfilePriceBreakdown | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
   const [advertisement, setAdvertisement] = useState<any>(null);
 
   // EMI
@@ -131,132 +131,59 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
     return 'electric_bike';
   }, [vehicle.type]);
 
-  // Price calculation using new percentage-based system
+  // Price calculation using pricing profiles from Supabase
   const priceBreakdown: OnRoadPriceBreakdown = useMemo(() => {
     const exShowroom = display.price;
 
-    if (!selectedCity) {
-      // Default fallback if no city selected
+    if (!profileBreakdown) {
+      // No profile matched — show ex-showroom only, no fake charges
       return {
         ex_showroom: exShowroom,
-        rto: Math.round(exShowroom * 0.08),
-        rto_percentage: 8,
-        insurance: Math.round(exShowroom * 0.035),
-        insurance_percentage: 3.5,
-        registration: 1000,
-        hsrp: 500,
-        fastag: vehicle.type === 'car' ? 500 : 0,
-        other: 1000,
+        rto: 0,
+        rto_percentage: 0,
+        insurance: 0,
+        insurance_percentage: 0,
+        registration: 0,
+        hsrp: 0,
+        fastag: 0,
+        other: 0,
         subsidy: 0,
         subsidy_description: null,
-        on_road: Math.round(exShowroom * 1.125) + 1500,
+        on_road: exShowroom,
         breakdown: {
-          show_rto: true,
-          show_insurance: true,
-          show_registration: true,
-          show_hsrp: true,
-          show_fastag: vehicle.type === 'car',
-          show_other: true,
+          show_rto: false,
+          show_insurance: false,
+          show_registration: false,
+          show_hsrp: false,
+          show_fastag: false,
+          show_other: false,
         },
       };
     }
-
-    // Find rule for this city + category
-    const rule = pricingRules.find(r => r.city_id === selectedCity.id && r.vehicle_category === vehiclePricingCategory);
-
-    if (!rule) {
-      // Fallback to state percentages or defaults
-      const rtoPct = selectedState?.rto_percentage || 8;
-      const insPct = selectedState?.road_tax_percentage || 3.5;
-      return {
-        ex_showroom: exShowroom,
-        rto: Math.round(exShowroom * rtoPct / 100),
-        rto_percentage: rtoPct,
-        insurance: Math.round(exShowroom * insPct / 100),
-        insurance_percentage: insPct,
-        registration: 1000,
-        hsrp: 500,
-        fastag: vehicle.type === 'car' ? 500 : 0,
-        other: selectedState?.other_charges || 1000,
-        subsidy: selectedState?.subsidy_amount || 0,
-        subsidy_description: null,
-        on_road: Math.round(exShowroom * (1 + rtoPct / 100 + insPct / 100)) + 2000 - (selectedState?.subsidy_amount || 0),
-        breakdown: {
-          show_rto: true,
-          show_insurance: true,
-          show_registration: true,
-          show_hsrp: true,
-          show_fastag: vehicle.type === 'car',
-          show_other: true,
-        },
-      };
-    }
-
-    // Find applicable tax slab
-    const applicableSlab = pricingSlabs.find(s =>
-      s.rule_id === rule.id &&
-      s.is_active &&
-      exShowroom >= s.min_price &&
-      (s.max_price === null || exShowroom <= s.max_price)
-    );
-
-    const taxPercentage = applicableSlab?.tax_percentage || rule.rto_percentage;
-
-    // Calculate RTO
-    const rto = rule.show_rto ? Math.round(exShowroom * taxPercentage / 100) : 0;
-
-    // Calculate Insurance
-    const insurance = rule.show_insurance ? Math.round(exShowroom * rule.insurance_percentage / 100) : 0;
-
-    // Fixed charges
-    const registration = rule.show_registration ? rule.registration_fee : 0;
-    const hsrp = rule.show_hsrp ? rule.hsrp_fee : 0;
-    const fastag = rule.show_fastag ? rule.fastag_fee : 0;
-    const other = rule.show_other ? rule.other_charges : 0;
-
-    // Find subsidy
-    const subsidyRecord = pricingSubsidies.find(s =>
-      s.city_id === selectedCity.id &&
-      s.vehicle_category === vehiclePricingCategory &&
-      s.is_active
-    );
-
-    let subsidy = 0;
-    let subsidyDescription: string | null = null;
-    if (subsidyRecord) {
-      subsidyDescription = subsidyRecord.description;
-      if (subsidyRecord.subsidy_type === 'fixed') {
-        subsidy = subsidyRecord.value;
-      } else {
-        subsidy = Math.round(exShowroom * subsidyRecord.value / 100);
-      }
-    }
-
-    const on_road = exShowroom + rto + insurance + registration + hsrp + fastag + other - subsidy;
 
     return {
-      ex_showroom: exShowroom,
-      rto,
-      rto_percentage: taxPercentage,
-      insurance,
-      insurance_percentage: rule.insurance_percentage,
-      registration,
-      hsrp,
-      fastag,
-      other,
-      subsidy,
-      subsidy_description: subsidyDescription,
-      on_road: on_road,
+      ex_showroom: profileBreakdown.ex_showroom,
+      rto: profileBreakdown.rto,
+      rto_percentage: profileBreakdown.rto_percentage,
+      insurance: profileBreakdown.insurance,
+      insurance_percentage: profileBreakdown.insurance_percentage,
+      registration: profileBreakdown.registration,
+      hsrp: profileBreakdown.hsrp,
+      fastag: profileBreakdown.fastag,
+      other: profileBreakdown.other + profileBreakdown.handling + profileBreakdown.dealer + profileBreakdown.delivery + profileBreakdown.accessories + profileBreakdown.misc,
+      subsidy: profileBreakdown.subsidy,
+      subsidy_description: profileBreakdown.subsidy_description,
+      on_road: profileBreakdown.on_road,
       breakdown: {
-        show_rto: rule.show_rto,
-        show_insurance: rule.show_insurance,
-        show_registration: rule.show_registration,
-        show_hsrp: rule.show_hsrp,
-        show_fastag: rule.show_fastag,
-        show_other: rule.show_other,
+        show_rto: profileBreakdown.breakdown.show_rto,
+        show_insurance: profileBreakdown.breakdown.show_insurance,
+        show_registration: profileBreakdown.breakdown.show_registration,
+        show_hsrp: profileBreakdown.breakdown.show_hsrp,
+        show_fastag: profileBreakdown.breakdown.show_fastag,
+        show_other: profileBreakdown.breakdown.show_other || profileBreakdown.breakdown.show_handling || profileBreakdown.breakdown.show_dealer || profileBreakdown.breakdown.show_delivery || profileBreakdown.breakdown.show_accessories || profileBreakdown.breakdown.show_misc,
       },
     };
-  }, [display.price, selectedCity, selectedState, pricingRules, pricingSlabs, pricingSubsidies, vehiclePricingCategory, vehicle.type]);
+  }, [profileBreakdown, display.price]);
 
   // Legacy compatibility for EMI calculator
   const legacyPriceBreakdown = useMemo(() => ({
@@ -289,22 +216,14 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
       }
 
       if (vehicle.similar_vehicle_ids?.length) {
-        const { data } = await supabase.from('vehicles').select('*, manufacturers(name, slug)').in('id', vehicle.similar_vehicle_ids);
+        const { data } = await supabase.from('vehicles').select('*, manufacturers(name, slug)').in('id', vehicle.similar_vehicle_ids).eq('status', 'published');
         if (data) setAdminSimilarVehicles(vehicle.similar_vehicle_ids!.map(id => data.find(v => v.id === id)).filter(Boolean));
       } else {
         setAdminSimilarVehicles(similar.filter(v => v.type === vehicle.type).slice(0, 4));
       }
 
-      const [allCitiesRes, rulesRes, slabsRes, subsidiesRes] = await Promise.all([
-        supabase.from('pricing_cities').select('*, state:pricing_states(*)').eq('is_active', true).order('is_popular', { ascending: false }).order('name'),
-        supabase.from('pricing_rules').select('*').eq('is_active', true),
-        supabase.from('pricing_slabs').select('*').eq('is_active', true),
-        supabase.from('pricing_subsidies').select('*').eq('is_active', true),
-      ]);
+      const allCitiesRes = await supabase.from('pricing_cities').select('*, state:pricing_states(*)').eq('is_active', true).order('is_popular', { ascending: false }).order('name');
       if (allCitiesRes.data) setCities(allCitiesRes.data as PricingCity[]);
-      if (rulesRes.data) setPricingRules(rulesRes.data as PricingRule[]);
-      if (slabsRes.data) setPricingSlabs(slabsRes.data as PricingSlab[]);
-      if (subsidiesRes.data) setPricingSubsidies(subsidiesRes.data as PricingSubsidy[]);
 
       const today = new Date().toISOString().split('T')[0];
       const { data: ads } = await supabase.from('advertisements').select('*').eq('is_active', true).eq('ad_position', 'vehicle_sidebar').or(`end_date.is.null,end_date.gte.${today}`).order('sort_order', { ascending: true }).limit(1);
@@ -394,7 +313,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
             {/* Left: Gallery - Compact */}
             <div className="w-full lg:w-[45%]">
               <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 group">
-                <img src={galleryImages[currentImageIndex]} alt={vehicle.name} className="w-full h-full object-contain" />
+                <img src={galleryImages[currentImageIndex]} alt={vehicle.name} className="w-full h-full object-contain" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                 {galleryImages.length > 1 && (
                   <>
                     <button onClick={prevImage} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
@@ -423,7 +342,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                 <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
                   {galleryImages.map((img, i) => (
                     <button key={i} onClick={() => setCurrentImageIndex(i)} className={cn('w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border-2 transition-all', i === currentImageIndex ? 'border-[#145a2c] ring-1 ring-green-200' : 'border-transparent hover:border-gray-300')}>
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                     </button>
                   ))}
                 </div>
@@ -638,7 +557,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                       <div key={v.id} className={cn('border rounded-lg p-3 transition-all', isSelected ? 'border-[#145a2c] bg-green-50' : 'border-gray-200 hover:border-gray-300')}>
                         <div className="flex flex-col sm:flex-row gap-3">
                           {v.image_url && (
-                            <img src={v.image_url} alt={v.name} className="w-full sm:w-24 h-20 rounded-lg object-cover bg-gray-100" />
+                            <img src={v.image_url} alt={v.name} className="w-full sm:w-24 h-20 rounded-lg object-cover bg-gray-100" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -755,7 +674,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                       <Link key={v.id} href={`/vehicles/${v.slug}`} className="block group">
                         <div className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100">
                           {v.image_url ? (
-                            <img src={v.image_url} alt={v.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                            <img src={v.image_url} alt={v.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           ) : (
                             <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                               <Zap size={20} className="text-gray-300" />
@@ -787,7 +706,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                     {relatedNews.slice(0, 3).map((article) => (
                       <Link key={article.id} href={`/news/${article.slug}`} className="block group">
                         <div className="flex gap-2.5">
-                          <img src={article.image_url} alt="" className="w-14 h-10 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                          <img src={article.image_url} alt="" className="w-14 h-10 rounded-lg object-cover bg-gray-100 flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-gray-500 uppercase font-semibold">{article.category}</p>
                             <p className="text-sm font-medium text-gray-900 group-hover:text-[#145a2c] line-clamp-2 transition-colors">{article.title}</p>
@@ -805,7 +724,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                   <div className="text-[10px] text-gray-400 text-center py-1.5 bg-gray-50 uppercase tracking-wide">Advertisement</div>
                   {advertisement.image_url && (
                     <a href={advertisement.link_url || '#'} target="_blank" rel="noopener noreferrer" className="block">
-                      <img src={advertisement.image_url} alt={advertisement.title} className="w-full aspect-square object-cover" />
+                      <img src={advertisement.image_url} alt={advertisement.title} className="w-full aspect-square object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                     </a>
                   )}
                 </section>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Search, X, Plus, Minus, Scale, Zap, Gauge, Battery, Clock, CircleCheck as CheckCircle2, Circle as XCircle, ChevronDown } from 'lucide-react';
@@ -90,6 +90,8 @@ export default function ComparePage() {
       .from('vehicles')
       .select('*, manufacturers(name)')
       .eq('slug', slug)
+      .eq('status', 'published')
+      .eq('status', 'published')
       .maybeSingle();
     if (data) {
       const { data: variants } = await supabase
@@ -253,7 +255,7 @@ export default function ComparePage() {
                       className="flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-green-50 transition-colors border-b border-gray-50 last:border-0"
                     >
                       <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image src={v.image_url} alt={v.name} fill className="object-cover" sizes="40px" />
+                        <ImageWithFallback src={v.image_url} alt={v.name} fill className="object-cover" sizes="40px" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-gray-900">{v.name}</div>
@@ -268,7 +270,7 @@ export default function ComparePage() {
               <div className="mt-3 bg-white rounded-xl border border-green-200 p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                    <Image src={(selectedVariant?.image_url || selected.image_url)} alt={selected.name} fill className="object-cover" sizes="64px" />
+                    <ImageWithFallback src={(selectedVariant?.image_url || selected.image_url)} alt={selected.name} fill className="object-cover" sizes="64px" />
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900">{selected.name}</div>
@@ -324,7 +326,7 @@ export default function ComparePage() {
                       className="flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-green-50 transition-colors border-b border-gray-50 last:border-0"
                     >
                       <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image src={v.image_url} alt={v.name} fill className="object-cover" sizes="40px" />
+                        <ImageWithFallback src={v.image_url} alt={v.name} fill className="object-cover" sizes="40px" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-gray-900">{v.name}</div>
@@ -339,7 +341,7 @@ export default function ComparePage() {
               <div className="mt-3 bg-white rounded-xl border border-blue-200 p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                    <Image src={(comparedVariant?.image_url || compared.image_url)} alt={compared.name} fill className="object-cover" sizes="64px" />
+                    <ImageWithFallback src={(comparedVariant?.image_url || compared.image_url)} alt={compared.name} fill className="object-cover" sizes="64px" />
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900">{compared.name}</div>
@@ -385,7 +387,7 @@ export default function ComparePage() {
               </div>
               <div className="p-4 border-r border-gray-100 bg-green-50">
                 <div className="relative h-28 rounded-xl overflow-hidden mb-3">
-                  <Image src={(selectedVariant?.image_url || selected.image_url)} alt={selected.name} fill className="object-cover" sizes="200px" />
+                  <ImageWithFallback src={(selectedVariant?.image_url || selected.image_url)} alt={selected.name} fill className="object-cover" sizes="200px" />
                 </div>
                 <div className="font-bold text-[#145a2c] text-sm">{selected.name}</div>
                 {selectedVariant && <div className="text-xs text-green-600">{selectedVariant.name}</div>}
@@ -393,7 +395,7 @@ export default function ComparePage() {
               </div>
               <div className="p-4 bg-blue-50">
                 <div className="relative h-28 rounded-xl overflow-hidden mb-3">
-                  <Image src={(comparedVariant?.image_url || compared.image_url)} alt={compared.name} fill className="object-cover" sizes="200px" />
+                  <ImageWithFallback src={(comparedVariant?.image_url || compared.image_url)} alt={compared.name} fill className="object-cover" sizes="200px" />
                 </div>
                 <div className="font-bold text-blue-700 text-sm">{compared.name}</div>
                 {comparedVariant && <div className="text-xs text-blue-600">{comparedVariant.name}</div>}
@@ -532,12 +534,12 @@ export default function ComparePage() {
                 >
                   <div className="text-sm flex items-center gap-2">
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image src={comp.vehicle1.image_url} alt={comp.vehicle1.name} fill className="object-cover" sizes="40px" />
+                      <ImageWithFallback src={comp.vehicle1.image_url} alt={comp.vehicle1.name} fill className="object-cover" sizes="40px" />
                     </div>
                     <span className="font-semibold text-gray-900">{comp.vehicle1.name}</span>
                     <span className="text-gray-400 mx-1">vs</span>
                     <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image src={comp.vehicle2.image_url} alt={comp.vehicle2.name} fill className="object-cover" sizes="40px" />
+                      <ImageWithFallback src={comp.vehicle2.image_url} alt={comp.vehicle2.name} fill className="object-cover" sizes="40px" />
                     </div>
                     <span className="font-semibold text-gray-900">{comp.vehicle2.name}</span>
                   </div>

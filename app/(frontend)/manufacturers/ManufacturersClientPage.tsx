@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { ArrowRight, Car, Calendar, Zap, Building2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -34,7 +34,8 @@ export default function ManufacturersClientPage() {
       // Get vehicle counts per manufacturer per type
       const { data: vehiclesData } = await supabase
         .from('vehicles')
-        .select('manufacturer_id, type');
+        .select('manufacturer_id, type')
+        .eq('status', 'published');
 
       // Aggregate counts
       const countsMap: Record<string, { scooter: number; bike: number; car: number }> = {};
@@ -148,7 +149,7 @@ export default function ManufacturersClientPage() {
                       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300">
                         {/* Hero Image */}
                         <div className="relative h-36 overflow-hidden bg-gradient-to-br from-gray-50 to-green-50">
-                          <Image
+                          <ImageWithFallback
                             src={m.hero_image_url}
                             alt={m.name}
                             fill
@@ -220,7 +221,7 @@ export default function ManufacturersClientPage() {
                       <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-green-200 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-12 h-12 relative rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                            <Image src={m.logo_url || m.hero_image_url} alt={m.name} fill className="object-cover" sizes="48px" />
+                            <ImageWithFallback src={m.logo_url || m.hero_image_url} alt={m.name} fill className="object-cover" sizes="48px" />
                           </div>
                           <div>
                             <h3 className="font-semibold text-gray-900 text-sm group-hover:text-[#145a2c] transition-colors">{m.name}</h3>

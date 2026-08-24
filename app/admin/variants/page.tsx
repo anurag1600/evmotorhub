@@ -369,7 +369,7 @@ export default function VariantsAdminPage() {
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0">
                     {vehicle.image_url ? (
-                      <img src={vehicle.image_url} alt={vehicle.name} className="w-14 h-14 rounded-lg object-cover" />
+                      <img src={vehicle.image_url} alt={vehicle.name} className="w-14 h-14 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                     ) : (
                       <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center">
                         <Car size={20} className="text-gray-400" />
@@ -420,7 +420,7 @@ export default function VariantsAdminPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   {selectedVehicle.image_url ? (
-                    <img src={selectedVehicle.image_url} alt={selectedVehicle.name} className="w-16 h-16 rounded-xl object-cover" />
+                    <img src={selectedVehicle.image_url} alt={selectedVehicle.name} className="w-16 h-16 rounded-xl object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                   ) : (
                     <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center">
                       <Car size={24} className="text-gray-300" />
@@ -562,7 +562,7 @@ export default function VariantsAdminPage() {
                           <td>
                             <div className="relative">
                               {variant.image_url ? (
-                                <img src={variant.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover" />
+                                <img src={variant.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                               ) : (
                                 <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
                                   <ImageIcon size={16} className="text-gray-300" />
@@ -671,7 +671,7 @@ export default function VariantsAdminPage() {
                     <div className="flex items-start gap-3">
                       <div className="relative flex-shrink-0">
                         {variant.image_url ? (
-                          <img src={variant.image_url} alt={variant.name} className="w-16 h-16 rounded-lg object-cover" />
+                          <img src={variant.image_url} alt={variant.name} className="w-16 h-16 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                         ) : (
                           <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
                             <ImageIcon size={20} className="text-gray-300" />

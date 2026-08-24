@@ -775,7 +775,7 @@ export default function VariantDrawer({
                   <div className="grid grid-cols-4 gap-2">
                     {(formData.gallery_urls || []).map((url, i) => (
                       <div key={i} className="relative group">
-                        <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-gray-200" />
+                        <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-gray-200" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                         <button
                           type="button"
                           onClick={() => removeGalleryUrl(i)}

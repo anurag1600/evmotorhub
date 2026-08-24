@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { ContentBlock } from '@/lib/types';
 
@@ -85,7 +85,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
         <figure className="mb-4">
           {d.url && (
             <div className="relative rounded-xl overflow-hidden h-64 sm:h-80">
-              <Image src={d.url} alt={d.alt || d.caption || 'Article image'} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 65vw" unoptimized />
+              <ImageWithFallback src={d.url} alt={d.alt || d.caption || 'Article image'} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 65vw" />
             </div>
           )}
           {d.caption && <figcaption className="text-xs text-gray-500 mt-2 text-center">{d.caption}</figcaption>}
@@ -153,7 +153,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
           <div className="flex flex-col sm:flex-row">
             {d.image_url && (
               <div className="relative w-full sm:w-48 h-48 sm:h-auto flex-shrink-0">
-                <Image src={d.image_url} alt={d.title || 'Product'} fill className="object-cover" sizes="200px" unoptimized />
+                <ImageWithFallback src={d.image_url} alt={d.title || 'Product'} fill className="object-cover" sizes="200px" />
               </div>
             )}
             <div className="p-5 flex-1">
@@ -216,7 +216,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
             {(d.images || []).map((img: { url: string; caption: string }, i: number) => (
               img.url ? (
                 <figure key={i} className="relative rounded-xl overflow-hidden h-40 sm:h-48">
-                  <Image src={img.url} alt={img.caption || ''} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="(max-width: 640px) 50vw, 33vw" unoptimized />
+                  <ImageWithFallback src={img.url} alt={img.caption || ''} fill className="object-cover hover:scale-105 transition-transform duration-300" sizes="(max-width: 640px) 50vw, 33vw" />
                   {img.caption && (
                     <figcaption className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs px-3 py-1.5">
                       {img.caption}

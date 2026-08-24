@@ -448,7 +448,7 @@ export default function ManufacturerRegistrationClient() {
               <div className="bg-gray-50 rounded-xl p-5 space-y-3">
                 <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
                   {formData.logo_url ? (
-                    <img src={formData.logo_url} alt="Logo" className="w-12 h-12 rounded-lg object-cover bg-white" />
+                    <img src={formData.logo_url} alt="Logo" className="w-12 h-12 rounded-lg object-cover bg-white" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                   ) : (
                     <div className="w-12 h-12 rounded-lg bg-[#145a2c]/10 flex items-center justify-center">
                       <Building2 size={20} className="text-[#145a2c]" />

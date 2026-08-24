@@ -38,6 +38,8 @@ export default async function ManufacturerDetailPage({ params }: { params: { slu
     .from('vehicles')
     .select('*, manufacturers(name, slug)')
     .eq('manufacturer_id', manufacturer.id)
+    .eq('status', 'published')
+    .eq('status', 'published')
     .order('is_featured', { ascending: false });
 
   const allVehicles = (vehicles || []) as (Vehicle & { manufacturers: { name: string; slug: string } })[];

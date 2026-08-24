@@ -1,41 +1,38 @@
 'use client';
 
 import Image, { ImageProps } from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-const PLACEHOLDER_SCOOTER = 'https://images.pexels.com/photos/3802510/pexels-photo-3802510.jpeg?auto=compress&cs=tinysrgb&w=600';
-const PLACEHOLDER_CAR = 'https://images.pexels.com/photos/3422964/pexels-photo-3422964.jpeg?auto=compress&cs=tinysrgb&w=600';
-const PLACEHOLDER_NEWS = 'https://images.pexels.com/photos/97075/pexels-photo-97075.jpeg?auto=compress&cs=tinysrgb&w=600';
-const PLACEHOLDER_GENERAL = 'https://images.pexels.com/photos/1105325/pexels-photo-1105325.jpeg?auto=compress&cs=tinysrgb&w=600';
+const PLACEHOLDER_SVG = '/no-image-found.svg';
 
-export function getPlaceholderImage(category: 'vehicle' | 'news' | 'manufacturer' | 'general' = 'general'): string {
-  switch (category) {
-    case 'vehicle': return PLACEHOLDER_SCOOTER;
-    case 'news': return PLACEHOLDER_NEWS;
-    case 'manufacturer': return PLACEHOLDER_GENERAL;
-    default: return PLACEHOLDER_GENERAL;
-  }
+export function getPlaceholderImage(): string {
+  return PLACEHOLDER_SVG;
 }
 
-interface ImageWithFallbackProps extends Omit<ImageProps, 'onError'> {
-  fallbackCategory?: 'vehicle' | 'news' | 'manufacturer' | 'general';
+interface ImageWithFallbackProps extends Omit<ImageProps, 'onError' | 'src'> {
+  src: string | null | undefined;
   fallbackSrc?: string;
 }
 
 export default function ImageWithFallback({
   src,
-  fallbackCategory = 'general',
   fallbackSrc,
   alt,
   ...props
 }: ImageWithFallbackProps) {
-  const [imgSrc, setImgSrc] = useState(src || fallbackSrc || getPlaceholderImage(fallbackCategory));
+  const resolvedSrc = src || fallbackSrc || PLACEHOLDER_SVG;
+  const [imgSrc, setImgSrc] = useState(resolvedSrc);
   const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src || fallbackSrc || PLACEHOLDER_SVG);
+    setErrored(false);
+  }, [src, fallbackSrc]);
 
   const handleError = () => {
     if (!errored) {
       setErrored(true);
-      setImgSrc(fallbackSrc || getPlaceholderImage(fallbackCategory));
+      setImgSrc(PLACEHOLDER_SVG);
     }
   };
 
@@ -44,7 +41,7 @@ export default function ImageWithFallback({
       src={imgSrc}
       alt={alt}
       onError={handleError}
-      unoptimized={typeof imgSrc === 'string' && imgSrc.includes('pexels.com') ? false : true}
+      unoptimized
       {...props}
     />
   );

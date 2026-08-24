@@ -281,7 +281,7 @@ export default function HomepageSettingsPage() {
               <div className="space-y-3">
                 {(config.hero_right_secondary_images || []).map((url, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <img src={url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                    <img src={url} alt="" className="w-12 h-12 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                     <span className="text-xs text-gray-500 truncate flex-1">{url.split('/').pop()}</span>
                     <button type="button" onClick={() => setConfig({ ...config, hero_right_secondary_images: config.hero_right_secondary_images.filter((_, j) => j !== i) })} className="text-red-400 hover:text-red-600 text-sm">Remove</button>
                   </div>

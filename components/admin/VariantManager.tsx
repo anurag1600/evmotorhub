@@ -577,7 +577,7 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
             <div className="flex flex-wrap gap-2 mb-2">
               {form.gallery_urls.map((url, idx) => (
                 <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                   <button type="button" onClick={() => removeGalleryImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
                 </div>
               ))}
@@ -643,7 +643,7 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
                 <button type="button" onClick={() => moveVariant(variant.id, 'down')} disabled={idx === variants.length - 1} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronDown size={12} /></button>
               </div>
               {variant.image_url ? (
-                <img src={variant.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                <img src={variant.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover bg-gray-100" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
               ) : (
                 <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center"><ImageIcon size={16} className="text-gray-300" /></div>
               )}

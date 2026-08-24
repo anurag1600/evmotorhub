@@ -409,7 +409,7 @@ function BlockPreview({ block }: { block: ContentBlock }) {
     case 'divider':
       return <hr className="border-gray-200 my-4" />;
     case 'image':
-      return d.url ? <div><img src={d.url} alt={d.alt || ''} className="max-h-40 rounded-lg" />{d.caption && <p className="text-xs text-gray-500 mt-1">{d.caption}</p>}</div> : <p className="text-xs text-gray-300 italic">No image</p>;
+      return d.url ? <div><img src={d.url} alt={d.alt || ''} className="max-h-40 rounded-lg" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />{d.caption && <p className="text-xs text-gray-500 mt-1">{d.caption}</p>}</div> : <p className="text-xs text-gray-300 italic">No image</p>;
     case 'youtube':
       return <div className="bg-gray-100 rounded-lg p-3 text-center"><Youtube size={24} className="mx-auto text-red-500 mb-1" /><p className="text-xs text-gray-600">{d.url || 'YouTube URL'}</p></div>;
     case 'button':
@@ -417,7 +417,7 @@ function BlockPreview({ block }: { block: ContentBlock }) {
     case 'product_card':
       return (
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex gap-4">
-          {d.image_url && <img src={d.image_url} alt="" className="w-20 h-20 object-cover rounded-lg" />}
+          {d.image_url && <img src={d.image_url} alt="" className="w-20 h-20 object-cover rounded-lg" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />}
           <div><div className="font-semibold text-gray-900 text-sm">{d.title || 'Product'}</div><div className="text-xs text-[#145a2c] font-bold">{d.price}</div><div className="text-xs text-gray-500 mt-1">{d.description}</div></div>
         </div>
       );
@@ -432,7 +432,7 @@ function BlockPreview({ block }: { block: ContentBlock }) {
         </div>
       );
     case 'image_gallery':
-      return <div className="flex gap-2 overflow-x-auto">{(d.images || []).map((img: any, i: number) => img.url && <img key={i} src={img.url} alt={img.caption || ''} className="w-24 h-24 object-cover rounded-lg flex-shrink-0" />)}</div>;
+      return <div className="flex gap-2 overflow-x-auto">{(d.images || []).map((img: any, i: number) => img.url && <img key={i} src={img.url} alt={img.caption || ''} className="w-24 h-24 object-cover rounded-lg flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />)}</div>;
     case 'cta_banner':
       return (
         <div className="rounded-xl p-5 text-white" style={{ backgroundColor: d.background_color || '#145a2c' }}>
