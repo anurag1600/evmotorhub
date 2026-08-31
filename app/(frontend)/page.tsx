@@ -28,6 +28,7 @@ async function getData() {
     supabase
       .from('news')
       .select('*')
+      .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(6),
     supabase
@@ -63,7 +64,7 @@ async function getData() {
   const [vehicleCountRes, manufacturerCountRes, newsCountRes] = await Promise.all([
     supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'published'),
     supabase.from('manufacturers').select('id', { count: 'exact', head: true }),
-    supabase.from('news').select('id', { count: 'exact', head: true }),
+    supabase.from('news').select('id', { count: 'exact', head: true }).eq('status', 'published'),
   ]);
 
   // Get vehicle counts per type for categories

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { NewsArticle } from '@/lib/types';
+import { NewsArticle, ContentBlock } from '@/lib/types';
 import { FileText, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye } from 'lucide-react';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -82,15 +82,32 @@ export default function NewsManagementPage() {
     const errors: string[] = [];
     let success = 0;
 
-    // Parse array fields (semicolon-separated)
+    // Parse array fields — split on commas AND semicolons, trim, drop empties
     const parseArray = (val: string | undefined) =>
-      val ? val.split(';').map(s => s.trim()).filter(Boolean) : [];
+      val ? val.split(/[,;]/).map(s => s.trim()).filter(Boolean) : [];
+
+    // Convert raw text content into the same content_blocks structure the
+    // manual News Editor uses, so imported articles are fully editable there.
+    const contentToBlocks = (raw: string): ContentBlock[] => {
+      const text = (raw || '').trim();
+      if (!text) return [];
+      return text
+        .split(/\n{2,}/)
+        .map(para => para.trim())
+        .filter(Boolean)
+        .map(para => ({
+          id: 'blk_' + Math.random().toString(36).substr(2, 9),
+          type: 'paragraph' as const,
+          data: { text: para },
+        }));
+    };
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (!row.title) { errors.push(`Row ${i + 1}: title is required`); continue; }
       const slug = row.slug || row.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       try {
+        const contentBlocks = contentToBlocks(row.content);
         const { error } = await supabase.from('news').insert([{
           title: row.title,
           slug,
@@ -101,6 +118,7 @@ export default function NewsManagementPage() {
           image_url: row.image_url || null,
           excerpt: row.excerpt || '',
           content: row.content || '',
+          content_blocks: contentBlocks,
           is_featured: row.is_featured === 'true',
           published_at: row.published_at || new Date().toISOString(),
           tags: parseArray(row.tags),

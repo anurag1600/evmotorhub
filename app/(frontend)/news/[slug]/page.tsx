@@ -17,7 +17,7 @@ export const revalidate = 300;
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const [seo, { data }] = await Promise.all([
     getSeoSettings(),
-    supabase.from('news').select('title, excerpt').eq('slug', params.slug).maybeSingle(),
+    supabase.from('news').select('title, excerpt').eq('slug', params.slug).eq('status', 'published').maybeSingle(),
   ]);
 
   if (!data) return { title: 'Article Not Found' };
@@ -79,6 +79,7 @@ async function getArticle(slug: string) {
     .from('news')
     .select('*')
     .eq('slug', slug)
+    .eq('status', 'published')
     .maybeSingle();
   return data as NewsArticle | null;
 }
@@ -88,6 +89,7 @@ async function getRelated(category: string, id: string) {
     .from('news')
     .select('id, title, slug, image_url, category, published_at, author, excerpt')
     .eq('category', category)
+    .eq('status', 'published')
     .neq('id', id)
     .order('published_at', { ascending: false })
     .limit(3);

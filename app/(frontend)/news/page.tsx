@@ -33,7 +33,7 @@ export default function NewsPage() {
   useEffect(() => {
     const fetchNews = async () => {
       setLoading(true);
-      let query = supabase.from('news').select('*').order('published_at', { ascending: false });
+      let query = supabase.from('news').select('*').eq('status', 'published').order('published_at', { ascending: false });
       if (category) query = query.eq('category', category);
       if (search) query = query.ilike('title', `%${search}%`);
 
