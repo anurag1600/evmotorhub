@@ -131,6 +131,38 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
     return 'electric_bike';
   }, [vehicle.type]);
 
+  // Fetch pricing profile from admin config when city or variant changes
+  useEffect(() => {
+    if (!selectedCity || !display.price) { setProfileBreakdown(null); return; }
+    let cancelled = false;
+    (async () => {
+      setPricingLoading(true);
+      try {
+        const profile = await findPricingProfile({
+          cityId: selectedCity.id,
+          exShowroomPrice: display.price,
+          vehicleCategory: vehiclePricingCategory,
+          vehicleType: vehicle.type as 'scooter' | 'bike' | 'car',
+          batteryCapacityKwh: display.battery_capacity_kwh || undefined,
+          brandId: vehicle.manufacturer_id,
+          vehicleId: vehicle.id,
+          variantId: selectedVariant?.id,
+        });
+        if (cancelled) return;
+        if (profile) {
+          setProfileBreakdown(calculateOnRoadPrice(display.price, profile));
+        } else {
+          setProfileBreakdown(null);
+        }
+      } catch {
+        if (!cancelled) setProfileBreakdown(null);
+      } finally {
+        if (!cancelled) setPricingLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedCity, display.price, vehiclePricingCategory, vehicle.type, vehicle.manufacturer_id, vehicle.id, selectedVariant?.id]);
+
   // Price calculation using pricing profiles from Supabase
   const priceBreakdown: OnRoadPriceBreakdown = useMemo(() => {
     const exShowroom = display.price;
@@ -146,8 +178,15 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         registration: 0,
         hsrp: 0,
         fastag: 0,
+        handling: 0,
+        dealer: 0,
+        delivery: 0,
+        accessories: 0,
         other: 0,
+        misc: 0,
         subsidy: 0,
+        subsidy_title: null,
+        subsidy_badge_text: null,
         subsidy_description: null,
         on_road: exShowroom,
         breakdown: {
@@ -156,8 +195,14 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
           show_registration: false,
           show_hsrp: false,
           show_fastag: false,
+          show_handling: false,
+          show_dealer: false,
+          show_delivery: false,
+          show_accessories: false,
           show_other: false,
+          show_misc: false,
         },
+        profile_name: null,
       };
     }
 
@@ -170,8 +215,15 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
       registration: profileBreakdown.registration,
       hsrp: profileBreakdown.hsrp,
       fastag: profileBreakdown.fastag,
-      other: profileBreakdown.other + profileBreakdown.handling + profileBreakdown.dealer + profileBreakdown.delivery + profileBreakdown.accessories + profileBreakdown.misc,
+      handling: profileBreakdown.handling,
+      dealer: profileBreakdown.dealer,
+      delivery: profileBreakdown.delivery,
+      accessories: profileBreakdown.accessories,
+      other: profileBreakdown.other,
+      misc: profileBreakdown.misc,
       subsidy: profileBreakdown.subsidy,
+      subsidy_title: profileBreakdown.subsidy_title,
+      subsidy_badge_text: profileBreakdown.subsidy_badge_text,
       subsidy_description: profileBreakdown.subsidy_description,
       on_road: profileBreakdown.on_road,
       breakdown: {
@@ -180,8 +232,14 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
         show_registration: profileBreakdown.breakdown.show_registration,
         show_hsrp: profileBreakdown.breakdown.show_hsrp,
         show_fastag: profileBreakdown.breakdown.show_fastag,
-        show_other: profileBreakdown.breakdown.show_other || profileBreakdown.breakdown.show_handling || profileBreakdown.breakdown.show_dealer || profileBreakdown.breakdown.show_delivery || profileBreakdown.breakdown.show_accessories || profileBreakdown.breakdown.show_misc,
+        show_handling: profileBreakdown.breakdown.show_handling,
+        show_dealer: profileBreakdown.breakdown.show_dealer,
+        show_delivery: profileBreakdown.breakdown.show_delivery,
+        show_accessories: profileBreakdown.breakdown.show_accessories,
+        show_other: profileBreakdown.breakdown.show_other,
+        show_misc: profileBreakdown.breakdown.show_misc,
       },
+      profile_name: profileBreakdown.profile_name,
     };
   }, [profileBreakdown, display.price]);
 
@@ -191,7 +249,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
     rto: priceBreakdown.rto,
     insurance: priceBreakdown.insurance,
     roadTax: 0, // Included in RTO now
-    other: priceBreakdown.registration + priceBreakdown.hsrp + priceBreakdown.fastag + priceBreakdown.other,
+    other: priceBreakdown.registration + priceBreakdown.hsrp + priceBreakdown.fastag + priceBreakdown.handling + priceBreakdown.dealer + priceBreakdown.delivery + priceBreakdown.accessories + priceBreakdown.other + priceBreakdown.misc,
     subsidy: priceBreakdown.subsidy,
     onRoadPrice: priceBreakdown.on_road,
   }), [priceBreakdown]);
@@ -594,6 +652,9 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                 <button onClick={() => setShowCityModal(true)} className="flex items-center gap-1 text-xs text-[#145a2c] hover:underline font-medium"><MapPin size={12} />{selectedCity?.name || 'Select City'}</button>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
+                {pricingLoading && (
+                  <p className="text-sm text-gray-400 text-center py-2">Loading pricing…</p>
+                )}
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Ex-showroom</span>
@@ -601,13 +662,13 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                   </div>
                   {priceBreakdown.breakdown.show_rto && (
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">RTO / Road Tax ({priceBreakdown.rto_percentage}%)</span>
+                      <span className="text-sm text-gray-600">RTO / Road Tax{priceBreakdown.rto_percentage > 0 ? ` (${priceBreakdown.rto_percentage}%)` : ''}</span>
                       <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.rto)}</span>
                     </div>
                   )}
                   {priceBreakdown.breakdown.show_insurance && (
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Insurance ({priceBreakdown.insurance_percentage}%)</span>
+                      <span className="text-sm text-gray-600">Insurance{priceBreakdown.insurance_percentage > 0 ? ` (${priceBreakdown.insurance_percentage}%)` : ''}</span>
                       <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.insurance)}</span>
                     </div>
                   )}
@@ -629,16 +690,46 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                       <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.fastag)}</span>
                     </div>
                   )}
+                  {priceBreakdown.breakdown.show_handling && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Handling Charges</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.handling)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_dealer && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Dealer Charges</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.dealer)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_delivery && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Delivery Charges</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.delivery)}</span>
+                    </div>
+                  )}
+                  {priceBreakdown.breakdown.show_accessories && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Accessories</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.accessories)}</span>
+                    </div>
+                  )}
                   {priceBreakdown.breakdown.show_other && (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Other Charges</span>
                       <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.other)}</span>
                     </div>
                   )}
+                  {priceBreakdown.breakdown.show_misc && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Miscellaneous Charges</span>
+                      <span className="text-sm font-medium text-gray-900">{formatPrice(priceBreakdown.misc)}</span>
+                    </div>
+                  )}
                   {priceBreakdown.subsidy > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">
-                        {priceBreakdown.subsidy_description || 'EV Subsidy'}
+                        {priceBreakdown.subsidy_title || priceBreakdown.subsidy_description || 'EV Subsidy'}
                       </span>
                       <span className="text-sm font-medium text-green-600">-{formatPrice(priceBreakdown.subsidy)}</span>
                     </div>

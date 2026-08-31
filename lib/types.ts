@@ -449,8 +449,15 @@ export interface OnRoadPriceBreakdown {
   registration: number;
   hsrp: number;
   fastag: number;
+  handling: number;
+  dealer: number;
+  delivery: number;
+  accessories: number;
   other: number;
+  misc: number;
   subsidy: number;
+  subsidy_title: string | null;
+  subsidy_badge_text: string | null;
   subsidy_description: string | null;
   on_road: number;
   breakdown: {
@@ -459,8 +466,14 @@ export interface OnRoadPriceBreakdown {
     show_registration: boolean;
     show_hsrp: boolean;
     show_fastag: boolean;
+    show_handling: boolean;
+    show_dealer: boolean;
+    show_delivery: boolean;
+    show_accessories: boolean;
     show_other: boolean;
+    show_misc: boolean;
   };
+  profile_name: string | null;
 }
 
 export interface OfferEnquiry {

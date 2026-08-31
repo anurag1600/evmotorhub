@@ -26,17 +26,10 @@ export function calculateOnRoadPrice(
   state: PricingState | null,
   city: PricingCity | null
 ): PriceBreakdownResult {
-  // Calculate RTO (typically a percentage of ex-showroom or flat amount from city)
-  const rtoCharges = city?.rto_charge || Math.round(exShowroomPrice * (state?.rto_percentage || 8) / 100);
-
-  // Insurance (from city or estimated at 3-5% of ex-showroom)
-  const insurance = city?.insurance_charge || Math.round(exShowroomPrice * 0.04);
-
-  // Road Tax (state-specific percentage)
-  const roadTax = Math.round(exShowroomPrice * (state?.road_tax_percentage || 0) / 100);
-
-  // Other charges (registration, handling, etc.)
-  const otherCharges = city?.other_charges || state?.other_charges || 1000;
+  const rtoCharges = city?.rto_charge ?? Math.round(exShowroomPrice * (state?.rto_percentage ?? 0) / 100);
+  const insurance = city?.insurance_charge ?? 0;
+  const roadTax = Math.round(exShowroomPrice * (state?.road_tax_percentage ?? 0) / 100);
+  const otherCharges = city?.other_charges ?? state?.other_charges ?? 0;
 
   return {
     exShowroomPrice,
