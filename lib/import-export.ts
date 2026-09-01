@@ -30,33 +30,68 @@ export function downloadCSV(content: string, filename: string) {
 }
 
 export function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text.split('\n').filter((l) => l.trim());
-  if (lines.length < 2) return { headers: [], rows: [] };
+  // Character-level parser that correctly handles embedded newlines and commas inside quoted fields
+  const records: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let inQuotes = false;
+  let hasAnyChar = false;
 
-  const parseRow = (line: string): string[] => {
-    const result: string[] = [];
-    let cur = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inQuotes) {
       if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQuotes = !inQuotes;
-      } else if (ch === ',' && !inQuotes) {
-        result.push(cur);
-        cur = '';
+        if (text[i + 1] === '"') {
+          currentCell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
       } else {
-        cur += ch;
+        currentCell += ch;
       }
+      continue;
     }
-    result.push(cur);
-    return result;
-  };
 
-  const headers = parseRow(lines[0]);
-  const rows = lines.slice(1).map((line) => {
-    const vals = parseRow(line);
-    return headers.reduce((obj, h, i) => ({ ...obj, [h]: vals[i] ?? '' }), {} as Record<string, string>);
+    if (ch === '"') {
+      inQuotes = true;
+      hasAnyChar = true;
+    } else if (ch === ',') {
+      currentRow.push(currentCell);
+      currentCell = '';
+      hasAnyChar = true;
+    } else if (ch === '\n' || ch === '\r') {
+      // Handle \r\n and standalone \r
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      currentRow.push(currentCell);
+      if (currentRow.some(c => c.trim() !== '') || hasAnyChar) {
+        records.push(currentRow);
+      }
+      currentRow = [];
+      currentCell = '';
+      hasAnyChar = false;
+    } else {
+      currentCell += ch;
+      hasAnyChar = true;
+    }
+  }
+
+  // Flush last cell/row if file doesn't end with newline
+  if (currentCell !== '' || currentRow.length > 0 || hasAnyChar) {
+    currentRow.push(currentCell);
+    if (currentRow.some(c => c.trim() !== '')) {
+      records.push(currentRow);
+    }
+  }
+
+  if (records.length < 2) return { headers: [], rows: [] };
+
+  const headers = records[0].map(h => h.trim());
+  const rows = records.slice(1).map((vals) => {
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] ?? '').trim(); });
+    return obj;
   });
 
   return { headers, rows };

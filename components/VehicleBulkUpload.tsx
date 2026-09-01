@@ -167,7 +167,7 @@ export default function VehicleBulkUpload({ onVehiclesChange, onErrorsChange }: 
             pros: vehicle.pros ? String(vehicle.pros).split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : [],
             cons: vehicle.cons ? String(vehicle.cons).split(/[;,]/).map((s: string) => s.trim()).filter(Boolean) : [],
             launch_date: vehicle.launch_date || null,
-            status: 'published',
+            status: vehicle.status || 'draft',
           };
         });
 

@@ -19,6 +19,7 @@ interface ParsedRow {
   data: Record<string, string>;
   errors: string[];
   status: 'valid' | 'error';
+  duplicate?: 'new' | 'existing';
 }
 
 const CITY_COLUMNS = [
@@ -32,10 +33,11 @@ const CITY_TEMPLATE_ROWS = [
 ];
 
 const PROFILE_COLUMNS = [
-  'profile_name', 'city_name', 'vehicle_category', 'status', 'rto_percentage', 'insurance_percentage',
-  'registration_fee', 'hsrp_fee', 'fastag_fee', 'handling_charges',
-  'show_rto', 'show_insurance', 'show_registration', 'show_hsrp', 'show_fastag', 'show_handling',
-  'has_subsidy', 'subsidy_type', 'subsidy_value', 'subsidy_title',
+  'profile_name', 'description', 'city_name', 'vehicle_category', 'status', 'priority', 'effective_date',
+  'rto_percentage', 'insurance_percentage',
+  'registration_fee', 'hsrp_fee', 'fastag_fee', 'handling_charges', 'dealer_charges', 'delivery_charges', 'accessories_charges', 'other_charges', 'misc_charges',
+  'show_rto', 'show_insurance', 'show_registration', 'show_hsrp', 'show_fastag', 'show_handling', 'show_dealer', 'show_delivery', 'show_accessories', 'show_other', 'show_misc',
+  'has_subsidy', 'subsidy_type', 'subsidy_value', 'subsidy_title', 'subsidy_badge_text', 'subsidy_description', 'subsidy_start_date', 'subsidy_end_date',
   'slab_min_price_1', 'slab_max_price_1', 'slab_tax_percentage_1',
   'slab_min_price_2', 'slab_max_price_2', 'slab_tax_percentage_2',
   'slab_min_price_3', 'slab_max_price_3', 'slab_tax_percentage_3',
@@ -43,19 +45,21 @@ const PROFILE_COLUMNS = [
 
 const PROFILE_TEMPLATE_ROWS = [
   {
-    profile_name: 'Mumbai Car Default', city_name: 'Mumbai', vehicle_category: 'electric_car', status: 'published',
-    rto_percentage: '10', insurance_percentage: '4', registration_fee: '2000', hsrp_fee: '1100', fastag_fee: '500', handling_charges: '0',
-    show_rto: 'true', show_insurance: 'true', show_registration: 'true', show_hsrp: 'true', show_fastag: 'true', show_handling: 'false',
-    has_subsidy: 'false', subsidy_type: 'fixed', subsidy_value: '0', subsidy_title: '',
+    profile_name: 'Mumbai Car Default', description: 'Default pricing for cars in Mumbai', city_name: 'Mumbai', vehicle_category: 'electric_car', status: 'draft', priority: '10', effective_date: '',
+    rto_percentage: '10', insurance_percentage: '4',
+    registration_fee: '2000', hsrp_fee: '1100', fastag_fee: '500', handling_charges: '0', dealer_charges: '0', delivery_charges: '0', accessories_charges: '0', other_charges: '0', misc_charges: '0',
+    show_rto: 'true', show_insurance: 'true', show_registration: 'true', show_hsrp: 'true', show_fastag: 'true', show_handling: 'false', show_dealer: 'false', show_delivery: 'false', show_accessories: 'false', show_other: 'false', show_misc: 'false',
+    has_subsidy: 'false', subsidy_type: 'fixed', subsidy_value: '0', subsidy_title: '', subsidy_badge_text: '', subsidy_description: '', subsidy_start_date: '', subsidy_end_date: '',
     slab_min_price_1: '0', slab_max_price_1: '500000', slab_tax_percentage_1: '5',
     slab_min_price_2: '500000', slab_max_price_2: '1000000', slab_tax_percentage_2: '8',
     slab_min_price_3: '1000000', slab_max_price_3: '', slab_tax_percentage_3: '12',
   },
   {
-    profile_name: 'Bangalore Scooter Default', city_name: 'Bangalore', vehicle_category: 'electric_scooter', status: 'published',
-    rto_percentage: '8', insurance_percentage: '3', registration_fee: '1500', hsrp_fee: '1100', fastag_fee: '0', handling_charges: '0',
-    show_rto: 'true', show_insurance: 'true', show_registration: 'true', show_hsrp: 'true', show_fastag: 'false', show_handling: 'false',
-    has_subsidy: 'false', subsidy_type: 'fixed', subsidy_value: '0', subsidy_title: '',
+    profile_name: 'Bangalore Scooter Default', description: 'Default pricing for scooters in Bangalore', city_name: 'Bangalore', vehicle_category: 'electric_scooter', status: 'draft', priority: '10', effective_date: '',
+    rto_percentage: '8', insurance_percentage: '3',
+    registration_fee: '1500', hsrp_fee: '1100', fastag_fee: '0', handling_charges: '0', dealer_charges: '0', delivery_charges: '0', accessories_charges: '0', other_charges: '0', misc_charges: '0',
+    show_rto: 'true', show_insurance: 'true', show_registration: 'true', show_hsrp: 'true', show_fastag: 'false', show_handling: 'false', show_dealer: 'false', show_delivery: 'false', show_accessories: 'false', show_other: 'false', show_misc: 'false',
+    has_subsidy: 'true', subsidy_type: 'fixed', subsidy_value: '5000', subsidy_title: 'EV Subsidy Karnataka', subsidy_badge_text: 'Save ₹5000', subsidy_description: 'Government subsidy on electric scooters', subsidy_start_date: '2024-01-01', subsidy_end_date: '',
     slab_min_price_1: '0', slab_max_price_1: '', slab_tax_percentage_1: '5',
     slab_min_price_2: '', slab_max_price_2: '', slab_tax_percentage_2: '',
     slab_min_price_3: '', slab_max_price_3: '', slab_tax_percentage_3: '',
@@ -65,14 +69,18 @@ const PROFILE_TEMPLATE_ROWS = [
 const VEHICLE_CATEGORIES = ['electric_car', 'electric_scooter', 'electric_bike'];
 const PROFILE_STATUSES = ['draft', 'published', 'archived'];
 
-function parseBool(val: string): boolean {
+type DuplicateMode = 'skip' | 'update' | 'create';
+
+function parseBool(val: string | undefined, defaultVal = false): boolean {
+  if (!val) return defaultVal;
   const v = val.toLowerCase().trim();
   return v === 'true' || v === '1' || v === 'yes' || v === 'y';
 }
 
-function parseNum(val: string): number {
+function parseNum(val: string | undefined, defaultVal = 0): number {
+  if (!val) return defaultVal;
   const n = parseFloat(val);
-  return isNaN(n) ? 0 : n;
+  return isNaN(n) ? defaultVal : n;
 }
 
 export default function PricingBulkUpload({ type, states, cities, onImported }: PricingBulkUploadProps) {
@@ -81,7 +89,8 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
   const [importing, setImporting] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState('');
-  const [importResult, setImportResult] = useState<{ success: number; errors: number; updated: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: number; updated: number; errors: number; skipped: number } | null>(null);
+  const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>('skip');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const columns = type === 'cities' ? CITY_COLUMNS : PROFILE_COLUMNS;
@@ -115,7 +124,8 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
         return;
       }
 
-      const missingCols = columns.filter(c => !headers.includes(c));
+      const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+      const missingCols = columns.filter(c => !lowerHeaders.includes(c));
       if (missingCols.length > 0) {
         toast.error(`Missing required columns: ${missingCols.join(', ')}`);
         setParsing(false);
@@ -133,7 +143,8 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
           if (!row.city_name?.trim()) errors.push('city_name is required');
           if (!VEHICLE_CATEGORIES.includes(row.vehicle_category?.trim())) errors.push(`vehicle_category must be one of: ${VEHICLE_CATEGORIES.join(', ')}`);
           if (row.status && !PROFILE_STATUSES.includes(row.status.trim())) errors.push(`status must be one of: ${PROFILE_STATUSES.join(', ')}`);
-          if (!row.rto_percentage?.trim()) errors.push('rto_percentage is required');
+          if (row.rto_percentage?.trim() && isNaN(Number(row.rto_percentage))) errors.push('rto_percentage must be a number');
+          if (row.insurance_percentage?.trim() && isNaN(Number(row.insurance_percentage))) errors.push('insurance_percentage must be a number');
           if (row.has_subsidy && parseBool(row.has_subsidy)) {
             if (!row.subsidy_type?.trim()) errors.push('subsidy_type required when has_subsidy is true');
             if (!row.subsidy_value?.trim()) errors.push('subsidy_value required when has_subsidy is true');
@@ -151,8 +162,37 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
           data: row,
           errors,
           status: errors.length > 0 ? 'error' : 'valid',
+          duplicate: 'new',
         };
       });
+
+      // Check for existing records
+      if (type === 'profiles') {
+        const validCityNames = validated
+          .filter(r => r.status === 'valid')
+          .map(r => r.data.city_name?.trim())
+          .filter(Boolean);
+
+        if (validCityNames.length > 0) {
+          const { data: existingProfiles } = await supabase
+            .from('pricing_profiles')
+            .select('id, name, city_id, vehicle_category')
+            .in('city_id', cities.filter(c => validCityNames.includes(c.name)).map(c => c.id));
+
+          if (existingProfiles) {
+            const existingKeys = new Set(existingProfiles.map((p: any) => `${p.name}|${p.city_id}|${p.vehicle_category}`));
+            const cityIdMap = new Map(cities.map(c => [c.name.toLowerCase(), c.id]));
+
+            validated.forEach(r => {
+              const cityId = cityIdMap.get(r.data.city_name?.toLowerCase().trim());
+              const key = `${r.data.profile_name?.trim()}|${cityId}|${r.data.vehicle_category?.trim()}`;
+              if (existingKeys.has(key)) {
+                r.duplicate = 'existing';
+              }
+            });
+          }
+        }
+      }
 
       setParsedRows(validated);
       const errorCount = validated.filter(r => r.status === 'error').length;
@@ -168,7 +208,7 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
     } finally {
       setParsing(false);
     }
-  }, [type, columns]);
+  }, [type, columns, cities]);
 
   const handleImport = useCallback(async () => {
     const validRows = parsedRows.filter(r => r.status === 'valid');
@@ -181,6 +221,7 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
     let successCount = 0;
     let updateCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
 
     try {
       if (type === 'cities') {
@@ -190,6 +231,10 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
         }
 
         for (const row of validRows) {
+          if (row.duplicate === 'existing' && duplicateMode === 'skip') {
+            skippedCount++;
+            continue;
+          }
           try {
             const stateName = row.data.state_name.trim();
             const stateCode = row.data.state_code?.trim().toUpperCase() || stateName.substring(0, 2).toUpperCase();
@@ -201,10 +246,6 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                 .insert([{
                   name: stateName,
                   code: stateCode,
-                  rto_percentage: 8,
-                  road_tax_percentage: 8,
-                  other_charges: 0,
-                  subsidy_amount: 0,
                   is_active: true,
                 }])
                 .select()
@@ -226,18 +267,19 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
               state_id: stateId,
               name: row.data.city_name.trim(),
               pincode: row.data.pincode?.trim() || null,
-              is_popular: parseBool(row.data.is_popular || 'false'),
-              is_active: parseBool(row.data.is_active || 'true'),
-              rto_charge: 0,
-              insurance_charge: 0,
-              other_charges: 0,
+              is_popular: parseBool(row.data.is_popular, false),
+              is_active: parseBool(row.data.is_active, true),
               state_code: stateCode,
             };
 
             if (existing) {
-              const { error } = await supabase.from('pricing_cities').update(payload).eq('id', existing.id);
-              if (error) throw error;
-              updateCount++;
+              if (duplicateMode === 'skip') {
+                skippedCount++;
+              } else {
+                const { error } = await supabase.from('pricing_cities').update(payload).eq('id', existing.id);
+                if (error) throw error;
+                updateCount++;
+              }
             } else {
               const { error } = await supabase.from('pricing_cities').insert([payload]);
               if (error) throw error;
@@ -255,6 +297,10 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
         }
 
         for (const row of validRows) {
+          if (row.duplicate === 'existing' && duplicateMode === 'skip') {
+            skippedCount++;
+            continue;
+          }
           try {
             const cityName = row.data.city_name.trim();
             let cityId = cityMap.get(cityName.toLowerCase());
@@ -278,25 +324,42 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
 
             const profilePayload = {
               name: row.data.profile_name.trim(),
+              description: row.data.description?.trim() || null,
               city_id: cityId,
               vehicle_category: row.data.vehicle_category.trim(),
               status: row.data.status?.trim() || 'draft',
+              priority: parseInt(row.data.priority) || 0,
+              effective_date: row.data.effective_date?.trim() || null,
               rto_percentage: parseNum(row.data.rto_percentage),
               insurance_percentage: parseNum(row.data.insurance_percentage || '0'),
               registration_fee: Math.round(parseNum(row.data.registration_fee || '0')),
               hsrp_fee: Math.round(parseNum(row.data.hsrp_fee || '0')),
               fastag_fee: Math.round(parseNum(row.data.fastag_fee || '0')),
               handling_charges: Math.round(parseNum(row.data.handling_charges || '0')),
-              show_rto: parseBool(row.data.show_rto || 'true'),
-              show_insurance: parseBool(row.data.show_insurance || 'true'),
-              show_registration: parseBool(row.data.show_registration || 'true'),
-              show_hsrp: parseBool(row.data.show_hsrp || 'true'),
-              show_fastag: parseBool(row.data.show_fastag || 'true'),
-              show_handling: parseBool(row.data.show_handling || 'false'),
-              has_subsidy: parseBool(row.data.has_subsidy || 'false'),
+              dealer_charges: Math.round(parseNum(row.data.dealer_charges || '0')),
+              delivery_charges: Math.round(parseNum(row.data.delivery_charges || '0')),
+              accessories_charges: Math.round(parseNum(row.data.accessories_charges || '0')),
+              other_charges: Math.round(parseNum(row.data.other_charges || '0')),
+              misc_charges: Math.round(parseNum(row.data.misc_charges || '0')),
+              show_rto: parseBool(row.data.show_rto, true),
+              show_insurance: parseBool(row.data.show_insurance, true),
+              show_registration: parseBool(row.data.show_registration, true),
+              show_hsrp: parseBool(row.data.show_hsrp, true),
+              show_fastag: parseBool(row.data.show_fastag, true),
+              show_handling: parseBool(row.data.show_handling, false),
+              show_dealer: parseBool(row.data.show_dealer, false),
+              show_delivery: parseBool(row.data.show_delivery, false),
+              show_accessories: parseBool(row.data.show_accessories, false),
+              show_other: parseBool(row.data.show_other, false),
+              show_misc: parseBool(row.data.show_misc, false),
+              has_subsidy: parseBool(row.data.has_subsidy, false),
               subsidy_type: row.data.subsidy_type?.trim() || 'fixed',
               subsidy_value: parseNum(row.data.subsidy_value || '0'),
               subsidy_title: row.data.subsidy_title?.trim() || null,
+              subsidy_badge_text: row.data.subsidy_badge_text?.trim() || null,
+              subsidy_description: row.data.subsidy_description?.trim() || null,
+              subsidy_start_date: row.data.subsidy_start_date?.trim() || null,
+              subsidy_end_date: row.data.subsidy_end_date?.trim() || null,
             };
 
             const { data: existing } = await supabase
@@ -310,6 +373,10 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
             let profileId: string;
 
             if (existing) {
+              if (duplicateMode === 'skip') {
+                skippedCount++;
+                continue;
+              }
               const { error } = await supabase.from('pricing_profiles').update(profilePayload).eq('id', existing.id);
               if (error) throw error;
               profileId = existing.id;
@@ -354,9 +421,9 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
         }
       }
 
-      setImportResult({ success: successCount, updated: updateCount, errors: errorCount });
+      setImportResult({ success: successCount, updated: updateCount, errors: errorCount, skipped: skippedCount });
       if (successCount > 0 || updateCount > 0) {
-        toast.success(`Import complete: ${successCount} new, ${updateCount} updated${errorCount > 0 ? `, ${errorCount} errors` : ''}`);
+        toast.success(`Import complete: ${successCount} new, ${updateCount} updated${errorCount > 0 ? `, ${errorCount} errors` : ''}${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}`);
         onImported();
       } else {
         toast.error('No rows were imported. Check for errors.');
@@ -366,7 +433,7 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
     } finally {
       setImporting(false);
     }
-  }, [parsedRows, type, states, cities, onImported]);
+  }, [parsedRows, type, states, cities, onImported, duplicateMode]);
 
   const reset = () => {
     setParsedRows([]);
@@ -375,8 +442,25 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const downloadErrorReport = () => {
+    const errorRows = parsedRows.filter(r => r.status === 'error');
+    if (errorRows.length === 0) return;
+    const content = [
+      'Row Number,Errors',
+      ...errorRows.map(row => `${row.rowIndex},"${row.errors.join('; ').replace(/"/g, '""')}"`),
+    ].join('\n');
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${type}_error_report.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const validCount = parsedRows.filter(r => r.status === 'valid').length;
   const errorCount = parsedRows.filter(r => r.status === 'error').length;
+  const duplicateCount = parsedRows.filter(r => r.duplicate === 'existing' && r.status === 'valid').length;
 
   return (
     <>
@@ -430,6 +514,12 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                       <div className="text-2xl font-bold text-blue-600">{importResult.updated}</div>
                       <div className="text-xs text-slate-500">Updated</div>
                     </div>
+                    {importResult.skipped > 0 && (
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-500">{importResult.skipped}</div>
+                        <div className="text-xs text-slate-500">Skipped</div>
+                      </div>
+                    )}
                     {importResult.errors > 0 && (
                       <div className="text-center">
                         <div className="text-2xl font-bold text-red-500">{importResult.errors}</div>
@@ -437,12 +527,19 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => { reset(); setOpen(false); }}
-                    className="mt-6 px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium text-sm hover:shadow-lg transition-all"
-                  >
-                    Done
-                  </button>
+                  <div className="flex justify-center gap-2 mt-6">
+                    {importResult.errors > 0 && (
+                      <button onClick={downloadErrorReport} className="px-5 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-medium text-sm hover:bg-slate-50">
+                        <Download size={14} className="inline mr-1" /> Error Report
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { reset(); setOpen(false); }}
+                      className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium text-sm hover:shadow-lg transition-all"
+                    >
+                      Done
+                    </button>
+                  </div>
                 </div>
               ) : parsedRows.length === 0 ? (
                 <>
@@ -494,7 +591,7 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                       Required columns: <span className="font-mono text-slate-700">{columns.join(', ')}</span>
                     </p>
                     <p className="text-xs text-slate-500">
-                      Download the template for a ready-to-use format with example rows. Boolean fields accept: true/false, 1/0, yes/no. Existing records with matching names will be updated instead of duplicated.
+                      Download the template for a ready-to-use format with example rows. Boolean fields accept: true/false, 1/0, yes/no. New profiles default to <strong>draft</strong> status. Existing records with matching names can be skipped or updated.
                     </p>
                   </div>
                 </>
@@ -511,6 +608,11 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                           <AlertCircle size={12} /> {errorCount} errors
                         </span>
                       )}
+                      {duplicateCount > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                          <AlertTriangle size={12} /> {duplicateCount} existing
+                        </span>
+                      )}
                       <span className="text-slate-400 text-xs">From: {fileName}</span>
                     </div>
                     <button
@@ -521,6 +623,39 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                       <X size={12} /> Start over
                     </button>
                   </div>
+
+                  {/* Duplicate handling */}
+                  {duplicateCount > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle size={16} className="text-amber-600" />
+                        <span className="text-sm font-medium text-amber-800">
+                          {duplicateCount} existing record{duplicateCount !== 1 ? 's' : ''} found
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-700 mb-3">How should duplicates be handled?</p>
+                      <div className="flex gap-2">
+                        {([
+                          { val: 'skip', label: 'Skip duplicates' },
+                          { val: 'update', label: 'Update existing' },
+                          { val: 'create', label: 'Create new' },
+                        ] as const).map(opt => (
+                          <button
+                            key={opt.val}
+                            onClick={() => setDuplicateMode(opt.val)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                              duplicateMode === opt.val
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-50'
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Preview Table */}
                   <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -540,12 +675,17 @@ export default function PricingBulkUpload({ type, states, cities, onImported }: 
                           {parsedRows.map((row) => (
                             <tr key={row.rowIndex} className={cn(
                               row.status === 'error' ? 'bg-red-50/30' : 'bg-white',
+                              row.duplicate === 'existing' && row.status === 'valid' && 'bg-amber-50/30',
                               'hover:bg-slate-50/50'
                             )}>
                               <td className="px-3 py-2 text-slate-400 font-mono">{row.rowIndex}</td>
                               <td className="px-3 py-2">
                                 {row.status === 'valid' ? (
-                                  <CheckCircle size={14} className="text-emerald-500" />
+                                  row.duplicate === 'existing' ? (
+                                    <span className="text-amber-600 text-xs">Existing</span>
+                                  ) : (
+                                    <CheckCircle size={14} className="text-emerald-500" />
+                                  )
                                 ) : (
                                   <AlertTriangle size={14} className="text-red-500" />
                                 )}

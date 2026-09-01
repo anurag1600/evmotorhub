@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, Manufacturer } from '@/lib/types';
-import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Power, Star, Settings } from 'lucide-react';
+import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Power, Star, Settings, Upload, X } from 'lucide-react';
 import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
+import BulkImport from '@/components/admin/BulkImport';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
@@ -55,6 +56,7 @@ export default function VehiclesManagementPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
@@ -239,6 +241,12 @@ export default function VehiclesManagementPage() {
             <p className="admin-subtitle">Manage parent vehicles - Add variants from Variant Management</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBulkImportOpen(true)}
+              className="admin-btn-secondary"
+            >
+              <Upload size={16} /> Bulk Import
+            </button>
             <ImportExport
               tableName="vehicles"
               exportColumns={EXPORT_COLS}
@@ -388,6 +396,29 @@ export default function VehiclesManagementPage() {
           )}
         </div>
       </div>
+
+      {bulkImportOpen && (
+        <div className="admin-modal-overlay" onClick={() => setBulkImportOpen(false)}>
+          <div className="admin-modal max-w-2xl" onClick={e => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h3 className="text-lg font-bold text-gray-900">Bulk Import Vehicles</h3>
+              <button onClick={() => setBulkImportOpen(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="admin-modal-body">
+              <BulkImport
+                type="vehicles"
+                onComplete={(stats) => {
+                  if (stats.success > 0 || stats.updated > 0) {
+                    fetchVehicles();
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

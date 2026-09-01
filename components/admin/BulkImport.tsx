@@ -5,34 +5,44 @@ import { Upload, FileText, X, CircleCheck as CheckCircle, CircleAlert as AlertCi
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { parseCSV as robustParseCSV } from '@/lib/import-export';
 
-type ImportType = 'manufacturers' | 'vehicles' | 'variants';
+type ImportType = 'manufacturers' | 'vehicles' | 'variants' | 'news';
 
 interface ImportRow {
   _rowNumber: number;
   _errors: string[];
-  _status: 'pending' | 'success' | 'error' | 'skipped';
+  _status: 'pending' | 'success' | 'error' | 'skipped' | 'updated';
+  _duplicate?: 'new' | 'existing' | 'duplicate';
   [key: string]: any;
 }
 
 interface ImportExportProps {
   type: ImportType;
-  onComplete?: (stats: { success: number; errors: number }) => void;
+  onComplete?: (stats: { success: number; updated: number; errors: number; skipped: number }) => void;
 }
 
-// Column definitions for each type
-const columnDefs: Record<ImportType, { required: string[]; optional: string[] }> = {
+interface ColumnDef {
+  required: string[];
+  optional: string[];
+}
+
+const columnDefs: Record<ImportType, ColumnDef> = {
   manufacturers: {
     required: ['name'],
     optional: ['slug', 'country', 'headquarters', 'website', 'logo_url', 'hero_image_url', 'description', 'founded_year', 'is_featured', 'show_on_homepage', 'status'],
   },
   vehicles: {
-    required: ['name', 'manufacturer_id'],
+    required: ['name', 'manufacturer'],
     optional: ['slug', 'type', 'segment', 'price_min', 'price_max', 'range_km', 'top_speed_kmh', 'battery_capacity_kwh', 'motor_power_kw', 'charging_time_hrs', 'image_url', 'gallery_urls', 'video_url', 'description', 'is_upcoming', 'is_featured', 'is_latest', 'status', 'launch_date', 'colors', 'features', 'pros', 'cons', 'specifications', 'seo_title', 'seo_description', 'seo_keywords'],
   },
   variants: {
     required: ['vehicle_name', 'name', 'price'],
-    optional: ['short_name', 'short_description', 'range_km', 'battery_capacity_kwh', 'top_speed_kmh', 'motor_power_kw', 'charging_time_hrs', 'kerb_weight', 'image_url', 'gallery_urls', 'brochure_url', 'colors', 'color_hexes', 'features', 'specifications', 'status', 'is_available', 'is_featured', 'sort_order'],
+    optional: ['slug', 'short_name', 'short_description', 'range_km', 'battery_capacity_kwh', 'top_speed_kmh', 'motor_power_kw', 'charging_time_hrs', 'kerb_weight', 'image_url', 'gallery_urls', 'brochure_url', 'colors', 'color_hexes', 'features', 'specifications', 'pros', 'cons', 'status', 'is_available', 'is_featured', 'sort_order'],
+  },
+  news: {
+    required: ['title'],
+    optional: ['slug', 'excerpt', 'image_url', 'category', 'author', 'author_image', 'tags', 'read_time_mins', 'is_featured', 'status', 'seo_title', 'seo_description', 'seo_keywords', 'published_at', 'content'],
   },
 };
 
@@ -41,14 +51,19 @@ const sampleData: Record<ImportType, string> = {
 Ather Electric,India,Bangalore,https://ather.com,,Smart electric scooter manufacturer,2013,true
 Ola Electric,India,Bengaluru,https://olaelectric.com,,Leading EV manufacturer,2017,true
 TVS Motor Company,India,Chennai,https://tvmotor.com,,Renowned two-wheeler manufacturer,1978,false`,
-  vehicles: `name,manufacturer_id,type,segment,price_min,price_max,range_km,top_speed_kmh,battery_capacity_kwh,description,is_featured,status
-Ola S1 Pro,<manufacturer_uuid>,scooter,premium,139999,144999,181,116,3.97,The Ola S1 Pro offers exceptional range and performance,true,published
-Ather 450X,<manufacturer_uuid>,scooter,premium,128000,155000,146,115,2.9,Premium electric scooter with smart features,true,published`,
+  vehicles: `name,manufacturer,type,segment,price_min,price_max,range_km,top_speed_kmh,battery_capacity_kwh,description,is_featured,status
+Ola S1 Pro,Ola Electric,scooter,premium,139999,144999,181,116,3.97,"The Ola S1 Pro offers exceptional range and performance",true,draft
+Ather 450X,Ather Electric,scooter,premium,128000,155000,146,115,2.9,"Premium electric scooter with smart features",true,draft`,
   variants: `vehicle_name,name,price,range_km,battery_capacity_kwh,top_speed_kmh,short_description,status
-Ola S1 Pro,S1 Pro Gen 2,144999,181,4,116,Premium variant with 181km range,active
-Ola S1 Pro,S1 Pro,139999,171,3.97,116,Standard premium variant,active
-Ather 450X,450X Gen 3,155000,146,3.7,115,Latest generation Ather 450X,active`,
+Ola S1 Pro,S1 Pro Gen 2,144999,181,4,116,"Premium variant with 181km range",active
+Ola S1 Pro,S1 Pro,139999,171,3.97,116,"Standard premium variant",active
+Ather 450X,450X Gen 3,155000,146,3.7,115,"Latest generation Ather 450X",active`,
+  news: `title,slug,excerpt,image_url,category,author,tags,read_time_mins,is_featured,status,seo_title,seo_description,published_at,content
+"Ola S1 Pro Launch Review","ola-s1-pro-review","In-depth review of the Ola S1 Pro",https://example.com/image.jpg,review,Admin,"ola;s1 pro;review",5,false,draft,"Ola S1 Pro Review","Read our comprehensive review of the Ola S1 Pro electric scooter",2024-01-15,"Full review content here"
+"Electric Vehicle Subsidies 2024","ev-subsidies-2024","Complete guide to EV subsidies",https://example.com/subsidy.jpg,guide,Admin,"subsidy;government;ev",3,false,draft,"EV Subsidies Guide","Everything you need to know about EV subsidies in 2024",2024-01-10,"Subsidy guide content here"`,
 };
+
+type DuplicateMode = 'skip' | 'update' | 'create';
 
 export default function BulkImport({ type, onComplete }: ImportExportProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -56,9 +71,10 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
   const [parsing, setParsing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [previewData, setPreviewData] = useState<ImportRow[]>([]);
-  const [importStats, setImportStats] = useState<{ success: number; errors: number; skipped: number } | null>(null);
+  const [importStats, setImportStats] = useState<{ success: number; updated: number; errors: number; skipped: number } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [step, setStep] = useState<'upload' | 'preview' | 'result'>('upload');
+  const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>('skip');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -72,35 +88,10 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
   }, []);
 
   const parseCSV = (text: string): string[][] => {
-    const lines = text.split('\n');
-    const result: string[][] = [];
-    let currentRow: string[] = [];
-    let currentCell = '';
-    let inQuotes = false;
-
-    for (const line of lines) {
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            currentCell += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (char === ',' && !inQuotes) {
-          currentRow.push(currentCell.trim());
-          currentCell = '';
-        } else {
-          currentCell += char;
-        }
-      }
-      currentRow.push(currentCell.trim());
-      currentCell = '';
-      if (!inQuotes) {
-        result.push(currentRow);
-        currentRow = [];
-      }
+    const { headers, rows } = robustParseCSV(text);
+    const result: string[][] = [headers];
+    for (const row of rows) {
+      result.push(headers.map(h => row[h] ?? ''));
     }
     return result;
   };
@@ -122,6 +113,22 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
       });
       return obj;
     }
+  };
+
+  const parseBool = (val: string | undefined, defaultVal = false): boolean => {
+    if (!val) return defaultVal;
+    const v = val.toLowerCase().trim();
+    return v === 'true' || v === '1' || v === 'yes' || v === 'y';
+  };
+
+  const parseNum = (val: string | undefined, defaultVal = 0): number => {
+    if (!val) return defaultVal;
+    const n = parseFloat(val);
+    return isNaN(n) ? defaultVal : n;
+  };
+
+  const generateSlug = (name: string): string => {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -163,7 +170,6 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
       const requiredCols = columnDefs[type].required;
       const { optional } = columnDefs[type];
 
-      // Validate required columns
       const missingRequired = requiredCols.filter(col => !headers.includes(col.toLowerCase()));
       if (missingRequired.length > 0) {
         toast.error(`Missing required columns: ${missingRequired.join(', ')}`);
@@ -176,6 +182,7 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           _rowNumber: idx + 2,
           _errors: [],
           _status: 'pending',
+          _duplicate: 'new',
         };
 
         headers.forEach((header, colIdx) => {
@@ -189,12 +196,77 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           }
         });
 
+        // Type-specific validation
+        if (type === 'vehicles') {
+          const validTypes = ['scooter', 'bike', 'car'];
+          if (rowData.type && !validTypes.includes(String(rowData.type).toLowerCase().trim())) {
+            rowData._errors.push(`type must be one of: ${validTypes.join(', ')}`);
+          }
+        }
+        if (type === 'news') {
+          const validCategories = ['news', 'review', 'launch', 'comparison', 'guide'];
+          if (rowData.category && !validCategories.includes(String(rowData.category).toLowerCase().trim())) {
+            rowData._errors.push(`category must be one of: ${validCategories.join(', ')}`);
+          }
+        }
+        if (type === 'variants') {
+          if (rowData.price && isNaN(Number(rowData.price))) {
+            rowData._errors.push('price must be a number');
+          }
+        }
+
         if (rowData._errors.length > 0) {
           rowData._status = 'error';
         }
 
         return rowData;
       });
+
+      // Check for duplicates within the file
+      const nameField = type === 'vehicles' ? 'name' : type === 'news' ? 'title' : type === 'variants' ? 'name' : 'name';
+      const nameMap: Record<string, number[]> = {};
+      previewRows.forEach(r => {
+        const name = String(r[nameField] || '').toLowerCase().trim();
+        if (name) {
+          if (!nameMap[name]) nameMap[name] = [];
+          nameMap[name].push(r._rowNumber);
+        }
+      });
+      Object.entries(nameMap).forEach(([name, rowNumbers]) => {
+        if (rowNumbers.length > 1) {
+          rowNumbers.forEach(rn => {
+            const row = previewRows.find(r => r._rowNumber === rn);
+            if (row) {
+              row._errors.push(`Duplicate "${name}" appears in rows ${rowNumbers.join(', ')}`);
+              row._status = 'error';
+            }
+          });
+        }
+      });
+
+      // Check for existing records in DB
+      const validNames = previewRows
+        .filter(r => r._status !== 'error')
+        .map(r => String(r[nameField] || '').trim())
+        .filter(Boolean);
+
+      if (validNames.length > 0) {
+        const tableName = type === 'vehicles' ? 'vehicles' : type === 'news' ? 'news' : type === 'manufacturers' ? 'manufacturers' : 'vehicle_variants';
+        const { data: existing } = await supabase
+          .from(tableName)
+          .select(`id, ${nameField}`)
+          .in(nameField, validNames);
+
+        if (existing) {
+          const existingNames = new Set(existing.map((r: any) => String(r[nameField]).toLowerCase().trim()));
+          previewRows.forEach(r => {
+            const name = String(r[nameField] || '').toLowerCase().trim();
+            if (existingNames.has(name)) {
+              r._duplicate = 'existing';
+            }
+          });
+        }
+      }
 
       setPreviewData(previewRows);
     } catch (error) {
@@ -208,7 +280,7 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
 
   const handleImport = async () => {
     setImporting(true);
-    const stats = { success: 0, errors: 0, skipped: 0 };
+    const stats = { success: 0, updated: 0, errors: 0, skipped: 0 };
 
     try {
       if (type === 'manufacturers') {
@@ -217,11 +289,13 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
         await importVehicles(stats);
       } else if (type === 'variants') {
         await importVariants(stats);
+      } else if (type === 'news') {
+        await importNews(stats);
       }
 
       setImportStats(stats);
       setStep('result');
-      toast.success(`Import complete: ${stats.success} imported, ${stats.errors} errors, ${stats.skipped} skipped`);
+      toast.success(`Import complete: ${stats.success} new, ${stats.updated} updated, ${stats.errors} errors, ${stats.skipped} skipped`);
       onComplete?.(stats);
     } catch (error: any) {
       toast.error(error.message || 'Import failed');
@@ -230,17 +304,21 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
     }
   };
 
-  const importManufacturers = async (stats: { success: number; errors: number; skipped: number }) => {
+  const importManufacturers = async (stats: { success: number; updated: number; errors: number; skipped: number }) => {
     for (const row of previewData) {
       if (row._status === 'error') {
         stats.skipped++;
         continue;
       }
+      if (row._duplicate === 'existing' && duplicateMode === 'skip') {
+        row._status = 'skipped';
+        stats.skipped++;
+        continue;
+      }
 
       try {
-        const slug = row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-        const { error } = await supabase.from('manufacturers').insert([{
+        const slug = row.slug?.trim() || generateSlug(row.name);
+        const payload = {
           name: row.name?.trim(),
           slug,
           country: row.country?.trim() || 'India',
@@ -250,61 +328,78 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           hero_image_url: row.hero_image_url?.trim() || null,
           description: row.description?.trim() || null,
           founded_year: parseInt(row.founded_year) || null,
-          is_featured: row.is_featured?.toLowerCase() === 'true',
-          show_on_homepage: row.show_on_homepage?.toLowerCase() === 'true',
+          is_featured: parseBool(row.is_featured),
+          show_on_homepage: parseBool(row.show_on_homepage),
           status: row.status?.trim() || 'active',
-        }]);
+        };
 
-        if (error) {
-          row._errors.push(error.message);
-          row._status = 'error';
-          stats.errors++;
+        if (row._duplicate === 'existing' && duplicateMode === 'update') {
+          const { error } = await supabase.from('manufacturers').update(payload).eq('slug', slug);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'updated'; stats.updated++; }
         } else {
-          row._status = 'success';
-          stats.success++;
+          const { error } = await supabase.from('manufacturers').insert([payload]);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'success'; stats.success++; }
         }
       } catch (e: any) {
-        row._errors.push(e.message);
-        row._status = 'error';
-        stats.errors++;
+        row._errors.push(e.message); row._status = 'error'; stats.errors++;
       }
-
       setPreviewData([...previewData]);
     }
   };
 
-  const importVehicles = async (stats: { success: number; errors: number; skipped: number }) => {
+  const importVehicles = async (stats: { success: number; updated: number; errors: number; skipped: number }) => {
+    // Preload manufacturers for name lookup
+    const { data: manufacturers } = await supabase.from('manufacturers').select('id, name, slug');
+    const mfgByName = new Map((manufacturers || []).map(m => [m.name.toLowerCase().trim(), m.id]));
+    const mfgBySlug = new Map((manufacturers || []).map(m => [m.slug?.toLowerCase().trim(), m.id]));
+
     for (const row of previewData) {
       if (row._status === 'error') {
         stats.skipped++;
         continue;
       }
+      if (row._duplicate === 'existing' && duplicateMode === 'skip') {
+        row._status = 'skipped';
+        stats.skipped++;
+        continue;
+      }
 
       try {
-        const slug = row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        const validTypes = ['scooter', 'bike', 'car'];
-        const vehicleType = validTypes.includes(row.type?.toLowerCase()) ? row.type.toLowerCase() : 'scooter';
+        const mfgId = mfgByName.get(String(row.manufacturer).toLowerCase().trim()) ||
+                      mfgBySlug.get(String(row.manufacturer).toLowerCase().trim());
+        if (!mfgId) {
+          row._errors.push(`Manufacturer "${row.manufacturer}" not found`);
+          row._status = 'error';
+          stats.errors++;
+          continue;
+        }
 
-        const { error } = await supabase.from('vehicles').insert([{
+        const slug = row.slug?.trim() || generateSlug(row.name);
+        const validTypes = ['scooter', 'bike', 'car'];
+        const vehicleType = validTypes.includes(String(row.type).toLowerCase().trim()) ? String(row.type).toLowerCase().trim() : 'scooter';
+
+        const payload = {
           name: row.name?.trim(),
           slug,
-          manufacturer_id: row.manufacturer_id?.trim(),
+          manufacturer_id: mfgId,
           type: vehicleType,
           segment: row.segment?.trim() || 'budget',
-          price_min: parseInt(row.price_min) || 0,
-          price_max: parseInt(row.price_max) || 0,
+          price_min: parseNum(row.price_min),
+          price_max: parseNum(row.price_max),
           range_km: parseInt(row.range_km) || 0,
           top_speed_kmh: parseInt(row.top_speed_kmh) || 0,
-          battery_capacity_kwh: parseFloat(row.battery_capacity_kwh) || 0,
-          motor_power_kw: parseFloat(row.motor_power_kw) || 0,
-          charging_time_hrs: parseFloat(row.charging_time_hrs) || 0,
+          battery_capacity_kwh: parseNum(row.battery_capacity_kwh),
+          motor_power_kw: parseNum(row.motor_power_kw),
+          charging_time_hrs: parseNum(row.charging_time_hrs),
           image_url: row.image_url?.trim() || null,
           gallery_urls: parseArray(row.gallery_urls),
           video_url: row.video_url?.trim() || null,
           description: row.description?.trim() || null,
-          is_upcoming: row.is_upcoming?.toLowerCase() === 'true',
-          is_featured: row.is_featured?.toLowerCase() === 'true',
-          is_latest: row.is_latest?.toLowerCase() === 'true',
+          is_upcoming: parseBool(row.is_upcoming),
+          is_featured: parseBool(row.is_featured),
+          is_latest: parseBool(row.is_latest),
           status: row.status?.trim() || 'draft',
           launch_date: row.launch_date?.trim() || null,
           colors: parseArray(row.colors),
@@ -315,43 +410,43 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           seo_title: row.seo_title?.trim() || null,
           seo_description: row.seo_description?.trim() || null,
           seo_keywords: parseArray(row.seo_keywords),
-        }]);
+        };
 
-        if (error) {
-          row._errors.push(error.message);
-          row._status = 'error';
-          stats.errors++;
+        if (row._duplicate === 'existing' && duplicateMode === 'update') {
+          const { error } = await supabase.from('vehicles').update(payload).eq('slug', slug);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'updated'; stats.updated++; }
         } else {
-          row._status = 'success';
-          stats.success++;
+          const { error } = await supabase.from('vehicles').insert([payload]);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'success'; stats.success++; }
         }
       } catch (e: any) {
-        row._errors.push(e.message);
-        row._status = 'error';
-        stats.errors++;
+        row._errors.push(e.message); row._status = 'error'; stats.errors++;
       }
-
       setPreviewData([...previewData]);
     }
   };
 
-  const importVariants = async (stats: { success: number; errors: number; skipped: number }) => {
-    // Preload vehicles for name lookup
-    const { data: vehicles } = await supabase
-      .from('vehicles')
-      .select('id, name');
-    const vehicleMap = new Map((vehicles || []).map(v => [v.name.toLowerCase().trim(), v.id]));
+  const importVariants = async (stats: { success: number; updated: number; errors: number; skipped: number }) => {
+    const { data: vehicles } = await supabase.from('vehicles').select('id, name, slug');
+    const vehicleByName = new Map((vehicles || []).map(v => [v.name.toLowerCase().trim(), v.id]));
+    const vehicleBySlug = new Map((vehicles || []).map(v => [v.slug?.toLowerCase().trim(), v.id]));
 
     for (const row of previewData) {
       if (row._status === 'error') {
         stats.skipped++;
         continue;
       }
+      if (row._duplicate === 'existing' && duplicateMode === 'skip') {
+        row._status = 'skipped';
+        stats.skipped++;
+        continue;
+      }
 
       try {
-        const vehicleName = row.vehicle_name?.trim().toLowerCase();
-        const vehicleId = vehicleMap.get(vehicleName);
-
+        const vehicleName = String(row.vehicle_name).trim().toLowerCase();
+        const vehicleId = vehicleByName.get(vehicleName) || vehicleBySlug.get(vehicleName);
         if (!vehicleId) {
           row._errors.push(`Vehicle "${row.vehicle_name}" not found`);
           row._status = 'error';
@@ -359,10 +454,9 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           continue;
         }
 
-        // Generate slug
-        const slug = row.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const slug = row.slug?.trim() || generateSlug(row.name);
 
-        const { error } = await supabase.from('vehicle_variants').insert([{
+        const payload = {
           vehicle_id: vehicleId,
           name: row.name?.trim(),
           slug,
@@ -370,10 +464,10 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           short_description: row.short_description?.trim() || null,
           price: parseInt(row.price) || 0,
           range_km: parseInt(row.range_km) || null,
-          battery_capacity_kwh: parseFloat(row.battery_capacity_kwh) || null,
+          battery_capacity_kwh: parseNum(row.battery_capacity_kwh) || null,
           top_speed_kmh: parseInt(row.top_speed_kmh) || null,
-          motor_power_kw: parseFloat(row.motor_power_kw) || null,
-          charging_time_hrs: parseFloat(row.charging_time_hrs) || null,
+          motor_power_kw: parseNum(row.motor_power_kw) || null,
+          charging_time_hrs: parseNum(row.charging_time_hrs) || null,
           kerb_weight: parseInt(row.kerb_weight) || null,
           image_url: row.image_url?.trim() || null,
           gallery_urls: parseArray(row.gallery_urls),
@@ -382,26 +476,78 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           color_hexes: parseArray(row.color_hexes),
           features: parseArray(row.features),
           specifications: parseJson(row.specifications),
+          pros: parseArray(row.pros),
+          cons: parseArray(row.cons),
           status: row.status?.trim() || 'active',
-          is_available: row.is_available?.toLowerCase() !== 'false',
-          is_featured: row.is_featured?.toLowerCase() === 'true',
+          is_available: parseBool(row.is_available, true),
+          is_featured: parseBool(row.is_featured),
           sort_order: parseInt(row.sort_order) || 0,
-        }]);
+        };
 
-        if (error) {
-          row._errors.push(error.message);
-          row._status = 'error';
-          stats.errors++;
+        if (row._duplicate === 'existing' && duplicateMode === 'update') {
+          const { error } = await supabase.from('vehicle_variants').update(payload).eq('vehicle_id', vehicleId).eq('slug', slug);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'updated'; stats.updated++; }
         } else {
-          row._status = 'success';
-          stats.success++;
+          const { error } = await supabase.from('vehicle_variants').insert([payload]);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'success'; stats.success++; }
         }
       } catch (e: any) {
-        row._errors.push(e.message);
-        row._status = 'error';
-        stats.errors++;
+        row._errors.push(e.message); row._status = 'error'; stats.errors++;
+      }
+      setPreviewData([...previewData]);
+    }
+  };
+
+  const importNews = async (stats: { success: number; updated: number; errors: number; skipped: number }) => {
+    for (const row of previewData) {
+      if (row._status === 'error') {
+        stats.skipped++;
+        continue;
+      }
+      if (row._duplicate === 'existing' && duplicateMode === 'skip') {
+        row._status = 'skipped';
+        stats.skipped++;
+        continue;
       }
 
+      try {
+        const slug = row.slug?.trim() || generateSlug(row.title);
+        const validCategories = ['news', 'review', 'launch', 'comparison', 'guide'];
+        const category = validCategories.includes(String(row.category).toLowerCase().trim()) ? String(row.category).toLowerCase().trim() : 'news';
+
+        const payload = {
+          title: row.title?.trim(),
+          slug,
+          excerpt: row.excerpt?.trim() || null,
+          image_url: row.image_url?.trim() || null,
+          category,
+          author: row.author?.trim() || 'Admin',
+          author_image: row.author_image?.trim() || null,
+          tags: parseArray(row.tags),
+          read_time_mins: parseInt(row.read_time_mins) || 3,
+          is_featured: parseBool(row.is_featured),
+          status: row.status?.trim() || 'draft',
+          seo_title: row.seo_title?.trim() || null,
+          seo_description: row.seo_description?.trim() || null,
+          seo_keywords: parseArray(row.seo_keywords),
+          published_at: row.published_at?.trim() || null,
+          content: row.content?.trim() || '',
+        };
+
+        if (row._duplicate === 'existing' && duplicateMode === 'update') {
+          const { error } = await supabase.from('news').update(payload).eq('slug', slug);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'updated'; stats.updated++; }
+        } else {
+          const { error } = await supabase.from('news').insert([payload]);
+          if (error) { row._errors.push(error.message); row._status = 'error'; stats.errors++; }
+          else { row._status = 'success'; stats.success++; }
+        }
+      } catch (e: any) {
+        row._errors.push(e.message); row._status = 'error'; stats.errors++;
+      }
       setPreviewData([...previewData]);
     }
   };
@@ -427,7 +573,7 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
 
     const content = [
       'Row Number,Errors',
-      ...errorRows.map(row => `${row._rowNumber},"${row._errors.join('; ')}"`),
+      ...errorRows.map(row => `${row._rowNumber},"${row._errors.join('; ').replace(/"/g, '""')}"`),
     ].join('\n');
 
     const blob = new Blob([content], { type: 'text/csv' });
@@ -450,6 +596,8 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
       fileInputRef.current.value = '';
     }
   };
+
+  const duplicateCount = previewData.filter(r => r._duplicate === 'existing').length;
 
   return (
     <div className="space-y-4">
@@ -519,12 +667,45 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
             </div>
           ) : (
             <>
+              {/* Duplicate handling */}
+              {duplicateCount > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={16} className="text-amber-600" />
+                    <span className="text-sm font-medium text-amber-800">
+                      {duplicateCount} existing record{duplicateCount !== 1 ? 's' : ''} found
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-700 mb-3">How should duplicates be handled?</p>
+                  <div className="flex gap-2">
+                    {([
+                      { val: 'skip', label: 'Skip duplicates' },
+                      { val: 'update', label: 'Update existing' },
+                      { val: 'create', label: 'Create new' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.val}
+                        onClick={() => setDuplicateMode(opt.val)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                          duplicateMode === opt.val
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-white text-amber-700 border border-amber-300 hover:bg-amber-50'
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold text-gray-600 w-16">Row</th>
-                      <th className="px-3 py-2 text-left font-semibold text-gray-600">Status</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600 w-20">Status</th>
                       {columnDefs[type].required.map(col => (
                         <th key={col} className="px-3 py-2 text-left font-semibold text-gray-600">{col}</th>
                       ))}
@@ -536,16 +717,25 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
                       <tr key={row._rowNumber} className={cn(
                         row._status === 'error' && 'bg-red-50',
                         row._status === 'success' && 'bg-green-50',
+                        row._status === 'updated' && 'bg-blue-50',
+                        row._status === 'skipped' && 'bg-gray-50',
+                        row._duplicate === 'existing' && row._status === 'pending' && 'bg-amber-50/50',
                       )}>
                         <td className="px-3 py-2 text-gray-500">{row._rowNumber}</td>
                         <td className="px-3 py-2">
-                          {row._status === 'pending' && <span className="text-gray-400">Pending</span>}
+                          {row._status === 'pending' && (
+                            <span className="text-gray-400">
+                              {row._duplicate === 'existing' ? 'Existing' : 'New'}
+                            </span>
+                          )}
                           {row._status === 'success' && <CheckCircle size={14} className="text-green-500" />}
+                          {row._status === 'updated' && <CheckCircle size={14} className="text-blue-500" />}
                           {row._status === 'error' && <AlertCircle size={14} className="text-red-500" />}
+                          {row._status === 'skipped' && <span className="text-gray-400">Skipped</span>}
                         </td>
                         {columnDefs[type].required.map(col => (
                           <td key={col} className="px-3 py-2 truncate max-w-[150px]" title={row[col]}>
-                            {row[col] || '—'}
+                            {row[col] || '\u2014'}
                           </td>
                         ))}
                         <td className="px-3 py-2 text-red-600">
@@ -571,6 +761,7 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-500">
                   {previewData.filter(r => r._status === 'error').length} rows with errors
+                  {duplicateCount > 0 && `, ${duplicateCount} existing records`}
                 </div>
                 <div className="flex gap-2">
                   <button onClick={reset} className="admin-btn-secondary">
@@ -602,11 +793,16 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
 
       {step === 'result' && importStats && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-3">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
               <CheckCircle size={24} className="mx-auto text-green-500 mb-2" />
               <div className="text-2xl font-bold text-green-700">{importStats.success}</div>
-              <div className="text-xs text-green-600">Imported</div>
+              <div className="text-xs text-green-600">New</div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <CheckCircle size={24} className="mx-auto text-blue-500 mb-2" />
+              <div className="text-2xl font-bold text-blue-700">{importStats.updated}</div>
+              <div className="text-xs text-blue-600">Updated</div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
               <AlertCircle size={24} className="mx-auto text-red-500 mb-2" />

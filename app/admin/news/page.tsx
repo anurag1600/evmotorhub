@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle, ContentBlock } from '@/lib/types';
-import { FileText, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Upload, X } from 'lucide-react';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import ImportExport from '@/components/admin/ImportExport';
+import BulkImport from '@/components/admin/BulkImport';
 import { toast } from 'sonner';
 
 const statusColors: Record<string, string> = {
@@ -30,6 +31,7 @@ export default function NewsManagementPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -149,6 +151,12 @@ export default function NewsManagementPage() {
             <p className="admin-subtitle">Create, edit, and publish articles</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBulkImportOpen(true)}
+              className="admin-btn-secondary"
+            >
+              <Upload size={16} /> Bulk Import
+            </button>
             <ImportExport
               tableName="news"
               exportColumns={EXPORT_COLS}
@@ -271,6 +279,29 @@ export default function NewsManagementPage() {
           )}
         </div>
       </div>
+
+      {bulkImportOpen && (
+        <div className="admin-modal-overlay" onClick={() => setBulkImportOpen(false)}>
+          <div className="admin-modal max-w-2xl" onClick={e => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h3 className="text-lg font-bold text-gray-900">Bulk Import News</h3>
+              <button onClick={() => setBulkImportOpen(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X size={18} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="admin-modal-body">
+              <BulkImport
+                type="news"
+                onComplete={(stats) => {
+                  if (stats.success > 0 || stats.updated > 0) {
+                    fetchArticles();
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
