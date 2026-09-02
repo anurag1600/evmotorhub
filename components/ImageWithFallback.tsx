@@ -3,12 +3,12 @@
 import Image, { ImageProps } from 'next/image';
 import { useState, useEffect } from 'react';
 
-const PLACEHOLDER_SVG = '/no-image-found.svg';
+const PLACEHOLDER_IMAGE = '/images/placeholders/image.png';
 
 export function getPlaceholderImage(
   fallbackCategory?: string
 ): string {
-  return PLACEHOLDER_SVG;
+  return PLACEHOLDER_IMAGE;
 }
 
 interface ImageWithFallbackProps extends Omit<ImageProps, 'onError' | 'src'> {
@@ -29,14 +29,15 @@ export default function ImageWithFallback({
   const [errored, setErrored] = useState(false);
 
   useEffect(() => {
-    setImgSrc(src || fallbackSrc || PLACEHOLDER_SVG);
+    const newSrc = src || fallbackSrc || PLACEHOLDER_IMAGE;
+    setImgSrc(newSrc);
     setErrored(false);
   }, [src, fallbackSrc]);
 
   const handleError = () => {
     if (!errored) {
       setErrored(true);
-      setImgSrc(PLACEHOLDER_SVG);
+      setImgSrc(PLACEHOLDER_IMAGE);
     }
   };
 

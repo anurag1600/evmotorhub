@@ -47,16 +47,29 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
 
   // Gallery state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const PLACEHOLDER = '/images/placeholders/image.png';
   const galleryImages = useMemo(() => {
-    // Use variant gallery if available, otherwise fall back to vehicle gallery
+    // Priority: variant gallery > variant image > vehicle image > vehicle gallery_urls > vehicle image_gallery > placeholder
     const variantGallery = selectedVariant?.gallery_urls && selectedVariant.gallery_urls.length > 0
-      ? selectedVariant.gallery_urls
+      ? selectedVariant.gallery_urls.filter(Boolean)
       : null;
-    const primaryImage = selectedVariant?.image_url || vehicle.image_url;
-    const imgs = variantGallery
-      ? variantGallery
-      : [primaryImage, ...(vehicle.image_gallery || vehicle.gallery_urls || [])].filter(Boolean);
-    return imgs.length > 0 ? imgs : ['/placeholder-vehicle.png'];
+    const variantImage = selectedVariant?.image_url || null;
+    const vehicleImage = vehicle.image_url || null;
+    const vehicleGallery = (vehicle.image_gallery && vehicle.image_gallery.length > 0
+      ? vehicle.image_gallery
+      : vehicle.gallery_urls && vehicle.gallery_urls.length > 0
+        ? vehicle.gallery_urls
+        : []).filter(Boolean);
+
+    let imgs: string[];
+    if (variantGallery && variantGallery.length > 0) {
+      imgs = [...variantGallery];
+    } else {
+      imgs = [variantImage, vehicleImage, ...vehicleGallery].filter((url): url is string => !!url && url.length > 0);
+    }
+    // Deduplicate
+    imgs = [...new Set(imgs)];
+    return imgs.length > 0 ? imgs : [PLACEHOLDER];
   }, [vehicle, selectedVariant]);
 
   // Reset image index when variant changes
@@ -371,7 +384,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
             {/* Left: Gallery - Compact */}
             <div className="w-full lg:w-[45%]">
               <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-gray-100 group">
-                <img src={galleryImages[currentImageIndex]} alt={vehicle.name} className="w-full h-full object-contain" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+                <img src={galleryImages[currentImageIndex] || PLACEHOLDER} alt={vehicle.name} className="w-full h-full object-contain" onError={(e) => { e.currentTarget.src = PLACEHOLDER; }} />
                 {galleryImages.length > 1 && (
                   <>
                     <button onClick={prevImage} className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
@@ -400,7 +413,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                 <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
                   {galleryImages.map((img, i) => (
                     <button key={i} onClick={() => setCurrentImageIndex(i)} className={cn('w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border-2 transition-all', i === currentImageIndex ? 'border-[#145a2c] ring-1 ring-green-200' : 'border-transparent hover:border-gray-300')}>
-                      <img src={img} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+                      <img src={img || PLACEHOLDER} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = PLACEHOLDER; }} />
                     </button>
                   ))}
                 </div>
@@ -612,11 +625,13 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                   {activeVariants.map((v) => {
                     const isSelected = selectedVariant?.id === v.id;
                     return (
-                      <div key={v.id} className={cn('border rounded-lg p-3 transition-all', isSelected ? 'border-[#145a2c] bg-green-50' : 'border-gray-200 hover:border-gray-300')}>
+                      <div
+                        key={v.id}
+                        onClick={() => handleSelectVariant(v)}
+                        className={cn('border rounded-lg p-3 transition-all cursor-pointer', isSelected ? 'border-[#145a2c] bg-green-50 ring-1 ring-green-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm')}
+                      >
                         <div className="flex flex-col sm:flex-row gap-3">
-                          {v.image_url && (
-                            <img src={v.image_url} alt={v.name} className="w-full sm:w-24 h-20 rounded-lg object-cover bg-gray-100" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
-                          )}
+                          <img src={v.image_url || PLACEHOLDER} alt={v.name} className="w-full sm:w-24 h-20 rounded-lg object-cover bg-gray-100" onError={(e) => { e.currentTarget.src = PLACEHOLDER; }} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2 mb-1.5">
                               <div className="min-w-0">
@@ -631,9 +646,9 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                               {v.top_speed_kmh && <span className="flex items-center gap-1"><Gauge size={10} />{v.top_speed_kmh} km/h</span>}
                               {v.charging_time_hrs && <span className="flex items-center gap-1"><Clock size={10} />{v.charging_time_hrs}h</span>}
                             </div>
-                            <button onClick={() => handleSelectVariant(v)} className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all', isSelected ? 'bg-[#145a2c] text-white' : 'bg-gray-100 text-gray-700 hover:bg-[#145a2c] hover:text-white')}>
-                              {isSelected ? 'Selected' : 'Select'}
-                            </button>
+                            <span className={cn('inline-block px-3 py-1.5 rounded-lg text-xs font-medium transition-all pointer-events-none', isSelected ? 'bg-[#145a2c] text-white' : 'bg-gray-100 text-gray-700')}>
+                              {isSelected ? '✓ Selected' : 'Select'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -764,13 +779,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                     {adminSimilarVehicles.slice(0, 4).map((v) => (
                       <Link key={v.id} href={`/vehicles/${v.slug}`} className="block group">
                         <div className="flex gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100">
-                          {v.image_url ? (
-                            <img src={v.image_url} alt={v.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
-                          ) : (
-                            <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                              <Zap size={20} className="text-gray-300" />
-                            </div>
-                          )}
+                          <img src={v.image_url || '/images/placeholders/image.png'} alt={v.name} className="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           <div className="min-w-0 flex-1 flex flex-col justify-center">
                             <p className="font-medium text-gray-900 group-hover:text-[#145a2c] transition-colors text-sm truncate">{v.name}</p>
                             <p className="text-xs text-gray-500">{v.manufacturers?.name}</p>
@@ -797,7 +806,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                     {relatedNews.slice(0, 3).map((article) => (
                       <Link key={article.id} href={`/news/${article.slug}`} className="block group">
                         <div className="flex gap-2.5">
-                          <img src={article.image_url} alt="" className="w-14 h-10 rounded-lg object-cover bg-gray-100 flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+                          <img src={article.image_url || '/images/placeholders/image.png'} alt="" className="w-14 h-10 rounded-lg object-cover bg-gray-100 flex-shrink-0" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] text-gray-500 uppercase font-semibold">{article.category}</p>
                             <p className="text-sm font-medium text-gray-900 group-hover:text-[#145a2c] line-clamp-2 transition-colors">{article.title}</p>
@@ -815,7 +824,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                   <div className="text-[10px] text-gray-400 text-center py-1.5 bg-gray-50 uppercase tracking-wide">Advertisement</div>
                   {advertisement.image_url && (
                     <a href={advertisement.link_url || '#'} target="_blank" rel="noopener noreferrer" className="block">
-                      <img src={advertisement.image_url} alt={advertisement.title} className="w-full aspect-square object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+                      <img src={advertisement.image_url || '/images/placeholders/image.png'} alt={advertisement.title} className="w-full aspect-square object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                     </a>
                   )}
                 </section>
