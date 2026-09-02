@@ -26,7 +26,7 @@ export default function NewsCard({ article, featured = false }: NewsCardProps) {
               sizes="(max-width: 768px) 100vw, 40vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-            <span className={cn('absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full', getCategoryColor(article.category))}>
+            <span className={cn('absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-md border shadow-md', getCategoryColor(article.category))}>
               {getCategoryLabel(article.category)}
             </span>
           </div>
@@ -81,7 +81,7 @@ export default function NewsCard({ article, featured = false }: NewsCardProps) {
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          <span className={cn('absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full', getCategoryColor(article.category))}>
+          <span className={cn('absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-md border shadow-md', getCategoryColor(article.category))}>
             {getCategoryLabel(article.category)}
           </span>
         </div>

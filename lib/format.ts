@@ -104,16 +104,16 @@ export function getCategoryColor(category: string, forAdmin: boolean = false): s
     return colors[category] || 'bg-gray-100 text-gray-800';
   }
   const colors: Record<string, string> = {
-    news: 'bg-blue-500 text-white shadow-blue-200',
-    review: 'bg-emerald-500 text-white shadow-emerald-200',
-    launch: 'bg-amber-500 text-white shadow-amber-200',
-    comparison: 'bg-violet-500 text-white shadow-violet-200',
-    guide: 'bg-teal-500 text-white shadow-teal-200',
-    industry: 'bg-slate-500 text-white shadow-slate-200',
-    tips: 'bg-rose-500 text-white shadow-rose-200',
-    blog: 'bg-indigo-500 text-white shadow-indigo-200',
+    news: 'bg-blue-500/85 text-white border-blue-400/40',
+    review: 'bg-emerald-500/85 text-white border-emerald-400/40',
+    launch: 'bg-amber-500/85 text-white border-amber-400/40',
+    comparison: 'bg-violet-500/85 text-white border-violet-400/40',
+    guide: 'bg-teal-500/85 text-white border-teal-400/40',
+    industry: 'bg-slate-500/85 text-white border-slate-400/40',
+    tips: 'bg-rose-500/85 text-white border-rose-400/40',
+    blog: 'bg-indigo-500/85 text-white border-indigo-400/40',
   };
-  return colors[category] || 'bg-gray-500 text-white shadow-gray-200';
+  return colors[category] || 'bg-gray-500/85 text-white border-gray-400/40';
 }
 
 export function timeAgo(dateStr: string): string {

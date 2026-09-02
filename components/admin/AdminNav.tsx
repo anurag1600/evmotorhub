@@ -27,6 +27,7 @@ const adminMenuItems = [
   { label: 'Charging Submissions', href: '/admin/charging-submissions', icon: Zap },
   { label: 'Contact Submissions', href: '/admin/contact-submissions', icon: Mail },
   { label: 'Homepage Settings', href: '/admin/settings', icon: Home },
+  { label: 'Section Manager', href: '/admin/sections', icon: Sliders },
   { label: 'Contact Settings', href: '/admin/contact', icon: MessageSquare },
   { label: 'Footer Settings', href: '/admin/footer', icon: Sliders },
   { label: 'SEO Settings', href: '/admin/seo', icon: Search },
