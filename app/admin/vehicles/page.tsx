@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, Manufacturer } from '@/lib/types';
 import { Car, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Power, Star, Settings, Upload, X } from 'lucide-react';
+import BulkActionsBar from '@/components/admin/BulkActionsBar';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { formatPrice, getVehicleTypeLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -57,6 +59,9 @@ export default function VehiclesManagementPage() {
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const bulk = useBulkSelection<VehicleWithManufacturer>(vehicles);
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
@@ -136,6 +141,7 @@ export default function VehiclesManagementPage() {
 
   useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
   useEffect(() => { setPage(1); }, [search, type, status]);
+  useEffect(() => { bulk.clearSelection(); }, [page, search, type, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteVehicle = async (id: string) => {
     if (!confirm('Delete this vehicle and all its variants? This action cannot be undone.')) return;
@@ -157,6 +163,40 @@ export default function VehiclesManagementPage() {
 
   const handleManageVariants = (vehicleId: string) => {
     router.push(`/admin/variants?vehicle=${vehicleId}`);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${bulk.selectedCount} vehicle(s) and all their variants? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      await supabase.from('vehicle_variants').delete().in('vehicle_id', Array.from(bulk.selectedIds));
+      const { error } = await supabase.from('vehicles').delete().in('id', Array.from(bulk.selectedIds));
+      if (error) throw error;
+      setVehicles(vehicles.filter(v => !bulk.selectedIds.has(v.id)));
+      setTotal(t => t - bulk.selectedCount);
+      bulk.clearSelection();
+      toast.success(`${bulk.selectedCount} vehicle(s) deleted`);
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk delete failed');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkStatus = async (newStatus: string) => {
+    try {
+      const { error } = await supabase.from('vehicles')
+        .update({ status: newStatus })
+        .in('id', Array.from(bulk.selectedIds));
+      if (error) throw error;
+      setVehicles(vehicles.map(v =>
+        bulk.selectedIds.has(v.id) ? { ...v, status: newStatus as Vehicle['status'] } : v
+      ));
+      toast.success(`${bulk.selectedCount} vehicle(s) updated to ${newStatus}`);
+      bulk.clearSelection();
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk update failed');
+    }
   };
 
   const handleImport = async (rows: Record<string, string>[]) => {
@@ -281,6 +321,17 @@ export default function VehiclesManagementPage() {
         </div>
 
         <div className="admin-card overflow-hidden">
+          {bulk.selectedCount > 0 && (
+            <div className="mb-3">
+              <BulkActionsBar
+                selectedCount={bulk.selectedCount}
+                onClear={bulk.clearSelection}
+                onDelete={handleBulkDelete}
+                onSetStatus={handleBulkStatus}
+                deleting={bulkDeleting}
+              />
+            </div>
+          )}
           {loading ? (
             <div className="p-8 text-center text-gray-500">
               <Loader2 size={24} className="mx-auto animate-spin mb-2 text-gray-400" />
@@ -298,6 +349,15 @@ export default function VehiclesManagementPage() {
                 <table className="admin-table">
                   <thead className="admin-table-head">
                     <tr>
+                      <th className="w-10">
+                        <input
+                          type="checkbox"
+                          checked={bulk.isAllSelected}
+                          ref={(el) => { if (el) el.indeterminate = bulk.isPartialSelected; }}
+                          onChange={bulk.toggleSelectAll}
+                          className="rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]"
+                        />
+                      </th>
                       <th className="w-16">Image</th>
                       <th>Vehicle</th>
                       <th>Brand</th>
@@ -311,8 +371,16 @@ export default function VehiclesManagementPage() {
                   </thead>
                   <tbody className="admin-table-body">
                     {vehicles.map((vehicle) => (
-                      <tr key={vehicle.id} className="group">
+                      <tr key={vehicle.id} className={cn('group', bulk.isSelected(vehicle.id) && 'bg-green-50/50')}>
                         <td>
+                        <input
+                          type="checkbox"
+                          checked={bulk.isSelected(vehicle.id)}
+                          onChange={() => bulk.toggleSelect(vehicle.id)}
+                          className="rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]"
+                        />
+                      </td>
+                      <td>
                           {vehicle.image_url ? (
                             <img src={vehicle.image_url} alt={vehicle.name} className="w-10 h-10 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                           ) : (

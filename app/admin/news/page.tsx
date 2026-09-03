@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle, ContentBlock } from '@/lib/types';
 import { FileText, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Upload, X } from 'lucide-react';
+import BulkActionsBar from '@/components/admin/BulkActionsBar';
+import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
@@ -32,6 +34,9 @@ export default function NewsManagementPage() {
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const bulk = useBulkSelection<NewsArticle>(articles);
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -53,6 +58,7 @@ export default function NewsManagementPage() {
 
   useEffect(() => { fetchArticles(); }, [fetchArticles]);
   useEffect(() => { setPage(1); }, [search, status]);
+  useEffect(() => { bulk.clearSelection(); }, [page, search, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAllForExport = async () => {
     const { data } = await supabase.from('news').select('*').order('updated_at', { ascending: false });
@@ -78,6 +84,39 @@ export default function NewsManagementPage() {
       toast.error('Failed to delete');
     }
     finally { setDeleting(null); }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${bulk.selectedCount} article(s)? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase.from('news').delete().in('id', Array.from(bulk.selectedIds));
+      if (error) throw error;
+      setArticles(articles.filter(a => !bulk.selectedIds.has(a.id)));
+      setTotal(t => t - bulk.selectedCount);
+      bulk.clearSelection();
+      toast.success(`${bulk.selectedCount} article(s) deleted`);
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk delete failed');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleBulkStatus = async (newStatus: string) => {
+    try {
+      const { error } = await supabase.from('news')
+        .update({ status: newStatus })
+        .in('id', Array.from(bulk.selectedIds));
+      if (error) throw error;
+      setArticles(articles.map(a =>
+        bulk.selectedIds.has(a.id) ? { ...a, status: newStatus as NewsArticle['status'] } : a
+      ));
+      toast.success(`${bulk.selectedCount} article(s) updated to ${newStatus}`);
+      bulk.clearSelection();
+    } catch (err: any) {
+      toast.error(err.message || 'Bulk update failed');
+    }
   };
 
   const handleImport = async (rows: Record<string, string>[]) => {
@@ -191,6 +230,17 @@ export default function NewsManagementPage() {
         </div>
 
         <div className="admin-card overflow-hidden">
+          {bulk.selectedCount > 0 && (
+            <div className="mb-3">
+              <BulkActionsBar
+                selectedCount={bulk.selectedCount}
+                onClear={bulk.clearSelection}
+                onDelete={handleBulkDelete}
+                onSetStatus={handleBulkStatus}
+                deleting={bulkDeleting}
+              />
+            </div>
+          )}
           {loading ? (
             <div className="p-8 text-center text-gray-500">
               <Loader2 size={24} className="mx-auto animate-spin mb-2 text-gray-400" />
@@ -210,6 +260,15 @@ export default function NewsManagementPage() {
                 <table className="admin-table">
                   <thead className="admin-table-head">
                     <tr>
+                      <th className="w-10">
+                        <input
+                          type="checkbox"
+                          checked={bulk.isAllSelected}
+                          ref={(el) => { if (el) el.indeterminate = bulk.isPartialSelected; }}
+                          onChange={bulk.toggleSelectAll}
+                          className="rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]"
+                        />
+                      </th>
                       <th>Title</th>
                       <th>Category</th>
                       <th>Status</th>
@@ -221,8 +280,16 @@ export default function NewsManagementPage() {
                   </thead>
                   <tbody className="admin-table-body">
                     {articles.map((article) => (
-                      <tr key={article.id}>
-                        <td className="font-medium text-gray-900">{article.title}</td>
+                      <tr key={article.id} className={bulk.isSelected(article.id) ? 'bg-green-50/50' : ''}>
+                        <td>
+                        <input
+                          type="checkbox"
+                          checked={bulk.isSelected(article.id)}
+                          onChange={() => bulk.toggleSelect(article.id)}
+                          className="rounded border-gray-300 text-[#145a2c] focus:ring-[#145a2c]"
+                        />
+                      </td>
+                      <td className="font-medium text-gray-900">{article.title}</td>
                         <td>
                           <span className={cn('admin-badge', getCategoryColor(article.category, true))}>
                             {getCategoryLabel(article.category)}

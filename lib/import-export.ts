@@ -1,4 +1,5 @@
 // CSV/Excel import and export utilities for admin tables
+import * as XLSX from 'xlsx';
 
 export function arrayToCSV(rows: Record<string, any>[], columns: string[]): string {
   const header = columns.join(',');
@@ -6,8 +7,7 @@ export function arrayToCSV(rows: Record<string, any>[], columns: string[]): stri
     columns.map((col) => {
       const val = row[col];
       if (val === null || val === undefined) return '';
-      const str = Array.isArray(val) ? val.join(';') : String(val);
-      // Escape quotes and wrap in quotes if contains comma/newline/quote
+      const str = Array.isArray(val) ? val.join(';') : typeof val === 'object' ? JSON.stringify(val) : String(val);
       if (str.includes(',') || str.includes('\n') || str.includes('"')) {
         return `"${str.replace(/"/g, '""')}"`;
       }
@@ -30,7 +30,6 @@ export function downloadCSV(content: string, filename: string) {
 }
 
 export function parseCSV(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  // Character-level parser that correctly handles embedded newlines and commas inside quoted fields
   const records: string[][] = [];
   let currentRow: string[] = [];
   let currentCell = '';
@@ -62,7 +61,6 @@ export function parseCSV(text: string): { headers: string[]; rows: Record<string
       currentCell = '';
       hasAnyChar = true;
     } else if (ch === '\n' || ch === '\r') {
-      // Handle \r\n and standalone \r
       if (ch === '\r' && text[i + 1] === '\n') i++;
       currentRow.push(currentCell);
       if (currentRow.some(c => c.trim() !== '') || hasAnyChar) {
@@ -77,7 +75,6 @@ export function parseCSV(text: string): { headers: string[]; rows: Record<string
     }
   }
 
-  // Flush last cell/row if file doesn't end with newline
   if (currentCell !== '' || currentRow.length > 0 || hasAnyChar) {
     currentRow.push(currentCell);
     if (currentRow.some(c => c.trim() !== '')) {
@@ -97,19 +94,68 @@ export function parseCSV(text: string): { headers: string[]; rows: Record<string
   return { headers, rows };
 }
 
-// Generate a sample CSV template with the given columns
+// Parse XLSX/XLS files using the xlsx library
+export function parseExcel(file: File): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json: any[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+        
+        if (json.length < 2) {
+          resolve({ headers: [], rows: [] });
+          return;
+        }
+
+        const headers = json[0].map((h: any) => String(h).trim());
+        const rows = json.slice(1)
+          .filter((row: any[]) => row.some(cell => String(cell).trim()))
+          .map((row: any[]) => {
+            const obj: Record<string, string> = {};
+            headers.forEach((h: string, i: number) => {
+              obj[h] = String(row[i] ?? '').trim();
+            });
+            return obj;
+          });
+
+        resolve({ headers, rows });
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Unified file parser - detects format and parses accordingly
+export async function parseFile(file: File): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
+  const ext = file.name.toLowerCase().split('.').pop();
+  
+  if (ext === 'xlsx' || ext === 'xls') {
+    return parseExcel(file);
+  }
+  
+  // CSV and TSV fallback
+  const text = await file.text();
+  return parseCSV(text);
+}
+
 export function generateTemplate(columns: string[]): string {
   return columns.join(',') + '\n' + columns.map(() => '').join(',');
 }
 
-// Convert rows to JSON-downloadable Excel-compatible format (TSV for broad compatibility)
+// Convert rows to Excel-compatible format (TSV for broad compatibility)
 export function arrayToExcel(rows: Record<string, any>[], columns: string[]): string {
   const header = columns.join('\t');
   const body = rows.map((row) =>
     columns.map((col) => {
       const val = row[col];
       if (val === null || val === undefined) return '';
-      return Array.isArray(val) ? val.join(';') : String(val);
+      return Array.isArray(val) ? val.join(';') : typeof val === 'object' ? JSON.stringify(val) : String(val);
     }).join('\t')
   );
   return [header, ...body].join('\n');
@@ -125,4 +171,29 @@ export function downloadExcel(content: string, filename: string) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Generate and download a real .xlsx template
+export function downloadExcelTemplate(columns: string[], sampleRows: Record<string, any>[] = [], filename: string) {
+  const wsData = [columns, ...sampleRows.map(r => columns.map(c => r[c] ?? ''))];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, filename);
+}
+
+// Export data to a real .xlsx file
+export function exportToExcel(rows: Record<string, any>[], columns: string[], filename: string) {
+  const wsData = [
+    columns,
+    ...rows.map(row => columns.map(col => {
+      const val = row[col];
+      if (val === null || val === undefined) return '';
+      return Array.isArray(val) ? val.join(';') : typeof val === 'object' ? JSON.stringify(val) : val;
+    }))
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, filename);
 }

@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { Download, Upload, FileText, CircleAlert as AlertCircle, CircleCheck as CheckCircle, X, Loader as Loader2 } from 'lucide-react';
 import {
-  Download, Upload, FileText, AlertCircle, CheckCircle, X, Loader2
-} from 'lucide-react';
-import {
-  arrayToCSV, downloadCSV, parseCSV, generateTemplate,
-  arrayToExcel, downloadExcel
+  arrayToCSV, downloadCSV, generateTemplate,
+  arrayToExcel, downloadExcel, exportToExcel, parseFile
 } from '@/lib/import-export';
 
 interface ImportExportProps {
@@ -31,8 +29,7 @@ export default function ImportExport({
   };
 
   const handleExportExcel = () => {
-    const tsv = arrayToExcel(data, exportColumns);
-    downloadExcel(tsv, `${tableName}_export_${Date.now()}.xls`);
+    exportToExcel(data, exportColumns, `${tableName}_export_${Date.now()}.xlsx`);
   };
 
   const handleTemplate = () => {
@@ -48,8 +45,7 @@ export default function ImportExport({
     setReport(null);
 
     try {
-      const text = await file.text();
-      const { rows } = parseCSV(text);
+      const { rows } = await parseFile(file);
 
       if (rows.length === 0) {
         setReport({ success: 0, errors: ['File is empty or has no data rows.'] });

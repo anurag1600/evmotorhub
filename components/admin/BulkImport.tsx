@@ -5,7 +5,7 @@ import { Upload, FileText, X, CircleCheck as CheckCircle, CircleAlert as AlertCi
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { parseCSV as robustParseCSV } from '@/lib/import-export';
+import { parseCSV as robustParseCSV, parseFile } from '@/lib/import-export';
 
 type ImportType = 'manufacturers' | 'vehicles' | 'variants' | 'news';
 
@@ -30,7 +30,7 @@ interface ColumnDef {
 const columnDefs: Record<ImportType, ColumnDef> = {
   manufacturers: {
     required: ['name'],
-    optional: ['slug', 'country', 'headquarters', 'website', 'logo_url', 'hero_image_url', 'description', 'founded_year', 'is_featured', 'show_on_homepage', 'status'],
+    optional: ['slug', 'country', 'headquarters', 'website', 'logo_url', 'hero_image_url', 'description', 'founded_year', 'is_featured', 'show_on_homepage', 'total_models', 'contact_email', 'support_phone', 'model_year_start', 'status'],
   },
   vehicles: {
     required: ['name', 'manufacturer'],
@@ -47,10 +47,10 @@ const columnDefs: Record<ImportType, ColumnDef> = {
 };
 
 const sampleData: Record<ImportType, string> = {
-  manufacturers: `name,country,headquarters,website,logo_url,description,founded_year,is_featured
-Ather Electric,India,Bangalore,https://ather.com,,Smart electric scooter manufacturer,2013,true
-Ola Electric,India,Bengaluru,https://olaelectric.com,,Leading EV manufacturer,2017,true
-TVS Motor Company,India,Chennai,https://tvmotor.com,,Renowned two-wheeler manufacturer,1978,false`,
+  manufacturers: `name,country,headquarters,website,logo_url,description,founded_year,is_featured,show_on_homepage,total_models,contact_email,support_phone,model_year_start,status
+Ather Electric,India,Bangalore,https://ather.com,,Smart electric scooter manufacturer,2013,true,true,5,info@ather.com,18001234567,2013,active
+Ola Electric,India,Bengaluru,https://olaelectric.com,,Leading EV manufacturer,2017,true,true,8,support@olaelectric.com,18007654321,2017,active
+TVS Motor Company,India,Chennai,https://tvmotor.com,,Renowned two-wheeler manufacturer,1978,false,false,12,info@tvmotor.com,18001122334,1978,active`,
   vehicles: `name,manufacturer,type,segment,price_min,price_max,range_km,top_speed_kmh,battery_capacity_kwh,description,is_featured,status
 Ola S1 Pro,Ola Electric,scooter,premium,139999,144999,181,116,3.97,"The Ola S1 Pro offers exceptional range and performance",true,draft
 Ather 450X,Ather Electric,scooter,premium,128000,155000,146,115,2.9,"Premium electric scooter with smart features",true,draft`,
@@ -135,10 +135,12 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.name.endsWith('.csv') || droppedFile.name.endsWith('.txt'))) {
+    const validExt = ['.csv', '.txt', '.xlsx', '.xls'];
+    const ext = droppedFile.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+    if (validExt.includes(ext)) {
       processFile(droppedFile);
     } else {
-      toast.error('Please upload a CSV file');
+      toast.error('Please upload a CSV or Excel file');
     }
   }, []);
 
@@ -156,19 +158,18 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
     setStep('preview');
 
     try {
-      const text = await uploadedFile.text();
-      const rows = parseCSV(text);
+      const { headers: rawHeaders, rows: rawRows } = await parseFile(uploadedFile);
 
-      if (rows.length < 2) {
+      if (rawRows.length === 0) {
         toast.error('File must have at least a header row and one data row');
         setStep('upload');
         return;
       }
 
-      const headers = rows[0].map(h => h.toLowerCase().trim());
-      const dataRows = rows.slice(1).filter(row => row.some(cell => cell.trim()));
+      const headers = rawHeaders.map(h => h.toLowerCase().trim());
       const requiredCols = columnDefs[type].required;
       const { optional } = columnDefs[type];
+      const dataRows = rawRows.map(r => headers.map(h => r[h] ?? ''));
 
       const missingRequired = requiredCols.filter(col => !headers.includes(col.toLowerCase()));
       if (missingRequired.length > 0) {
@@ -330,6 +331,10 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           founded_year: parseInt(row.founded_year) || null,
           is_featured: parseBool(row.is_featured),
           show_on_homepage: parseBool(row.show_on_homepage),
+          total_models: parseInt(row.total_models) || 0,
+          contact_email: row.contact_email?.trim() || null,
+          support_phone: row.support_phone?.trim() || null,
+          model_year_start: parseInt(row.model_year_start) || null,
           status: row.status?.trim() || 'active',
         };
 
@@ -517,6 +522,15 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
         const validCategories = ['news', 'review', 'launch', 'comparison', 'guide'];
         const category = validCategories.includes(String(row.category).toLowerCase().trim()) ? String(row.category).toLowerCase().trim() : 'news';
 
+        const rawContent = row.content?.trim() || '';
+        const contentBlocks = rawContent
+          ? rawContent.split(/\n{2,}/).map(para => para.trim()).filter(Boolean).map(para => ({
+              id: 'blk_' + Math.random().toString(36).substr(2, 9),
+              type: 'paragraph' as const,
+              data: { text: para },
+            }))
+          : [];
+
         const payload = {
           title: row.title?.trim(),
           slug,
@@ -533,7 +547,8 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           seo_description: row.seo_description?.trim() || null,
           seo_keywords: parseArray(row.seo_keywords),
           published_at: row.published_at?.trim() || null,
-          content: row.content?.trim() || '',
+          content: rawContent,
+          content_blocks: contentBlocks,
         };
 
         if (row._duplicate === 'existing' && duplicateMode === 'update') {
@@ -617,15 +632,15 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           >
             <Upload size={40} className={cn('mx-auto mb-3', isDragging ? 'text-[#145a2c]' : 'text-gray-300')} />
             <p className="text-sm font-medium text-gray-700 mb-1">
-              Drop your CSV file here, or click to browse
+              Drop your CSV or Excel file here, or click to browse
             </p>
             <p className="text-xs text-gray-500">
-              Supports CSV files with header row
+              Supports CSV, XLSX, and XLS files with header row
             </p>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,.txt"
+              accept=".csv,.txt,.xlsx,.xls"
               onChange={handleFileSelect}
               className="hidden"
             />
