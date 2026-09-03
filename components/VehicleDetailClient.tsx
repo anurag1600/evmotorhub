@@ -68,7 +68,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
       imgs = [variantImage, vehicleImage, ...vehicleGallery].filter((url): url is string => !!url && url.length > 0);
     }
     // Deduplicate
-    imgs = [...new Set(imgs)];
+    imgs = Array.from(new Set(imgs));
     return imgs.length > 0 ? imgs : [PLACEHOLDER];
   }, [vehicle, selectedVariant]);
 
