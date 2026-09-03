@@ -524,7 +524,7 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
 
         const rawContent = row.content?.trim() || '';
         const contentBlocks = rawContent
-          ? rawContent.split(/\n{2,}/).map(para => para.trim()).filter(Boolean).map(para => ({
+          ? rawContent.split(/\n{2,}/).map((para: string) => para.trim()).filter(Boolean).map((para: string) => ({
               id: 'blk_' + Math.random().toString(36).substr(2, 9),
               type: 'paragraph' as const,
               data: { text: para },
