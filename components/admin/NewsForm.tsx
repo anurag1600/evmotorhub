@@ -63,6 +63,17 @@ export default function NewsForm({ articleId }: NewsFormProps) {
       });
       if (data.content_blocks && data.content_blocks.length > 0) {
         setContentBlocks(data.content_blocks);
+      } else if (data.content && data.content.trim()) {
+        const blocks: ContentBlock[] = data.content
+          .split(/\n{2,}/)
+          .map((para: string) => para.trim())
+          .filter(Boolean)
+          .map((para: string) => ({
+            id: 'blk_' + Math.random().toString(36).substr(2, 9),
+            type: 'paragraph' as const,
+            data: { text: para },
+          }));
+        setContentBlocks(blocks);
       }
     } catch (err: any) {
       setError(err.message);
@@ -88,13 +99,18 @@ export default function NewsForm({ articleId }: NewsFormProps) {
         throw new Error('Please add content blocks to the article');
       }
 
+      const rawContent = contentBlocks
+        .map(b => b.type === 'paragraph' ? b.data.text : b.type.startsWith('heading') ? b.data.text : '')
+        .filter(Boolean)
+        .join('\n\n');
+
       if (articleId) {
         const { error } = await supabase
           .from('news')
           .update({
             title,
             slug,
-            content: '',
+            content: rawContent,
             content_blocks: contentBlocks,
             excerpt,
             image_url,
@@ -118,7 +134,7 @@ export default function NewsForm({ articleId }: NewsFormProps) {
         const { error } = await supabase.from('news').insert([{
           title,
           slug,
-          content: '',
+          content: rawContent,
           content_blocks: contentBlocks,
           excerpt,
           image_url,

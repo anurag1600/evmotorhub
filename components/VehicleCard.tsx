@@ -19,8 +19,8 @@ export default function VehicleCard({ vehicle, compact = false }: VehicleCardPro
         compact ? 'shadow-sm' : 'shadow-sm'
       )}>
         {/* Image */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-          <div className={cn('relative w-full', compact ? 'h-36' : 'h-44 sm:h-48')}>
+          <div className="relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+          <div className="relative w-full aspect-[4/3]">
             <ImageWithFallback
               src={vehicle.image_url || ''}
               alt={vehicle.name}

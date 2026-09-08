@@ -7,6 +7,7 @@ import { Vehicle, Manufacturer } from '@/lib/types';
 import { Save, Loader as Loader2, X, CircleAlert as AlertCircle, Plus, ChevronUp, ChevronDown, Trash2, Power, ChevronRight } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
+import { MultiImageUpload } from '@/components/ImageUpload';
 
 interface VehicleFormProps {
   vehicleId?: string;
@@ -664,21 +665,14 @@ export default function VehicleForm({ vehicleId }: VehicleFormProps) {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Image Gallery</label>
-                <div className="space-y-2">
-                  {formData.image_gallery.map((url, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <img src={url} alt="" className="w-12 h-12 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
-                      <span className="text-xs text-gray-500 truncate flex-1">{url.split('/').pop()}</span>
-                      <button type="button" onClick={() => setFormData({ ...formData, image_gallery: formData.image_gallery.filter((_, j) => j !== i) })} className="text-red-400 hover:text-red-600"><X size={14} /></button>
-                    </div>
-                  ))}
-                  <ImageUpload
-                    bucket="vehicle-gallery"
-                    onImageUrl={(url) => setFormData({ ...formData, image_gallery: [...formData.image_gallery, url] })}
-                    currentImageUrl=""
-                    label="Add Gallery Image"
-                  />
-                </div>
+                <MultiImageUpload
+                  bucket="vehicle-gallery"
+                  onImagesChange={(urls) => setFormData({ ...formData, image_gallery: urls })}
+                  currentImages={formData.image_gallery}
+                  label=""
+                  maxImages={15}
+                  helpText="Upload multiple images at once"
+                />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Legacy Gallery URLs</label>

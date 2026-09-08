@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import { Clock, ArrowRight, Tag } from 'lucide-react';
 import { NewsArticle } from '@/lib/types';
@@ -48,7 +47,7 @@ export default function NewsCard({ article, featured = false }: NewsCardProps) {
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center gap-2">
                 {article.author_image && (
-                  <Image
+                  <ImageWithFallback
                     src={article.author_image}
                     alt={article.author}
                     width={28}

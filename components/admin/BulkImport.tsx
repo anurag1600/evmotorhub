@@ -166,10 +166,20 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
         return;
       }
 
-      const headers = rawHeaders.map(h => h.toLowerCase().trim());
+      const headerMap = rawHeaders.map(h => h.toLowerCase().trim());
+      const headers = headerMap;
       const requiredCols = columnDefs[type].required;
       const { optional } = columnDefs[type];
-      const dataRows = rawRows.map(r => headers.map(h => r[h] ?? ''));
+      // Map each lowercase header to its original-case key in the row object
+      const dataRows = rawRows.map(r => headerMap.map(h => {
+        // Try lowercase, then original, then case-insensitive lookup
+        if (r[h] !== undefined) return r[h];
+        const origKey = rawHeaders.find(rh => rh.toLowerCase().trim() === h);
+        if (origKey && r[origKey] !== undefined) return r[origKey];
+        // Fallback: case-insensitive search
+        const found = Object.entries(r).find(([k]) => k.toLowerCase().trim() === h);
+        return found ? found[1] : '';
+      }));
 
       const missingRequired = requiredCols.filter(col => !headers.includes(col.toLowerCase()));
       if (missingRequired.length > 0) {

@@ -147,6 +147,14 @@ async function uploadSingleFile(
   return imageUrl;
 }
 
+interface FileUploadState {
+  fileName: string;
+  progress: number;
+  status: 'uploading' | 'success' | 'error';
+  error?: string;
+  previewUrl?: string;
+}
+
 export function MultiImageUpload({
   bucket,
   onImagesChange,
@@ -161,17 +169,28 @@ export function MultiImageUpload({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [fileStates, setFileStates] = useState<FileUploadState[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef(currentImages);
+  const lastSyncedImages = useRef(currentImages);
 
   useEffect(() => {
-    setImages(currentImages);
+    imagesRef.current = images;
+  }, [images]);
+
+  useEffect(() => {
+    // Only sync if the external value changed and differs from what we have
+    if (currentImages !== lastSyncedImages.current) {
+      lastSyncedImages.current = currentImages;
+      setImages(currentImages);
+    }
   }, [currentImages]);
 
   const handleFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    const remaining = maxImages - images.length;
+    const remaining = maxImages - imagesRef.current.length;
     if (remaining <= 0) {
       toast.error(`Maximum ${maxImages} images allowed`);
       return;
@@ -181,29 +200,49 @@ export function MultiImageUpload({
     setUploading(true);
     setError('');
 
+    const initStates: FileUploadState[] = toUpload.map(f => ({
+      fileName: f.name,
+      progress: 0,
+      status: 'uploading',
+      previewUrl: URL.createObjectURL(f),
+    }));
+    setFileStates(initStates);
+
     const newUrls: string[] = [];
-    for (const file of toUpload) {
+    for (let i = 0; i < toUpload.length; i++) {
+      const file = toUpload[i];
       try {
+        setFileStates(prev => prev.map((s, idx) => idx === i ? { ...s, progress: 30 } : s));
         const url = await uploadSingleFile(file, bucket, maxSize, 0.82);
-        if (!images.includes(url) && !newUrls.includes(url)) {
+        if (!imagesRef.current.includes(url) && !newUrls.includes(url)) {
           newUrls.push(url);
         }
+        setFileStates(prev => prev.map((s, idx) => idx === i ? { ...s, progress: 100, status: 'success' } : s));
       } catch (err: any) {
         console.error('Upload error:', err);
-        toast.error(err.message || 'Failed to upload image');
+        const msg = err.message || 'Failed to upload image';
+        toast.error(`${file.name}: ${msg}`);
+        setFileStates(prev => prev.map((s, idx) => idx === i ? { ...s, status: 'error', error: msg } : s));
       }
     }
 
     if (newUrls.length > 0) {
-      const updated = [...images, ...newUrls];
+      const updated = [...imagesRef.current, ...newUrls];
       setImages(updated);
+      lastSyncedImages.current = updated;
       onImagesChange(updated);
-      toast.success(`${newUrls.length} image(s) uploaded`);
+      toast.success(`${newUrls.length} image(s) uploaded successfully`);
     }
+
+    // Clean up object URLs and clear file states after a delay
+    setTimeout(() => {
+      initStates.forEach(s => { if (s.previewUrl) URL.revokeObjectURL(s.previewUrl); });
+      setFileStates([]);
+    }, 2000);
 
     setUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [bucket, maxSize, images, maxImages, onImagesChange]);
+  }, [bucket, maxSize, maxImages, onImagesChange]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) handleFiles(e.target.files);
@@ -219,6 +258,7 @@ export function MultiImageUpload({
   const removeImage = (index: number) => {
     const updated = images.filter((_, i) => i !== index);
     setImages(updated);
+    lastSyncedImages.current = updated;
     onImagesChange(updated);
   };
 
@@ -228,6 +268,7 @@ export function MultiImageUpload({
     const updated = [...images];
     [updated[index], updated[newIdx]] = [updated[newIdx], updated[index]];
     setImages(updated);
+    lastSyncedImages.current = updated;
     onImagesChange(updated);
   };
 
@@ -250,7 +291,7 @@ export function MultiImageUpload({
           {images.map((url, i) => (
             <div key={url + i} className="relative group">
               <div className={`relative ${aspectClass} bg-gray-100 rounded-lg overflow-hidden border border-gray-200`}>
-                <Image src={url} alt={`Image ${i + 1}`} fill className="object-cover" unoptimized />
+                <Image src={url} alt={`Image ${i + 1}`} fill className="object-cover" unoptimized onError={() => { const idx = images.indexOf(url); if (idx >= 0) removeImage(idx); }} />
               </div>
               <button
                 type="button"
@@ -267,6 +308,34 @@ export function MultiImageUpload({
                 <button type="button" onClick={() => moveImage(i, 'right')} disabled={i === images.length - 1} className="bg-white/90 rounded p-0.5 disabled:opacity-30" title="Move right">
                   <RefreshCw size={10} className="text-gray-700" />
                 </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload Progress for Multiple Files */}
+      {fileStates.length > 0 && (
+        <div className="space-y-2">
+          {fileStates.map((fs, i) => (
+            <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+              {fs.previewUrl && (
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 relative">
+                  <Image src={fs.previewUrl} alt={fs.fileName} fill className="object-cover" unoptimized />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-medium text-gray-700 truncate">{fs.fileName}</span>
+                  {fs.status === 'success' && <CheckCircle size={14} className="text-green-500 flex-shrink-0" />}
+                  {fs.status === 'error' && <AlertCircle size={14} className="text-red-500 flex-shrink-0" />}
+                </div>
+                {fs.status === 'uploading' && (
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-[#145a2c] h-full rounded-full transition-all duration-300" style={{ width: `${fs.progress}%` }} />
+                  </div>
+                )}
+                {fs.status === 'error' && <span className="text-xs text-red-600">{fs.error}</span>}
               </div>
             </div>
           ))}
@@ -294,7 +363,7 @@ export function MultiImageUpload({
           {uploading ? (
             <>
               <Loader2 size={24} className="mx-auto mb-2 animate-spin text-[#145a2c]" />
-              <p className="text-gray-600 font-medium text-sm">Uploading...</p>
+              <p className="text-gray-600 font-medium text-sm">Uploading {fileStates.filter(f => f.status === 'uploading').length} of {fileStates.length}...</p>
             </>
           ) : (
             <>
@@ -331,10 +400,14 @@ export default function ImageUpload({
   const [preview, setPreview] = useState(currentImageUrl);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastExternalUrl = useRef(currentImageUrl);
 
-  // Sync preview when currentImageUrl changes externally
+  // Sync preview when currentImageUrl changes externally (not from our own upload)
   useEffect(() => {
-    setPreview(currentImageUrl);
+    if (currentImageUrl !== lastExternalUrl.current) {
+      lastExternalUrl.current = currentImageUrl;
+      setPreview(currentImageUrl);
+    }
   }, [currentImageUrl]);
 
   const uploadFile = useCallback(async (file: File) => {
@@ -355,6 +428,7 @@ export default function ImageUpload({
       const imageUrl = await uploadSingleFile(file, bucket, maxSize, quality, recommendedWidth, recommendedHeight, generateSizes);
       setProgress(100);
       setPreview(imageUrl);
+      lastExternalUrl.current = imageUrl;
       onImageUrl(imageUrl);
       setSuccess('Image uploaded successfully');
       toast.success('Image uploaded successfully');
@@ -386,6 +460,7 @@ export default function ImageUpload({
 
   const clearImage = () => {
     setPreview(undefined);
+    lastExternalUrl.current = '';
     onImageUrl('');
     setSuccess('');
     setError('');
