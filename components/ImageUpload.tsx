@@ -291,7 +291,7 @@ export function MultiImageUpload({
           {images.map((url, i) => (
             <div key={url + i} className="relative group">
               <div className={`relative ${aspectClass} bg-gray-100 rounded-lg overflow-hidden border border-gray-200`}>
-                <Image src={url} alt={`Image ${i + 1}`} fill className="object-cover" unoptimized onError={() => { const idx = images.indexOf(url); if (idx >= 0) removeImage(idx); }} />
+                <Image src={url} alt={`Image ${i + 1}`} fill className="object-cover" unoptimized onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
               </div>
               <button
                 type="button"
