@@ -102,8 +102,8 @@ export default function VariantDetailPanel({
 
         <div className="py-5 space-y-6">
           {/* Variant Image */}
-          {variant.image_url && (
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
+          <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
+            {variant.image_url ? (
               <Image
                 src={variant.image_url}
                 alt={`${vehicleName} ${variant.name}`}
@@ -111,8 +111,12 @@ export default function VariantDetailPanel({
                 className="object-cover"
                 sizes="(max-width: 640px) 100vw, 384px"
               />
-            </div>
-          )}
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                <img src="/images/placeholders/image.png" alt="No image available" className="w-16 h-16 opacity-40" />
+              </div>
+            )}
+          </div>
 
           {/* Quick Specs Grid */}
           <div>

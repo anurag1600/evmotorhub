@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -158,7 +157,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     {article.author_image && (
-                      <Image
+                      <ImageWithFallback
                         src={article.author_image}
                         alt={article.author}
                         width={36}
