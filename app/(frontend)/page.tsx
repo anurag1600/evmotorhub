@@ -450,7 +450,7 @@ export default async function HomePage() {
                   >
                     <div className="w-14 h-14 relative rounded-2xl overflow-hidden bg-gray-50 ring-1 ring-gray-100 group-hover:ring-green-200 transition-all">
                       <ImageWithFallback
-                        src={m.logo_url || m.hero_image_url}
+                        src={m.logo_url || ''}
                         alt={m.name}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-500"

@@ -50,31 +50,20 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const PLACEHOLDER = '/images/placeholders/image.png';
   const galleryImages = useMemo(() => {
-    // Priority: variant gallery > variant image > vehicle image > vehicle gallery_urls > vehicle image_gallery > placeholder
+    // Only use images that belong to the selected variant.
+    // Never inherit vehicle-level images as variant images.
     const variantGallery = selectedVariant?.gallery_urls && selectedVariant.gallery_urls.length > 0
       ? selectedVariant.gallery_urls.filter(Boolean)
       : null;
     const variantImage = selectedVariant?.image_url || null;
-    const vehicleImage = vehicle.image_url || null;
-    const vehicleGallery = (vehicle.image_gallery && vehicle.image_gallery.length > 0
-      ? vehicle.image_gallery
-      : vehicle.gallery_urls && vehicle.gallery_urls.length > 0
-        ? vehicle.gallery_urls
-        : []).filter(Boolean);
 
-    let imgs: string[];
-    if (variantGallery && variantGallery.length > 0) {
-      // Variant image first (if not already in gallery), then gallery
-      imgs = variantImage && !variantGallery.includes(variantImage)
-        ? [variantImage, ...variantGallery]
-        : [...variantGallery];
-    } else {
-      imgs = [variantImage, vehicleImage, ...vehicleGallery].filter((url): url is string => !!url && url.length > 0);
-    }
+    let imgs: string[] = [];
+    if (variantImage) imgs.push(variantImage);
+    if (variantGallery) imgs.push(...variantGallery);
     // Deduplicate
     imgs = Array.from(new Set(imgs));
     return imgs.length > 0 ? imgs : [PLACEHOLDER];
-  }, [vehicle, selectedVariant]);
+  }, [selectedVariant]);
 
   // Reset image index when variant changes
   useEffect(() => {

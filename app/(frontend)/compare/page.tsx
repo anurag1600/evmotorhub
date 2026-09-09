@@ -270,7 +270,7 @@ export default function ComparePage() {
               <div className="mt-3 bg-white rounded-xl border border-green-200 p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                    <ImageWithFallback src={(selectedVariant?.image_url || selected.image_url)} alt={selected.name} fill className="object-cover" sizes="64px" />
+                    <ImageWithFallback src={selectedVariant ? (selectedVariant.image_url || '') : (selected.image_url || '')} alt={selected.name} fill className="object-cover" sizes="64px" />
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900">{selected.name}</div>
@@ -341,7 +341,7 @@ export default function ComparePage() {
               <div className="mt-3 bg-white rounded-xl border border-blue-200 p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                    <ImageWithFallback src={(comparedVariant?.image_url || compared.image_url)} alt={compared.name} fill className="object-cover" sizes="64px" />
+                    <ImageWithFallback src={comparedVariant ? (comparedVariant.image_url || '') : (compared.image_url || '')} alt={compared.name} fill className="object-cover" sizes="64px" />
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-900">{compared.name}</div>
@@ -387,7 +387,7 @@ export default function ComparePage() {
               </div>
               <div className="p-4 border-r border-gray-100 bg-green-50">
                 <div className="relative h-28 rounded-xl overflow-hidden mb-3">
-                  <ImageWithFallback src={(selectedVariant?.image_url || selected.image_url)} alt={selected.name} fill className="object-cover" sizes="200px" />
+                  <ImageWithFallback src={selectedVariant ? (selectedVariant.image_url || '') : (selected.image_url || '')} alt={selected.name} fill className="object-cover" sizes="200px" />
                 </div>
                 <div className="font-bold text-[#145a2c] text-sm">{selected.name}</div>
                 {selectedVariant && <div className="text-xs text-green-600">{selectedVariant.name}</div>}
@@ -395,7 +395,7 @@ export default function ComparePage() {
               </div>
               <div className="p-4 bg-blue-50">
                 <div className="relative h-28 rounded-xl overflow-hidden mb-3">
-                  <ImageWithFallback src={(comparedVariant?.image_url || compared.image_url)} alt={compared.name} fill className="object-cover" sizes="200px" />
+                  <ImageWithFallback src={comparedVariant ? (comparedVariant.image_url || '') : (compared.image_url || '')} alt={compared.name} fill className="object-cover" sizes="200px" />
                 </div>
                 <div className="font-bold text-blue-700 text-sm">{compared.name}</div>
                 {comparedVariant && <div className="text-xs text-blue-600">{comparedVariant.name}</div>}

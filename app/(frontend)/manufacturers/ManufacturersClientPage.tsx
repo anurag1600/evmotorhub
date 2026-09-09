@@ -221,7 +221,7 @@ export default function ManufacturersClientPage() {
                       <div className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-green-200 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-12 h-12 relative rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                            <ImageWithFallback src={m.logo_url || m.hero_image_url} alt={m.name} fill className="object-cover" sizes="48px" />
+                            <ImageWithFallback src={m.logo_url || ''} alt={m.name} fill className="object-cover" sizes="48px" />
                           </div>
                           <div>
                             <h3 className="font-semibold text-gray-900 text-sm group-hover:text-[#145a2c] transition-colors">{m.name}</h3>

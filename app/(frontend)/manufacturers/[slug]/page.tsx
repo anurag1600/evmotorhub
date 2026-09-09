@@ -77,7 +77,7 @@ export default async function ManufacturerDetailPage({ params }: { params: { slu
           <div className="flex items-end gap-4">
             <div className="w-16 h-16 sm:w-20 sm:h-20 relative rounded-2xl overflow-hidden bg-white border-2 border-white/30 flex-shrink-0">
               <ImageWithFallback
-                src={manufacturer.logo_url || manufacturer.hero_image_url}
+                src={manufacturer.logo_url || ''}
                 alt={manufacturer.name}
                 fallbackCategory="manufacturer"
                 fill
