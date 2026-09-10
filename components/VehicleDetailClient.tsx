@@ -50,20 +50,30 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const PLACEHOLDER = '/images/placeholders/image.png';
   const galleryImages = useMemo(() => {
-    // Only use images that belong to the selected variant.
-    // Never inherit vehicle-level images as variant images.
+    // Variant images take priority; fall back to vehicle's common Main Image + Gallery.
     const variantGallery = selectedVariant?.gallery_urls && selectedVariant.gallery_urls.length > 0
       ? selectedVariant.gallery_urls.filter(Boolean)
       : null;
     const variantImage = selectedVariant?.image_url || null;
+    const vehicleImage = vehicle.image_url || null;
+    const vehicleGallery = (vehicle.image_gallery && vehicle.image_gallery.length > 0
+      ? vehicle.image_gallery
+      : vehicle.gallery_urls && vehicle.gallery_urls.length > 0
+        ? vehicle.gallery_urls
+        : []).filter(Boolean);
 
     let imgs: string[] = [];
     if (variantImage) imgs.push(variantImage);
     if (variantGallery) imgs.push(...variantGallery);
+    // Fall back to vehicle common images if variant has none of its own
+    if (!variantImage && !variantGallery) {
+      if (vehicleImage) imgs.push(vehicleImage);
+      imgs.push(...vehicleGallery);
+    }
     // Deduplicate
     imgs = Array.from(new Set(imgs));
     return imgs.length > 0 ? imgs : [PLACEHOLDER];
-  }, [selectedVariant]);
+  }, [selectedVariant, vehicle]);
 
   // Reset image index when variant changes
   useEffect(() => {
@@ -633,7 +643,7 @@ export default function VehicleDetailClient({ vehicle, variants, similar }: Vehi
                       >
                         <div className="flex flex-col sm:flex-row gap-3">
                           <div className="relative w-full sm:w-24 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                            <ImageWithFallback src={v.image_url || ''} alt={v.name} fallbackCategory="vehicle" fill className="object-cover" sizes="96px" />
+                            <ImageWithFallback src={v.image_url || vehicle.image_url || ''} alt={v.name} fallbackCategory="vehicle" fill className="object-cover" sizes="96px" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2 mb-1.5">

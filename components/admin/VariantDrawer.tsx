@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, Loader as Loader2, Star, Image as ImageIcon, Plus, Trash2, ChevronDown, ChevronUp, CircleHelp as HelpCircle } from 'lucide-react';
+import { X, Save, Loader as Loader2, Star, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { VehicleVariant } from '@/lib/types';
 import { VariantInput } from '@/hooks/useVariants';
 import { cn } from '@/lib/utils';
-import ImageUpload from '@/components/ImageUpload';
 import { supabase } from '@/lib/supabase';
 
 interface VariantDrawerProps {
@@ -68,8 +67,6 @@ const defaultFormState: VariantInput = {
   motor_power_kw: null,
   charging_time_hrs: null,
   kerb_weight: null,
-  image_url: '',
-  gallery_urls: [],
   brochure_url: '',
   colors: [],
   color_hexes: [],
@@ -121,15 +118,12 @@ export default function VariantDrawer({
   const [vehicleType, setVehicleType] = useState<string>('scooter');
 
   // Form input states for arrays
-  const [colorInput, setColorInput] = useState('');
-  const [colorHexInput, setColorHexInput] = useState('#9ca3af');
   const [featureInput, setFeatureInput] = useState('');
   const [proInput, setProInput] = useState('');
   const [conInput, setConInput] = useState('');
-  const [galleryInput, setGalleryInput] = useState('');
   const [specKey, setSpecKey] = useState('');
   const [specValue, setSpecValue] = useState('');
-  const [activeTab, setActiveTab] = useState<'basic' | 'specs' | 'media' | 'colors'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'specs'>('basic');
 
   // Fetch vehicle type when vehicleId changes
   useEffect(() => {
@@ -160,8 +154,6 @@ export default function VariantDrawer({
           motor_power_kw: variant.motor_power_kw,
           charging_time_hrs: variant.charging_time_hrs,
           kerb_weight: variant.kerb_weight,
-          image_url: variant.image_url || '',
-          gallery_urls: variant.gallery_urls || [],
           brochure_url: variant.brochure_url || '',
           colors: variant.colors || [],
           color_hexes: variant.color_hexes || [],
@@ -205,27 +197,7 @@ export default function VariantDrawer({
     }
   };
 
-  const addColor = () => {
-    if (colorInput.trim()) {
-      setFormData({
-        ...formData,
-        colors: [...(formData.colors || []), colorInput.trim()],
-        color_hexes: [...(formData.color_hexes || []), colorHexInput || '#9ca3af'],
-      });
-      setColorInput('');
-      setColorHexInput('#9ca3af');
-    }
-  };
-
-  const removeColor = (index: number) => {
-    setFormData({
-      ...formData,
-      colors: (formData.colors || []).filter((_, i) => i !== index),
-      color_hexes: (formData.color_hexes || []).filter((_, i) => i !== index),
-    });
-  };
-
-  const addFeature = (feature?: string) => {
+const addFeature = (feature?: string) => {
     const value = feature || featureInput.trim();
     if (value && !(formData.features || []).includes(value)) {
       setFormData({ ...formData, features: [...(formData.features || []), value] });
@@ -261,18 +233,7 @@ export default function VariantDrawer({
     setFormData({ ...formData, cons: (formData.cons || []).filter((_, i) => i !== index) });
   };
 
-  const addGalleryUrl = () => {
-    if (galleryInput.trim() && !(formData.gallery_urls || []).includes(galleryInput.trim())) {
-      setFormData({ ...formData, gallery_urls: [...(formData.gallery_urls || []), galleryInput.trim()] });
-      setGalleryInput('');
-    }
-  };
-
-  const removeGalleryUrl = (index: number) => {
-    setFormData({ ...formData, gallery_urls: (formData.gallery_urls || []).filter((_, i) => i !== index) });
-  };
-
-  const addSpecification = (key?: string, value?: string) => {
+const addSpecification = (key?: string, value?: string) => {
     const k = key || specKey.trim();
     const v = value || specValue.trim();
     if (k) {
@@ -337,7 +298,7 @@ export default function VariantDrawer({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 bg-white">
-          {(['basic', 'specs', 'media', 'colors'] as const).map((tab) => (
+          {(['basic', 'specs'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -743,126 +704,6 @@ export default function VariantDrawer({
               </div>
             )}
 
-            {/* Media Tab */}
-            {activeTab === 'media' && (
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Variant Image</label>
-                  <ImageUpload
-                    bucket="vehicle-gallery"
-                    onImageUrl={(url) => setFormData({ ...formData, image_url: url })}
-                    currentImageUrl={formData.image_url || ''}
-                    label="Variant Image"
-                    recommendedWidth={800}
-                    recommendedHeight={600}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Gallery Images</label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="url"
-                      value={galleryInput}
-                      onChange={(e) => setGalleryInput(e.target.value)}
-                      placeholder="Add image URL..."
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                    />
-                    <button type="button" onClick={addGalleryUrl} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {(formData.gallery_urls || []).map((url, i) => (
-                      <div key={i} className="relative group">
-                        <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg border border-gray-200" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
-                        <button
-                          type="button"
-                          onClick={() => removeGalleryUrl(i)}
-                          className="absolute top-1 right-1 p-1 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={12} className="text-white" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Brochure URL</label>
-                  <input
-                    type="url"
-                    value={formData.brochure_url || ''}
-                    onChange={(e) => setFormData({ ...formData, brochure_url: e.target.value })}
-                    placeholder="PDF brochure URL"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Colors Tab */}
-            {activeTab === 'colors' && (
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Available Colors</label>
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      value={colorInput}
-                      onChange={(e) => setColorInput(e.target.value)}
-                      placeholder="Color name (e.g. Midnight Blue)"
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                    />
-                    <input
-                      type="color"
-                      value={colorHexInput || '#9ca3af'}
-                      onChange={(e) => setColorHexInput(e.target.value)}
-                      className="w-10 h-10 border border-gray-200 rounded-lg cursor-pointer"
-                      title="Pick color"
-                    />
-                    <button type="button" onClick={addColor} className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                      <Plus size={16} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {(formData.colors || []).map((color, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
-                        <input
-                          type="color"
-                          value={formData.color_hexes?.[i] || '#9ca3af'}
-                          onChange={(e) => {
-                            const hexes = [...(formData.color_hexes || [])];
-                            hexes[i] = e.target.value;
-                            setFormData({ ...formData, color_hexes: hexes });
-                          }}
-                          className="w-8 h-8 border border-gray-200 rounded-lg cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={color}
-                          onChange={(e) => {
-                            const colors = [...(formData.colors || [])];
-                            colors[i] = e.target.value;
-                            setFormData({ ...formData, colors });
-                          }}
-                          className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#145a2c]"
-                        />
-                        <button type="button" onClick={() => removeColor(i)} className="text-red-400 hover:text-red-600">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                    {(formData.colors || []).length === 0 && (
-                      <div className="text-sm text-gray-400 text-center py-4 border-2 border-dashed border-gray-200 rounded-lg">
-                        No colors added yet
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </form>
 

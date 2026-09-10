@@ -561,8 +561,8 @@ export default function VariantsAdminPage() {
                         <tr key={variant.id} className="group">
                           <td>
                             <div className="relative">
-                              {variant.image_url ? (
-                                <img src={variant.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+                              {(variant.image_url || selectedVehicle.image_url) ? (
+                                <img src={variant.image_url || selectedVehicle.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                               ) : (
                                 <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
                                   <ImageIcon size={16} className="text-gray-300" />
@@ -584,9 +584,7 @@ export default function VariantsAdminPage() {
                                   <FileText size={10} /> Brochure
                                 </span>
                               )}
-                              {variant.gallery_urls && variant.gallery_urls.length > 0 && (
-                                <span className="text-xs text-gray-400">{variant.gallery_urls.length} images</span>
-                              )}
+  
                             </div>
                           </td>
                           <td className="hidden md:table-cell">
@@ -670,8 +668,8 @@ export default function VariantsAdminPage() {
                   <div key={variant.id} className="admin-card p-4 group">
                     <div className="flex items-start gap-3">
                       <div className="relative flex-shrink-0">
-                        {variant.image_url ? (
-                          <img src={variant.image_url} alt={variant.name} className="w-16 h-16 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+                        {(variant.image_url || selectedVehicle.image_url) ? (
+                          <img src={variant.image_url || selectedVehicle.image_url} alt={variant.name} className="w-16 h-16 rounded-lg object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
                         ) : (
                           <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center">
                             <ImageIcon size={20} className="text-gray-300" />

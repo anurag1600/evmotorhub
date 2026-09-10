@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { VehicleVariant } from '@/lib/types';
 import { Power, Plus, Pencil, Trash2, X, Save, Loader as Loader2, Image as ImageIcon, Copy, Star, CircleAlert as AlertCircle, ChevronUp, ChevronDown, FileText, Sparkles } from 'lucide-react';
+// ImageUpload import removed — variants now use the parent vehicle's main image + gallery
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import ImageUpload from '@/components/ImageUpload';
+
 
 interface VariantManagerProps {
   vehicleId?: string;
@@ -25,8 +26,6 @@ interface VariantForm {
   motor_power_kw: string;
   charging_time_hrs: string;
   kerb_weight: string;
-  image_url: string;
-  gallery_urls: string[];
   brochure_url: string;
   colors: string[];
   color_hexes: string[];
@@ -48,8 +47,6 @@ const emptyForm: VariantForm = {
   motor_power_kw: '',
   charging_time_hrs: '',
   kerb_weight: '',
-  image_url: '',
-  gallery_urls: [],
   brochure_url: '',
   colors: [],
   color_hexes: [],
@@ -66,6 +63,7 @@ function slugify(text: string): string {
 
 export default function VariantManager({ vehicleId, onVariantsChange, isDraft = false }: VariantManagerProps) {
   const [variants, setVariants] = useState<VehicleVariant[]>([]);
+  const [vehicleImageUrl, setVehicleImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isDraft);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -90,6 +88,13 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
     setLoading(true);
     setError(null);
     try {
+      const { data: vehicleData } = await supabase
+        .from('vehicles')
+        .select('image_url')
+        .eq('id', vehicleId)
+        .maybeSingle();
+      if (vehicleData?.image_url) setVehicleImageUrl(vehicleData.image_url);
+
       const { data, error: fetchError } = await supabase
         .from('vehicle_variants')
         .select('*')
@@ -133,8 +138,6 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
       motor_power_kw: variant.motor_power_kw?.toString() || '',
       charging_time_hrs: variant.charging_time_hrs?.toString() || '',
       kerb_weight: variant.kerb_weight?.toString() || '',
-      image_url: variant.image_url || '',
-      gallery_urls: variant.gallery_urls || [],
       brochure_url: variant.brochure_url || '',
       colors: variant.colors || [],
       color_hexes: variant.color_hexes || [],
@@ -206,17 +209,6 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
     });
   };
 
-  // Gallery management
-  const addGalleryImage = (url: string) => {
-    if (url && !form.gallery_urls.includes(url)) {
-      setForm(f => ({ ...f, gallery_urls: [...f.gallery_urls, url] }));
-    }
-  };
-
-  const removeGalleryImage = (idx: number) => {
-    setForm(f => ({ ...f, gallery_urls: f.gallery_urls.filter((_, i) => i !== idx) }));
-  };
-
   const buildPayload = () => ({
     name: form.name.trim(),
     slug: slugify(form.name),
@@ -229,8 +221,8 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
     motor_power_kw: form.motor_power_kw ? parseFloat(form.motor_power_kw) : null,
     charging_time_hrs: form.charging_time_hrs ? parseFloat(form.charging_time_hrs) : null,
     kerb_weight: form.kerb_weight ? parseInt(form.kerb_weight) : null,
-    image_url: form.image_url || null,
-    gallery_urls: form.gallery_urls.length > 0 ? form.gallery_urls : [],
+    image_url: null,
+    gallery_urls: [],
     brochure_url: form.brochure_url.trim() || null,
     color: form.colors[0] || null,
     color_hex: form.color_hexes[0] || null,
@@ -259,7 +251,7 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
           setVariants(prev => prev.map(v => v.id === editingId ? { ...v, ...payload, id: editingId } as VehicleVariant : v));
           toast.success('Variant updated');
         } else {
-          const newVariant = { ...payload, id: `draft-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VehicleVariant;
+          const newVariant = { ...payload, vehicle_id: vehicleId, pros: [], cons: [], id: `draft-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VehicleVariant;
           setVariants(prev => [...prev, newVariant]);
           toast.success('Variant added');
         }
@@ -276,7 +268,6 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
             range_km: payload.range_km, battery_capacity_kwh: payload.battery_capacity_kwh,
             top_speed_kmh: payload.top_speed_kmh, motor_power_kw: payload.motor_power_kw,
             charging_time_hrs: payload.charging_time_hrs, kerb_weight: payload.kerb_weight,
-            image_url: payload.image_url, gallery_urls: payload.gallery_urls,
             brochure_url: payload.brochure_url, color: payload.color, color_hex: payload.color_hex,
             colors: payload.colors, color_hexes: payload.color_hexes,
             features: payload.features, specifications: payload.specifications,
@@ -352,8 +343,8 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
       motor_power_kw: variant.motor_power_kw,
       charging_time_hrs: variant.charging_time_hrs,
       kerb_weight: variant.kerb_weight,
-      image_url: variant.image_url,
-      gallery_urls: variant.gallery_urls || [],
+      image_url: null,
+      gallery_urls: [],
       brochure_url: variant.brochure_url,
       color: variant.color, color_hex: variant.color_hex,
       colors: variant.colors, color_hexes: variant.color_hexes,
@@ -364,7 +355,7 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
     };
 
     if (isDraft) {
-      setVariants(prev => [...prev, { ...dup, id: `draft-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VehicleVariant]);
+      setVariants(prev => [...prev, { ...dup, pros: variant.pros || [], cons: variant.cons || [], id: `draft-${Date.now()}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VehicleVariant]);
       toast.success('Variant duplicated');
     } else {
       try {
@@ -565,26 +556,6 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
             </div>
           </div>
 
-          {/* Primary Image */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Primary Image</label>
-            <ImageUpload bucket="vehicle-gallery" onImageUrl={(url) => setForm(f => ({ ...f, image_url: url }))} currentImageUrl={form.image_url} label="" />
-          </div>
-
-          {/* Gallery Images */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-2">Gallery Images (optional, overrides vehicle gallery for this variant)</label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {form.gallery_urls.map((url, idx) => (
-                <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 group">
-                  <img src={url} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
-                  <button type="button" onClick={() => removeGalleryImage(idx)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity"><X size={10} /></button>
-                </div>
-              ))}
-            </div>
-            <ImageUpload bucket="vehicle-gallery" onImageUrl={addGalleryImage} currentImageUrl="" label="Add gallery image" />
-          </div>
-
           {/* Brochure URL */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Brochure URL (PDF link for this variant)</label>
@@ -642,8 +613,8 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
                 <button type="button" onClick={() => moveVariant(variant.id, 'up')} disabled={idx === 0} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronUp size={12} /></button>
                 <button type="button" onClick={() => moveVariant(variant.id, 'down')} disabled={idx === variants.length - 1} className="p-0.5 text-gray-400 hover:text-gray-600 disabled:opacity-30"><ChevronDown size={12} /></button>
               </div>
-              {variant.image_url ? (
-                <img src={variant.image_url} alt={variant.name} className="w-10 h-10 rounded-lg object-cover bg-gray-100" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
+              {(variant.image_url || vehicleImageUrl) ? (
+                <img src={variant.image_url || vehicleImageUrl || ''} alt={variant.name} className="w-10 h-10 rounded-lg object-cover bg-gray-100" onError={(e) => { e.currentTarget.src = '/images/placeholders/image.png'; }} />
               ) : (
                 <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center"><ImageIcon size={16} className="text-gray-300" /></div>
               )}
@@ -654,7 +625,6 @@ export default function VariantManager({ vehicleId, onVariantsChange, isDraft = 
                   {variant.battery_capacity_kwh && <span>• {variant.battery_capacity_kwh}kWh</span>}
                   {variant.range_km && <span>• {variant.range_km}km</span>}
                   {variant.brochure_url && <span>• <FileText size={9} className="inline" /> Brochure</span>}
-                  {variant.gallery_urls && variant.gallery_urls.length > 0 && <span>• {variant.gallery_urls.length} imgs</span>}
                 </div>
               </div>
               {variant.colors && variant.colors.length > 0 && (

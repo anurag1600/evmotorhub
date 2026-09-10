@@ -63,6 +63,7 @@ interface VehicleVariantSelectorProps {
   priceMax: number;
   vehicleName: string;
   vehicleSlug?: string;
+  vehicleImageUrl?: string | null;
   variants?: VehicleVariant[];
   onVariantChange?: (variant: VehicleVariant | null) => void;
   selectedVariantId?: string;
@@ -74,6 +75,7 @@ export default function VehicleVariantSelector({
   priceMax,
   vehicleName,
   vehicleSlug,
+  vehicleImageUrl,
   variants = [],
   onVariantChange,
   selectedVariantId,
@@ -384,6 +386,7 @@ export default function VehicleVariantSelector({
         variant={detailVariant}
         vehicleName={vehicleName}
         vehicleSlug={vehicleSlug || ''}
+        vehicleImageUrl={vehicleImageUrl}
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
       />

@@ -18,6 +18,7 @@ interface VariantDetailPanelProps {
   variant: VehicleVariant | null;
   vehicleName: string;
   vehicleSlug: string;
+  vehicleImageUrl?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -62,10 +63,13 @@ export default function VariantDetailPanel({
   variant,
   vehicleName,
   vehicleSlug,
+  vehicleImageUrl,
   open,
   onOpenChange,
 }: VariantDetailPanelProps) {
   if (!variant) return null;
+
+  const displayImage = variant.image_url || vehicleImageUrl || null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -103,9 +107,9 @@ export default function VariantDetailPanel({
         <div className="py-5 space-y-6">
           {/* Variant Image */}
           <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
-            {variant.image_url ? (
+            {displayImage ? (
               <Image
-                src={variant.image_url}
+                src={displayImage}
                 alt={`${vehicleName} ${variant.name}`}
                 fill
                 className="object-cover"
