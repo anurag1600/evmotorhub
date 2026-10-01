@@ -70,15 +70,17 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
     setSaving(true);
     setError('');
     try {
+      const slugBase = (form.name + '-' + form.city).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const payload = { ...form, slug: slugBase };
       if (id) {
         const { error: err } = await supabase
           .from('charging_stations')
-          .update({ ...form, updated_at: new Date().toISOString() })
+          .update({ ...payload, updated_at: new Date().toISOString() })
           .eq('id', id);
         if (err) throw err;
         toast.success('Charging station updated successfully');
       } else {
-        const { error: err } = await supabase.from('charging_stations').insert([form]);
+        const { error: err } = await supabase.from('charging_stations').insert([payload]);
         if (err) throw err;
         toast.success('Charging station created successfully');
       }

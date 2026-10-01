@@ -39,12 +39,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (seo?.sitemap_include_manufacturers !== false) {
       queries.push(supabase.from('manufacturers').select('slug'));
     }
+    queries.push(supabase.from('charging_stations').select('slug, updated_at'));
 
     const results = await Promise.all(queries);
 
     let vehicleRoutes: MetadataRoute.Sitemap = [];
     let newsRoutes: MetadataRoute.Sitemap = [];
     let manufacturerRoutes: MetadataRoute.Sitemap = [];
+    let stationRoutes: MetadataRoute.Sitemap = [];
 
     let resultIdx = 0;
 
@@ -69,7 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     if (seo?.sitemap_include_manufacturers !== false) {
-      const manufacturersRes = results[resultIdx];
+      const manufacturersRes = results[resultIdx++];
       manufacturerRoutes = (manufacturersRes.data || []).map((m: any) => ({
         url: `${baseUrl}/manufacturers/${m.slug}`,
         lastModified: new Date(),
@@ -78,7 +80,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
     }
 
-    return [...staticRoutes, ...vehicleRoutes, ...newsRoutes, ...manufacturerRoutes];
+    const stationsRes = results[resultIdx];
+    stationRoutes = (stationsRes.data || []).map((s: any) => ({
+      url: `${baseUrl}/charging-stations/${s.slug}`,
+      lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.6,
+    }));
+
+    return [...staticRoutes, ...vehicleRoutes, ...newsRoutes, ...manufacturerRoutes, ...stationRoutes];
   } catch {
     return staticRoutes;
   }

@@ -132,6 +132,7 @@ export interface NewsArticle {
 export interface ChargingStation {
   id: string;
   name: string;
+  slug: string;
   address: string;
   city: string;
   state: string;

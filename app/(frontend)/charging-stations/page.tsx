@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { MapPin, Search, Zap, Clock, Wifi, Coffee, X, Navigation2, Phone, ExternalLink, Car, ChevronRight } from 'lucide-react';
+import { MapPin, Search, Zap, Clock, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation } from '@/lib/types';
 import { getStatusColor } from '@/lib/format';
@@ -23,7 +23,6 @@ export default function ChargingStationsPage() {
   const [selectedCity, setSelectedCity] = useState('');
   const [search, setSearch] = useState('');
   const [selectedConnector, setSelectedConnector] = useState('');
-  const [selectedStation, setSelectedStation] = useState<ChargingStation | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [stats, setStats] = useState({ stations: 0, cities: 0, chargers: 0 });
 
@@ -65,29 +64,11 @@ export default function ChargingStationsPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Handle escape key to close modal
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedStation) {
-        setSelectedStation(null);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedStation]);
-
   const getAvailabilityColor = (available: number, total: number) => {
     const ratio = available / total;
     if (ratio > 0.5) return 'text-green-600 bg-green-50';
     if (ratio > 0.2) return 'text-amber-600 bg-amber-50';
     return 'text-red-600 bg-red-50';
-  };
-
-  const generateGoogleMapsUrl = (station: ChargingStation) => {
-    if (station.lat && station.lng) {
-      return `https://www.google.com/maps?q=${station.lat},${station.lng}`;
-    }
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${station.name}, ${station.address}, ${station.city}`)}`;
   };
 
   return (
@@ -179,9 +160,9 @@ export default function ChargingStationsPage() {
             </div>
           ) : (
             stations.map((station) => (
-              <button
+              <Link
                 key={station.id}
-                onClick={() => setSelectedStation(station)}
+                href={`/charging-stations/${station.slug}`}
                 className="text-left bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-lg hover:border-green-200 transition-all duration-200 group"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -221,7 +202,7 @@ export default function ChargingStationsPage() {
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-[#145a2c] transition-colors" />
                 </div>
-              </button>
+              </Link>
             ))
           )}
         </div>
