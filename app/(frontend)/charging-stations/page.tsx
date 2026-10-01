@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { MapPin, Search, Zap, Clock, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation } from '@/lib/types';
 import { getStatusColor } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import ChargingStationSubmitModal from '@/components/ChargingStationSubmitModal';
+import dynamic from 'next/dynamic';
+const ChargingStationSubmitModal = dynamic(() => import('@/components/ChargingStationSubmitModal'), {
+  ssr: false,
+});
 
 const indianCities = [
   'All Cities', 'Bengaluru', 'Mumbai', 'New Delhi', 'Gurugram', 'Chennai',
@@ -227,168 +229,6 @@ export default function ChargingStationsPage() {
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
       />
-
-      {/* Station Detail Modal */}
-      {selectedStation && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
-          onClick={() => setSelectedStation(null)}
-        >
-          <div
-            className={cn(
-              'bg-white w-full max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden',
-              'animate-in slide-in-from-bottom sm:animate-in sm:fade-in sm:zoom-in duration-300'
-            )}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Map */}
-            <div className="h-48 sm:h-64 relative bg-gray-100">
-              {selectedStation.lat && selectedStation.lng ? (
-                <iframe
-                  src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${selectedStation.lat},${selectedStation.lng}&zoom=15`}
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  title={`${selectedStation.name} location`}
-                  className="absolute inset-0"
-                />
-              ) : (
-                <div className="h-full bg-gradient-to-br from-green-100 to-emerald-50 flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin size={40} className="text-[#145a2c] mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-700">View on Google Maps</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedStation(null)}
-                className="absolute top-3 right-3 w-10 h-10 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-colors z-10"
-              >
-                <X size={18} className="text-gray-700" />
-              </button>
-
-              {/* Quick Actions Overlay */}
-              <div className="absolute bottom-3 left-3 right-3 flex gap-2">
-                <a
-                  href={generateGoogleMapsUrl(selectedStation)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-2 bg-white/95 text-gray-800 px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white transition-colors shadow-lg"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Navigation2 size={16} className="text-green-600" />
-                  Directions
-                </a>
-                {selectedStation.phone_support && (
-                  <a
-                    href={`tel:${selectedStation.phone_support}`}
-                    className="flex items-center justify-center gap-2 bg-[#145a2c] text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#0f4020] transition-colors shadow-lg"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Phone size={16} />
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-5 max-h-[60vh] overflow-y-auto">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{selectedStation.name}</h2>
-                  <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-                    <MapPin size={13} />
-                    {selectedStation.address}, {selectedStation.city}, {selectedStation.state}
-                  </div>
-                </div>
-                <span className={cn('text-xs font-bold px-2.5 py-1 rounded-full', getStatusColor(selectedStation.status))}>
-                  {selectedStation.status === 'active' ? 'Active' : selectedStation.status === 'coming_soon' ? 'Coming Soon' : 'Inactive'}
-                </span>
-              </div>
-
-              {/* Quick Specs */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-                {[
-                  { label: 'Operator', value: selectedStation.operator },
-                  { label: 'Power', value: `${selectedStation.power_kw} kW` },
-                  { label: 'Chargers', value: selectedStation.total_chargers },
-                  { label: 'Hours', value: selectedStation.operating_hours },
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-gray-50 rounded-xl p-3 text-center">
-                    <div className="text-xs text-gray-500 mb-1">{label}</div>
-                    <div className="text-sm font-bold text-gray-900">{value}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Availability */}
-              <div className="mb-4 p-4 bg-gray-50 rounded-xl">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span className="font-medium">Charger Availability</span>
-                  <span className="font-semibold text-[#145a2c]">{selectedStation.available_chargers}/{selectedStation.total_chargers} free</span>
-                </div>
-                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all"
-                    style={{ width: `${(selectedStation.available_chargers / selectedStation.total_chargers) * 100}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Connectors */}
-              <div className="mb-4">
-                <div className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Connector Types</div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedStation.connector_types.map(c => (
-                    <span key={c} className="flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-100 px-3 py-1.5 rounded-lg">
-                      <Zap size={12} />
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Amenities */}
-              {selectedStation.amenities.length > 0 && (
-                <div className="mb-4">
-                  <div className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Nearby Amenities</div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedStation.amenities.map(a => (
-                      <span key={a} className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">
-                        {a === 'Cafe' && <Coffee size={12} />}
-                        {a === 'WiFi' && <Wifi size={12} />}
-                        {!['Cafe', 'WiFi'].includes(a) && <MapPin size={12} />}
-                        {a}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Pricing */}
-              {(selectedStation.price_per_kwh || selectedStation.fast_charging) && (
-                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-3">
-                  {selectedStation.price_per_kwh && (
-                    <span className="text-sm bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg font-medium">
-                      Rs. {selectedStation.price_per_kwh}/kWh
-                    </span>
-                  )}
-                  {selectedStation.fast_charging && (
-                    <span className="text-sm bg-green-50 text-green-700 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1">
-                      <Zap size={12} /> Fast Charging
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

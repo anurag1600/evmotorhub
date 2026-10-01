@@ -22,6 +22,8 @@ export default function ImageWithFallback({
   fallbackSrc,
   fallbackCategory,
   alt,
+  priority,
+  loading,
   ...props
 }: ImageWithFallbackProps) {
   const resolvedSrc = src || fallbackSrc || getPlaceholderImage(fallbackCategory);
@@ -41,12 +43,19 @@ export default function ImageWithFallback({
     }
   };
 
+  // Priority images load immediately; all others default to lazy loading.
+  // Never set both priority and loading='lazy' — Next.js throws a runtime error.
+  const isPriority = priority ?? false;
+  const resolvedLoading = isPriority ? undefined : (loading ?? 'lazy');
+
   return (
     <Image
       src={imgSrc}
       alt={alt}
       onError={handleError}
       unoptimized
+      priority={isPriority || undefined}
+      loading={resolvedLoading}
       {...props}
     />
   );

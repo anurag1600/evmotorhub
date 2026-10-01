@@ -1,5 +1,12 @@
+import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+
+const Footer = dynamic(() => import('@/components/Footer'), {
+  loading: () => (
+    <div className="bg-[#0a2e14] h-32" aria-hidden="true" />
+  ),
+  ssr: false,
+});
 
 export default function FrontendLayout({ children }: { children: React.ReactNode }) {
   return (

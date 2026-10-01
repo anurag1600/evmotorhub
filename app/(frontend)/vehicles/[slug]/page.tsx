@@ -1,10 +1,16 @@
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 import { Vehicle, VehicleVariant } from '@/lib/types';
 import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel } from '@/lib/format';
 import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
-import VehicleDetailClient from '@/components/VehicleDetailClient';
+import { VehicleDetailSkeleton } from '@/components/Skeletons';
+
+const VehicleDetailClient = dynamic(() => import('@/components/VehicleDetailClient'), {
+  loading: () => <VehicleDetailSkeleton />,
+  ssr: false,
+});
 
 export const revalidate = 300;
 

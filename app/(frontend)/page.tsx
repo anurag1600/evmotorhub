@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   ArrowRight, Zap, Search,
   Car, Bike, Scale, Calculator, MapPin, ChevronRight,
@@ -9,10 +10,28 @@ import { Vehicle, NewsArticle, Manufacturer, SiteConfig, HomepageCategory } from
 import VehicleCard from '@/components/VehicleCard';
 import NewsCard from '@/components/NewsCard';
 import HeroSection from '@/components/HeroSection';
-import HomePageFAQ from '@/components/HomePageFAQ';
-import EVPetrolComparison from '@/components/EVPetrolComparison';
 import ImageWithFallback from '@/components/ImageWithFallback';
-import AdBanner from '@/components/AdBanner';
+import LazySection from '@/components/LazySection';
+import {
+  VehicleGridSkeleton,
+  ManufacturerGridSkeleton,
+  ComparisonSkeleton,
+  NewsCardSkeleton,
+  EVComparisonSkeleton,
+  FAQSkeleton,
+} from '@/components/Skeletons';
+
+const HomePageFAQ = dynamic(() => import('@/components/HomePageFAQ'), {
+  loading: () => <FAQSkeleton />,
+  ssr: false,
+});
+const EVPetrolComparison = dynamic(() => import('@/components/EVPetrolComparison'), {
+  loading: () => <EVComparisonSkeleton />,
+  ssr: false,
+});
+const AdBanner = dynamic(() => import('@/components/AdBanner'), {
+  ssr: false,
+});
 
 export const revalidate = 3600;
 
@@ -234,7 +253,8 @@ export default async function HomePage() {
 
       case 'featured_evs':
         return (
-          <section key={key} className="py-16 md:py-24">
+          <LazySection key={key} fallback={<div className="py-16 md:py-24"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><VehicleGridSkeleton count={8} /></div></div>}>
+          <section className="py-16 md:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-end justify-between mb-10">
                 <div>
@@ -301,11 +321,13 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          </LazySection>
         );
 
       case 'popular_comparisons':
         return comparisons.length > 0 ? (
-          <section key={key} className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
+          <LazySection key={key} fallback={<div className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><ComparisonSkeleton /></div></div>}>
+          <section className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-end justify-between mb-10">
                 <div>
@@ -365,6 +387,7 @@ export default async function HomePage() {
               </div>
             </div>
           </section>
+          </LazySection>
         ) : null;
 
       case 'smart_tools':
@@ -402,7 +425,8 @@ export default async function HomePage() {
 
       case 'upcoming_evs':
         return upcoming.length > 0 ? (
-          <section key={key} className="py-16 md:py-24">
+          <LazySection key={key} fallback={<div className="py-16 md:py-24"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><VehicleGridSkeleton count={4} /></div></div>}>
+          <section className="py-16 md:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-end justify-between mb-10">
                 <div>
@@ -423,11 +447,13 @@ export default async function HomePage() {
               </div>
             </div>
           </section>
+          </LazySection>
         ) : null;
 
       case 'manufacturers':
         return (
-          <section key={key} className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
+          <LazySection key={key} fallback={<div className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><ManufacturerGridSkeleton /></div></div>}>
+          <section className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-end justify-between mb-10">
                 <div>
@@ -468,11 +494,13 @@ export default async function HomePage() {
               </div>
             </div>
           </section>
+          </LazySection>
         );
 
       case 'latest_news':
         return (
-          <section key={key} className="py-16 md:py-24">
+          <LazySection key={key} fallback={<div className="py-16 md:py-24"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"><NewsCardSkeleton /></div></div>}>
+          <section className="py-16 md:py-24">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-end justify-between mb-10">
                 <div>
@@ -501,10 +529,15 @@ export default async function HomePage() {
               )}
             </div>
           </section>
+          </LazySection>
         );
 
       case 'ev_vs_petrol':
-        return <EVPetrolComparison key={key} />;
+        return (
+          <LazySection key={key} fallback={<EVComparisonSkeleton />} rootMargin="300px 0px">
+            <EVPetrolComparison />
+          </LazySection>
+        );
 
       case 'ad_before_faq':
         return (
@@ -514,11 +547,16 @@ export default async function HomePage() {
         );
 
       case 'faq':
-        return <HomePageFAQ key={key} />;
+        return (
+          <LazySection key={key} fallback={<div className="py-14 md:py-20 bg-gray-50"><div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8"><FAQSkeleton /></div></div>}>
+            <HomePageFAQ />
+          </LazySection>
+        );
 
       case 'registration_cta':
         return (
-          <section key={key} className="py-16 md:py-24 bg-gradient-to-br from-[#0a2e14] via-[#0f4020] to-[#145a2c] text-white relative overflow-hidden">
+          <LazySection key={key} fallback={<div className="py-16 md:py-24 bg-gradient-to-br from-[#0a2e14] via-[#0f4020] to-[#145a2c] h-48" />}>
+          <section className="py-16 md:py-24 bg-gradient-to-br from-[#0a2e14] via-[#0f4020] to-[#145a2c] text-white relative overflow-hidden">
             <div className="absolute inset-0 pointer-events-none opacity-[0.06]" aria-hidden="true">
               <svg width="100%" height="100%" viewBox="0 0 1200 400" fill="none" preserveAspectRatio="xMidYMid slice">
                 <path d="M0 300 H200 V180 H400 V80 H600 V230 H800 V150 H1000 V280 H1200" stroke="#22c55e" strokeWidth="2" fill="none" />
@@ -565,6 +603,7 @@ export default async function HomePage() {
               </div>
             </div>
           </section>
+          </LazySection>
         );
 
       case 'ad_above_footer':

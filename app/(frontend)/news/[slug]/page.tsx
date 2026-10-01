@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { Metadata } from 'next';
@@ -8,8 +9,8 @@ import { NewsArticle } from '@/lib/types';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import NewsCard from '@/components/NewsCard';
-import ContentBlockRenderer from '@/components/ContentBlockRenderer';
 import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
+const ContentBlockRenderer = dynamic(() => import('@/components/ContentBlockRenderer'));
 
 export const revalidate = 300;
 
