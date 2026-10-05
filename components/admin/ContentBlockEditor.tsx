@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ContentBlock, ContentBlockType } from '@/lib/types';
 import ImageUpload from '@/components/ImageUpload';
+import { renderInline } from '@/lib/inline-renderer';
 
 interface ContentBlockEditorProps {
   blocks: ContentBlock[];
@@ -393,19 +394,19 @@ function BlockPreview({ block }: { block: ContentBlock }) {
 
   switch (block.type) {
     case 'paragraph':
-      return <p className="text-sm text-gray-700 leading-relaxed">{d.text || <span className="text-gray-300 italic">Empty paragraph</span>}</p>;
+      return <p className="text-sm text-gray-700 leading-relaxed">{renderInline(d.text) || <span className="text-gray-300 italic">Empty paragraph</span>}</p>;
     case 'heading1':
-      return <h1 className="text-2xl font-extrabold text-gray-900">{d.text || 'Heading 1'}</h1>;
+      return <h1 className="text-2xl font-extrabold text-gray-900">{renderInline(d.text) || 'Heading 1'}</h1>;
     case 'heading2':
-      return <h2 className="text-xl font-bold text-gray-900">{d.text || 'Heading 2'}</h2>;
+      return <h2 className="text-xl font-bold text-gray-900">{renderInline(d.text) || 'Heading 2'}</h2>;
     case 'heading3':
-      return <h3 className="text-lg font-bold text-gray-900">{d.text || 'Heading 3'}</h3>;
+      return <h3 className="text-lg font-bold text-gray-900">{renderInline(d.text) || 'Heading 3'}</h3>;
     case 'unordered_list':
-      return <ul className="list-disc pl-5 space-y-1">{(d.items || []).map((item: string, i: number) => <li key={i} className="text-sm text-gray-700">{item || '...'}</li>)}</ul>;
+      return <ul className="list-disc pl-5 space-y-1">{(d.items || []).map((item: string, i: number) => <li key={i} className="text-sm text-gray-700">{renderInline(item) || '...'}</li>)}</ul>;
     case 'ordered_list':
-      return <ol className="list-decimal pl-5 space-y-1">{(d.items || []).map((item: string, i: number) => <li key={i} className="text-sm text-gray-700">{item || '...'}</li>)}</ol>;
+      return <ol className="list-decimal pl-5 space-y-1">{(d.items || []).map((item: string, i: number) => <li key={i} className="text-sm text-gray-700">{renderInline(item) || '...'}</li>)}</ol>;
     case 'blockquote':
-      return <blockquote className="border-l-4 border-green-400 pl-4 italic text-gray-600">{d.text || 'Quote'}{d.author && <footer className="mt-1 text-xs not-italic text-gray-500">- {d.author}</footer>}</blockquote>;
+      return <blockquote className="border-l-4 border-green-400 pl-4 italic text-gray-600">{renderInline(d.text) || 'Quote'}{d.author && <footer className="mt-1 text-xs not-italic text-gray-500">- {d.author}</footer>}</blockquote>;
     case 'divider':
       return <hr className="border-gray-200 my-4" />;
     case 'image':
@@ -445,8 +446,8 @@ function BlockPreview({ block }: { block: ContentBlock }) {
       return (
         <div className="overflow-x-auto">
           <table className="w-full text-xs border border-gray-200 rounded">
-            <thead><tr className="bg-gray-50">{(d.headers || []).map((h: string, i: number) => <th key={i} className="px-3 py-2 font-semibold text-gray-700 border-b">{h}</th>)}</tr></thead>
-            <tbody>{(d.rows || []).map((row: string[], ri: number) => <tr key={ri}>{row.map((cell: string, ci: number) => <td key={ci} className="px-3 py-2 border-b border-gray-50">{cell}</td>)}</tr>)}</tbody>
+            <thead><tr className="bg-gray-50">{(d.headers || []).map((h: string, i: number) => <th key={i} className="px-3 py-2 font-semibold text-gray-700 border-b">{renderInline(h)}</th>)}</tr></thead>
+            <tbody>{(d.rows || []).map((row: string[], ri: number) => <tr key={ri}>{row.map((cell: string, ci: number) => <td key={ci} className="px-3 py-2 border-b border-gray-50">{renderInline(cell)}</td>)}</tr>)}</tbody>
           </table>
         </div>
       );

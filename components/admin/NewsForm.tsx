@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle, ContentBlock } from '@/lib/types';
+import { blocksToText, parseContentToBlocks } from '@/lib/content-parser';
 import { Image as ImageIcon, Save, Loader as Loader2, X, CircleAlert as AlertCircle } from 'lucide-react';
 import { slugify } from '@/lib/format';
 import ImageUpload from '@/components/ImageUpload';
@@ -37,6 +38,7 @@ export default function NewsForm({ articleId }: NewsFormProps) {
     seo_title: '',
     seo_description: '',
     seo_keywords: '' as any,
+    published_at: '' as string | null,
   });
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
 
@@ -59,21 +61,13 @@ export default function NewsForm({ articleId }: NewsFormProps) {
       if (error || !data) throw new Error('Article not found');
       setFormData({
         ...data,
+        published_at: data.published_at || null,
         seo_keywords: data.seo_keywords?.join(', ') || '',
       });
       if (data.content_blocks && data.content_blocks.length > 0) {
         setContentBlocks(data.content_blocks);
       } else if (data.content && data.content.trim()) {
-        const blocks: ContentBlock[] = data.content
-          .split(/\n{2,}/)
-          .map((para: string) => para.trim())
-          .filter(Boolean)
-          .map((para: string) => ({
-            id: 'blk_' + Math.random().toString(36).substr(2, 9),
-            type: 'paragraph' as const,
-            data: { text: para },
-          }));
-        setContentBlocks(blocks);
+        setContentBlocks(parseContentToBlocks(data.content));
       }
     } catch (err: any) {
       setError(err.message);
@@ -99,10 +93,11 @@ export default function NewsForm({ articleId }: NewsFormProps) {
         throw new Error('Please add content blocks to the article');
       }
 
-      const rawContent = contentBlocks
-        .map(b => b.type === 'paragraph' ? b.data.text : b.type.startsWith('heading') ? b.data.text : '')
-        .filter(Boolean)
-        .join('\n\n');
+      const rawContent = blocksToText(contentBlocks);
+
+      const published_at = status === 'published'
+        ? (formData as any).published_at || new Date().toISOString()
+        : null;
 
       if (articleId) {
         const { error } = await supabase
@@ -123,7 +118,7 @@ export default function NewsForm({ articleId }: NewsFormProps) {
             seo_title,
             seo_description,
             seo_keywords: typeof seo_keywords === 'string' ? seo_keywords.split(',').map(k => k.trim()) : seo_keywords,
-            published_at: status === 'published' ? new Date().toISOString() : null,
+            published_at,
             updated_at: new Date().toISOString(),
           })
           .eq('id', articleId);
@@ -147,7 +142,7 @@ export default function NewsForm({ articleId }: NewsFormProps) {
           seo_title,
           seo_description,
           seo_keywords: typeof seo_keywords === 'string' ? seo_keywords.split(',').map(k => k.trim()) : seo_keywords,
-          published_at: status === 'published' ? new Date().toISOString() : null,
+          published_at,
         }]);
 
         if (error) throw error;

@@ -3,6 +3,7 @@
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { ContentBlock } from '@/lib/types';
+import { renderInline } from '@/lib/inline-renderer';
 
 interface ContentBlockRendererProps {
   blocks: ContentBlock[];
@@ -23,26 +24,26 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
 
   switch (block.type) {
     case 'paragraph':
-      return <p className="text-gray-700 text-sm sm:text-base leading-relaxed mb-4">{d.text}</p>;
+      return <p className="text-gray-700 text-sm sm:text-base leading-relaxed mb-4">{renderInline(d.text)}</p>;
 
     case 'heading1':
-      return <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-8 mb-4">{d.text}</h1>;
+      return <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-8 mb-4">{renderInline(d.text)}</h1>;
     case 'heading2':
-      return <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mt-6 mb-3">{d.text}</h2>;
+      return <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mt-6 mb-3">{renderInline(d.text)}</h2>;
     case 'heading3':
-      return <h3 className="text-lg sm:text-xl font-bold text-gray-900 mt-5 mb-2">{d.text}</h3>;
+      return <h3 className="text-lg sm:text-xl font-bold text-gray-900 mt-5 mb-2">{renderInline(d.text)}</h3>;
     case 'heading4':
-      return <h4 className="text-base sm:text-lg font-bold text-gray-800 mt-4 mb-2">{d.text}</h4>;
+      return <h4 className="text-base sm:text-lg font-bold text-gray-800 mt-4 mb-2">{renderInline(d.text)}</h4>;
     case 'heading5':
-      return <h5 className="text-sm sm:text-base font-bold text-gray-800 mt-4 mb-2">{d.text}</h5>;
+      return <h5 className="text-sm sm:text-base font-bold text-gray-800 mt-4 mb-2">{renderInline(d.text)}</h5>;
     case 'heading6':
-      return <h6 className="text-xs sm:text-sm font-bold text-gray-700 mt-3 mb-1 uppercase tracking-wide">{d.text}</h6>;
+      return <h6 className="text-xs sm:text-sm font-bold text-gray-700 mt-3 mb-1 uppercase tracking-wide">{renderInline(d.text)}</h6>;
 
     case 'unordered_list':
       return (
         <ul className="list-disc pl-5 mb-4 space-y-1.5">
           {(d.items || []).map((item: string, i: number) => (
-            <li key={i} className="text-gray-700 text-sm sm:text-base">{item}</li>
+            <li key={i} className="text-gray-700 text-sm sm:text-base">{renderInline(item)}</li>
           ))}
         </ul>
       );
@@ -51,7 +52,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
       return (
         <ol className="list-decimal pl-5 mb-4 space-y-1.5">
           {(d.items || []).map((item: string, i: number) => (
-            <li key={i} className="text-gray-700 text-sm sm:text-base">{item}</li>
+            <li key={i} className="text-gray-700 text-sm sm:text-base">{renderInline(item)}</li>
           ))}
         </ol>
       );
@@ -63,7 +64,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
             <thead>
               <tr className="bg-gray-50">
                 {(d.headers || []).map((h: string, i: number) => (
-                  <th key={i} className="px-4 py-3 text-left font-semibold text-gray-700 border-b border-gray-200">{h}</th>
+                  <th key={i} className="px-4 py-3 text-left font-semibold text-gray-700 border-b border-gray-200">{renderInline(h)}</th>
                 ))}
               </tr>
             </thead>
@@ -71,7 +72,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
               {(d.rows || []).map((row: string[], ri: number) => (
                 <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                   {row.map((cell: string, ci: number) => (
-                    <td key={ci} className="px-4 py-3 text-gray-700 border-b border-gray-50">{cell}</td>
+                    <td key={ci} className="px-4 py-3 text-gray-700 border-b border-gray-50">{renderInline(String(cell))}</td>
                   ))}
                 </tr>
               ))}
@@ -119,7 +120,7 @@ function BlockRenderer({ block }: { block: ContentBlock }) {
     case 'blockquote':
       return (
         <blockquote className="border-l-4 border-green-400 pl-5 pr-4 py-3 my-4 bg-green-50 rounded-r-xl">
-          <p className="text-gray-700 italic text-sm sm:text-base leading-relaxed">{d.text}</p>
+          <p className="text-gray-700 italic text-sm sm:text-base leading-relaxed">{renderInline(d.text)}</p>
           {d.author && <footer className="text-xs text-gray-500 mt-2 not-italic">- {d.author}</footer>}
         </blockquote>
       );

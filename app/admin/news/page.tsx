@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle, ContentBlock } from '@/lib/types';
+import { parseContentToBlocks, parseContentBlocksJson, blocksToText } from '@/lib/content-parser';
 import { FileText, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Upload, X } from 'lucide-react';
 import BulkActionsBar from '@/components/admin/BulkActionsBar';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
@@ -21,7 +22,7 @@ const statusColors: Record<string, string> = {
 };
 
 const EXPORT_COLS = ['id', 'title', 'slug', 'category', 'status', 'is_featured', 'author', 'author_image', 'image_url', 'published_at', 'excerpt', 'content', 'content_blocks', 'tags', 'read_time_mins', 'seo_title', 'seo_description', 'seo_keywords'];
-const IMPORT_COLS = ['title', 'slug', 'category', 'status', 'author', 'author_image', 'image_url', 'excerpt', 'content', 'is_featured', 'published_at', 'tags', 'read_time_mins', 'seo_title', 'seo_description', 'seo_keywords'];
+const IMPORT_COLS = ['title', 'slug', 'category', 'status', 'author', 'author_image', 'image_url', 'excerpt', 'content', 'content_blocks', 'is_featured', 'published_at', 'tags', 'read_time_mins', 'seo_title', 'seo_description', 'seo_keywords'];
 
 export default function NewsManagementPage() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -127,28 +128,19 @@ export default function NewsManagementPage() {
     const parseArray = (val: string | undefined) =>
       val ? val.split(/[,;]/).map(s => s.trim()).filter(Boolean) : [];
 
-    // Convert raw text content into the same content_blocks structure the
-    // manual News Editor uses, so imported articles are fully editable there.
-    const contentToBlocks = (raw: string): ContentBlock[] => {
-      const text = (raw || '').trim();
-      if (!text) return [];
-      return text
-        .split(/\n{2,}/)
-        .map(para => para.trim())
-        .filter(Boolean)
-        .map(para => ({
-          id: 'blk_' + Math.random().toString(36).substr(2, 9),
-          type: 'paragraph' as const,
-          data: { text: para },
-        }));
-    };
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (!row.title) { errors.push(`Row ${i + 1}: title is required`); continue; }
       const slug = row.slug || row.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       try {
-        const contentBlocks = contentToBlocks(row.content);
+        // Prefer content_blocks JSON column; fall back to parsing the content
+        // text column with the shared rich-text parser.
+        const blocksJson = parseContentBlocksJson(row.content_blocks || '');
+        const contentBlocks: ContentBlock[] = blocksJson ?? parseContentToBlocks(row.content || '');
+        const rawContent = row.content || blocksToText(contentBlocks);
+        const isPublished = (row.status || 'draft') === 'published';
+        const publishedAt = row.published_at || (isPublished ? new Date().toISOString() : null);
+
         const { error } = await supabase.from('news').insert([{
           title: row.title,
           slug,
@@ -158,10 +150,10 @@ export default function NewsManagementPage() {
           author_image: row.author_image || null,
           image_url: row.image_url || null,
           excerpt: row.excerpt || '',
-          content: row.content || '',
+          content: rawContent,
           content_blocks: contentBlocks,
-          is_featured: row.is_featured === 'true',
-          published_at: row.published_at || new Date().toISOString(),
+          is_featured: row.is_featured === 'true' || row.is_featured === '1' || row.is_featured === 'yes',
+          published_at: publishedAt,
           tags: parseArray(row.tags),
           read_time_mins: parseInt(row.read_time_mins) || 5,
           seo_title: row.seo_title || null,

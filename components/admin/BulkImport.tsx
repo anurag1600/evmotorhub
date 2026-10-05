@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { parseCSV as robustParseCSV, parseFile } from '@/lib/import-export';
+import { parseContentToBlocks, parseContentBlocksJson, blocksToText } from '@/lib/content-parser';
 
 type ImportType = 'manufacturers' | 'vehicles' | 'variants' | 'news';
 
@@ -42,7 +43,7 @@ const columnDefs: Record<ImportType, ColumnDef> = {
   },
   news: {
     required: ['title'],
-    optional: ['slug', 'excerpt', 'image_url', 'category', 'author', 'author_image', 'tags', 'read_time_mins', 'is_featured', 'status', 'seo_title', 'seo_description', 'seo_keywords', 'published_at', 'content'],
+    optional: ['slug', 'excerpt', 'image_url', 'category', 'author', 'author_image', 'tags', 'read_time_mins', 'is_featured', 'status', 'seo_title', 'seo_description', 'seo_keywords', 'published_at', 'content', 'content_blocks'],
   },
 };
 
@@ -59,8 +60,8 @@ Ola S1 Pro,S1 Pro Gen 2,144999,181,4,116,"Premium variant with 181km range",acti
 Ola S1 Pro,S1 Pro,139999,171,3.97,116,"Standard premium variant",active
 Ather 450X,450X Gen 3,155000,146,3.7,115,"Latest generation Ather 450X",active`,
   news: `title,slug,excerpt,image_url,category,author,tags,read_time_mins,is_featured,status,seo_title,seo_description,published_at,content
-"Ola S1 Pro Launch Review","ola-s1-pro-review","In-depth review of the Ola S1 Pro",https://example.com/image.jpg,review,Admin,"ola;s1 pro;review",5,false,draft,"Ola S1 Pro Review","Read our comprehensive review of the Ola S1 Pro electric scooter",2024-01-15,"Full review content here"
-"Electric Vehicle Subsidies 2024","ev-subsidies-2024","Complete guide to EV subsidies",https://example.com/subsidy.jpg,guide,Admin,"subsidy;government;ev",3,false,draft,"EV Subsidies Guide","Everything you need to know about EV subsidies in 2024",2024-01-10,"Subsidy guide content here"`,
+"Ola S1 Pro Launch Review","ola-s1-pro-review","In-depth review of the Ola S1 Pro",https://example.com/image.jpg,review,Admin,"ola;s1 pro;review",5,false,draft,"Ola S1 Pro Review","Read our comprehensive review of the Ola S1 Pro electric scooter",2024-01-15,"# Ola S1 Pro: Full Review\n\nThe **Ola S1 Pro** is one of the most popular electric scooters in India. It offers *impressive* range and [smart features](https://olaelectric.com).\n\n## Key Specifications\n\n- Top speed: 116 km/h\n- Range: 181 km\n- Battery: 3.97 kWh\n\n## Performance\n\nThe scooter accelerates smoothly. Here's a quick comparison:\n\n| Metric | S1 Pro | Ather 450X |\n| ------ | ------ | --------- |\n| Range | 181 km | 146 km |\n| Top Speed | 116 km/h | 115 km/h |\n\n> This is the best scooter we've tested this year | EVMotorHub Team\n\n[image: https://example.com/s1-pro.jpg | Ola S1 Pro in action | S1 Pro on the road]\n\n[youtube: https://youtube.com/watch?v=dQw4w9WgXcQ | S1 Pro Test Ride]\n\n---\n\n## Verdict\n\nThe Ola S1 Pro is a solid choice for anyone looking for a premium electric scooter."
+"Electric Vehicle Subsidies 2024","ev-subsidies-2024","Complete guide to EV subsidies",https://example.com/subsidy.jpg,guide,Admin,"subsidy;government;ev",3,false,draft,"EV Subsidies Guide","Everything you need to know about EV subsidies in 2024",2024-01-10,"# EV Subsidies in India 2024\n\nThe government offers various subsidies for **electric vehicles**. Here's what you need to know.\n\n## Types of Subsidies\n\n1. FAME II subsidy\n2. State-level subsidies\n3. Tax benefits\n\n> Subsidies can reduce your EV cost by up to Rs. 1.5 lakh | EVMotorHub Team\n\n[cta: Ready to Buy? | Check your eligibility for EV subsidies | Calculate Now | /emi-calculator | #145a2c]"`,
 };
 
 type DuplicateMode = 'skip' | 'update' | 'create';
@@ -532,14 +533,14 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
         const validCategories = ['news', 'review', 'launch', 'comparison', 'guide'];
         const category = validCategories.includes(String(row.category).toLowerCase().trim()) ? String(row.category).toLowerCase().trim() : 'news';
 
-        const rawContent = row.content?.trim() || '';
-        const contentBlocks = rawContent
-          ? rawContent.split(/\n{2,}/).map((para: string) => para.trim()).filter(Boolean).map((para: string) => ({
-              id: 'blk_' + Math.random().toString(36).substr(2, 9),
-              type: 'paragraph' as const,
-              data: { text: para },
-            }))
-          : [];
+        // Prefer a content_blocks JSON column if provided; otherwise parse the
+        // content text column into structured blocks using the shared parser.
+        const blocksJson = parseContentBlocksJson(row.content_blocks || '');
+        const contentBlocks = blocksJson ?? parseContentToBlocks(row.content || '');
+        const rawContent = row.content?.trim() || blocksToText(contentBlocks);
+
+        const isPublished = (row.status?.trim() || 'draft') === 'published';
+        const publishedAt = row.published_at?.trim() || (isPublished ? new Date().toISOString() : null);
 
         const payload = {
           title: row.title?.trim(),
@@ -547,16 +548,16 @@ export default function BulkImport({ type, onComplete }: ImportExportProps) {
           excerpt: row.excerpt?.trim() || null,
           image_url: row.image_url?.trim() || null,
           category,
-          author: row.author?.trim() || 'Admin',
+          author: row.author?.trim() || 'EVMotorHub Team',
           author_image: row.author_image?.trim() || null,
           tags: parseArray(row.tags),
-          read_time_mins: parseInt(row.read_time_mins) || 3,
+          read_time_mins: parseInt(row.read_time_mins) || 5,
           is_featured: parseBool(row.is_featured),
           status: row.status?.trim() || 'draft',
           seo_title: row.seo_title?.trim() || null,
           seo_description: row.seo_description?.trim() || null,
           seo_keywords: parseArray(row.seo_keywords),
-          published_at: row.published_at?.trim() || null,
+          published_at: publishedAt,
           content: rawContent,
           content_blocks: contentBlocks,
         };
