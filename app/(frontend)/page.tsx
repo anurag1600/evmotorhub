@@ -32,6 +32,9 @@ const EVPetrolComparison = dynamic(() => import('@/components/EVPetrolComparison
 const AdBanner = dynamic(() => import('@/components/AdBanner'), {
   ssr: false,
 });
+const ChargingStationCTA = dynamic(() => import('@/components/ChargingStationCTA'), {
+  ssr: true,
+});
 
 export const revalidate = 3600;
 
@@ -605,6 +608,9 @@ export default async function HomePage() {
           </section>
           </LazySection>
         );
+
+      case 'charging_cta':
+        return <ChargingStationCTA key={key} />;
 
       case 'ad_above_footer':
         return (

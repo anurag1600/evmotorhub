@@ -33,6 +33,7 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
     operating_hours: '',
     map_embed_url: '',
   });
+  // lat/lng kept in state for backward compatibility but not shown in UI
 
   useEffect(() => {
     if (id) {
@@ -179,31 +180,6 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
           <div className="admin-card p-6 space-y-4">
             <h2 className="font-bold text-lg">Location</h2>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={form.lat}
-                  onChange={(e) => setForm({ ...form, lat: parseFloat(e.target.value) || 0 })}
-                  className="admin-input"
-                  placeholder="12.9716"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={form.lng}
-                  onChange={(e) => setForm({ ...form, lng: parseFloat(e.target.value) || 0 })}
-                  className="admin-input"
-                  placeholder="77.5946"
-                />
-              </div>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Google Maps Embed URL</label>
               <input
@@ -213,7 +189,7 @@ export default function ChargingStationForm({ id }: ChargingStationFormProps) {
                 className="admin-input"
                 placeholder="https://www.google.com/maps/embed?pb=..."
               />
-              <p className="text-xs text-gray-400 mt-1">Paste the full embed URL from Google Maps Share &gt; Embed a map</p>
+              <p className="text-xs text-gray-400 mt-1">Paste the full embed URL from Google Maps Share &gt; Embed a map. The map will be displayed on the station detail page.</p>
             </div>
           </div>
 

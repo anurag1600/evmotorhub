@@ -1,0 +1,1 @@
+ALTER TABLE charging_submissions ADD COLUMN IF NOT EXISTS map_url text;
