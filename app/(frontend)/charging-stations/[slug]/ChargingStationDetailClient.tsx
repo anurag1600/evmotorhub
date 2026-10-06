@@ -4,6 +4,7 @@ import { useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { MapPin, Zap, Clock, Wifi, Coffee, Navigation2, Phone, ChevronRight, ArrowLeft, Building2, Newspaper, Car } from 'lucide-react';
 import { ChargingStation, HomepageSection, NewsArticle, Vehicle } from '@/lib/types';
+import { DetailBreadcrumbs } from '@/components/Breadcrumbs';
 
 type NewsCardData = Pick<NewsArticle, 'id' | 'title' | 'slug' | 'excerpt' | 'image_url' | 'category' | 'author' | 'author_image' | 'published_at' | 'read_time_mins' | 'tags'>;
 type VehicleCardData = Pick<Vehicle, 'id' | 'name' | 'slug' | 'type' | 'segment' | 'price_min' | 'range_km' | 'top_speed_kmh' | 'battery_capacity_kwh' | 'charging_time_hrs' | 'image_url' | 'is_featured' | 'is_latest' | 'is_upcoming' | 'status'> & { manufacturers?: { name: string; slug: string } };
@@ -401,8 +402,17 @@ export default function ChargingStationDetailClient({
     }
   };
 
+  const breadcrumbItems = [
+    { label: 'Home', href: '/' },
+    { label: 'Charging Stations', href: '/charging-stations' },
+    { label: station.state, href: `/charging-stations?state=${encodeURIComponent(station.state)}` },
+    { label: station.city, href: `/charging-stations?city=${encodeURIComponent(station.city)}` },
+    { label: station.name },
+  ];
+
   return (
     <div className="bg-gray-50 min-h-screen">
+      <DetailBreadcrumbs items={breadcrumbItems} />
       {orderedKeys.map(key => renderSection(key))}
     </div>
   );

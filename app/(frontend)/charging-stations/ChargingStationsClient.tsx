@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MapPin, Search, Zap, Clock, ChevronRight, Navigation2, Filter, X, Building2, Loader as Loader2 } from 'lucide-react';
+import { MapPin, Search, Zap, Clock, ChevronRight, Navigation2, Filter, X, Building2, Loader as Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation, HomepageSection } from '@/lib/types';
 import { getStatusColor } from '@/lib/format';
@@ -150,40 +150,26 @@ export default function ChargingStationsClient({ sections, stats: initialStats }
     if (!isSectionEnabled(key)) return null;
 
     switch (key) {
-      case 'cs_submit_cta_top':
-        return (
-          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-            <div className="bg-gradient-to-r from-[#0f4020] to-[#145a2c] rounded-2xl p-5 sm:p-6 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Zap size={24} className="text-green-300" />
-                </div>
-                <div>
-                  <div className="font-bold text-base sm:text-lg">Know a charging station not listed here?</div>
-                  <div className="text-green-200 text-xs sm:text-sm">Help us build India&apos;s most complete EV charging directory.</div>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-shrink-0">
-                <button
-                  onClick={() => setShowSubmitModal(true)}
-                  className="bg-white text-[#145a2c] px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-green-50 transition-colors whitespace-nowrap"
-                >
-                  Submit a Station
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
       case 'cs_header':
         return (
           <div key={key} className="bg-gradient-to-r from-[#0a2e14] to-[#145a2c] text-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-              <div className="flex items-center gap-3 mb-2">
-                <Zap size={24} className="text-green-300" />
-                <h1 className="text-2xl sm:text-3xl font-bold">EV Charging Stations</h1>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Zap size={24} className="text-green-300 flex-shrink-0" />
+                    <h1 className="text-2xl sm:text-3xl font-bold">EV Charging Stations</h1>
+                  </div>
+                  <p className="text-green-200 text-sm">Find public EV charging points across India with real-time availability and directions.</p>
+                </div>
+                <button
+                  onClick={() => setShowSubmitModal(true)}
+                  className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all whitespace-nowrap flex-shrink-0"
+                >
+                  <Plus size={16} className="text-green-300" />
+                  Submit Station
+                </button>
               </div>
-              <p className="text-green-200 text-sm">Find public EV charging points across India with real-time availability and directions.</p>
             </div>
           </div>
         );

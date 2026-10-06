@@ -1,5 +1,6 @@
 import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
+import Breadcrumbs from '@/components/Breadcrumbs';
 
 const Footer = dynamic(() => import('@/components/Footer'), {
   loading: () => (
@@ -12,7 +13,10 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
   return (
     <>
       <Navbar />
-      <main className="flex-1 pt-16">{children}</main>
+      <main className="flex-1 pt-16">
+        <Breadcrumbs />
+        {children}
+      </main>
       <Footer />
     </>
   );

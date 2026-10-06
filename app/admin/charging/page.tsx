@@ -16,8 +16,8 @@ const statusColors: Record<string, string> = {
   coming_soon: 'bg-amber-100 text-amber-700',
 };
 
-const EXPORT_COLS = ['id', 'name', 'address', 'city', 'state', 'lat', 'lng', 'operator', 'connector_types', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'amenities', 'operating_hours', 'map_embed_url'];
-const IMPORT_COLS = ['name', 'address', 'city', 'state', 'lat', 'lng', 'operator', 'connector_types', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'amenities', 'operating_hours', 'map_embed_url'];
+const EXPORT_COLS = ['id', 'name', 'address', 'city', 'state', 'operator', 'connector_types', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'amenities', 'operating_hours', 'map_embed_url', 'phone_support', 'price_per_kwh', 'fast_charging', 'booking_available'];
+const IMPORT_COLS = ['name', 'address', 'city', 'state', 'operator', 'connector_types', 'total_chargers', 'available_chargers', 'power_kw', 'status', 'amenities', 'operating_hours', 'map_embed_url', 'phone_support', 'price_per_kwh', 'fast_charging', 'booking_available'];
 
 export default function ChargingStationsPage() {
   const [stations, setStations] = useState<ChargingStation[]>([]);
@@ -68,26 +68,68 @@ export default function ChargingStationsPage() {
   const handleImport = async (rows: Record<string, string>[]) => {
     const errors: string[] = [];
     let success = 0;
+    const validStatuses = ['active', 'inactive', 'coming_soon'];
+    const validConnectors = ['CCS2', 'CHAdeMO', 'Type 2 AC', 'Bharat DC-001', 'Bharat AC-001', 'Ather Proprietary', 'Ola Proprietary', 'Type 1 AC', 'Tesla', 'CCS', 'Type2', 'AC'];
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      if (!row.name) { errors.push(`Row ${i + 1}: name is required`); continue; }
-      if (!row.city) { errors.push(`Row ${i + 1}: city is required`); continue; }
+      const rowNum = i + 2;
+
+      if (!row.name?.trim()) { errors.push(`Row ${rowNum}: name is required`); continue; }
+      if (!row.city?.trim()) { errors.push(`Row ${rowNum}: city is required`); continue; }
+      if (!row.state?.trim()) { errors.push(`Row ${rowNum}: state is required`); continue; }
+      if (!row.operator?.trim()) { errors.push(`Row ${rowNum}: operator is required`); continue; }
+
+      const status = (row.status || 'active').trim().toLowerCase();
+      if (!validStatuses.includes(status)) { errors.push(`Row ${rowNum}: invalid status "${row.status}". Must be active, inactive, or coming_soon`); continue; }
+
+      let connectors: string[] = ['CCS2'];
+      if (row.connector_types?.trim()) {
+        connectors = row.connector_types.split(',').map(c => c.trim()).filter(Boolean);
+        const invalid = connectors.filter(c => !validConnectors.includes(c));
+        if (invalid.length > 0) { errors.push(`Row ${rowNum}: unknown connector type(s): ${invalid.join(', ')}`); continue; }
+      }
+
+      let amenities: string[] = [];
+      if (row.amenities?.trim()) {
+        amenities = row.amenities.split(',').map(a => a.trim()).filter(Boolean);
+      }
+
+      const totalChargers = Number(row.total_chargers) || 1;
+      const availableChargers = Number(row.available_chargers) || 0;
+      if (availableChargers > totalChargers) {
+        errors.push(`Row ${rowNum}: available_chargers (${availableChargers}) cannot exceed total_chargers (${totalChargers})`);
+        continue;
+      }
+
+      const slugBase = (row.name.trim() + '-' + row.city.trim()).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
       try {
         const { error } = await supabase.from('charging_stations').insert([{
-          name: row.name,
-          address: row.address || '',
-          city: row.city,
-          state: row.state || '',
-          operator: row.operator || '',
-          total_chargers: Number(row.total_chargers) || 1,
-          available_chargers: Number(row.available_chargers) || 0,
-          power_kw: Number(row.power_kw) || 0,
-          status: row.status || 'active',
-          connector_types: ['CCS'],
+          name: row.name.trim(),
+          address: row.address?.trim() || '',
+          city: row.city.trim(),
+          state: row.state.trim(),
+          lat: 0,
+          lng: 0,
+          operator: row.operator.trim(),
+          connector_types: connectors,
+          total_chargers: totalChargers,
+          available_chargers: availableChargers,
+          power_kw: Number(row.power_kw) || 50,
+          status: status,
+          amenities: amenities,
+          operating_hours: row.operating_hours?.trim() || '24/7',
+          map_embed_url: row.map_embed_url?.trim() || '',
+          phone_support: row.phone_support?.trim() || null,
+          price_per_kwh: row.price_per_kwh ? Number(row.price_per_kwh) : null,
+          fast_charging: row.fast_charging?.toLowerCase() === 'true' || row.fast_charging === '1' || row.fast_charging?.toLowerCase() === 'yes',
+          booking_available: row.booking_available?.toLowerCase() === 'true' || row.booking_available === '1' || row.booking_available?.toLowerCase() === 'yes',
+          slug: slugBase,
         }]);
         if (error) throw error;
         success++;
-      } catch (err: any) { errors.push(`Row ${i + 1}: ${err.message}`); }
+      } catch (err: any) { errors.push(`Row ${rowNum}: ${err.message}`); }
     }
     if (success > 0) fetchStations();
     return { success, errors };
