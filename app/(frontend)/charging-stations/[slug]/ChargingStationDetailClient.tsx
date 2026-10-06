@@ -56,10 +56,28 @@ export default function ChargingStationDetailClient({
   };
 
   const generateGoogleMapsUrl = (s: ChargingStation) => {
-    if (s.lat && s.lng) {
-      return `https://www.google.com/maps?q=${s.lat},${s.lng}`;
+    if (s.map_embed_url) {
+      const url = s.map_embed_url;
+      if (url.includes('/maps/embed?')) return url;
+      if (url.includes('maps.app.goo.gl/') || url.includes('maps.google.com/')) {
+        return `https://www.google.com/maps?q=${encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ${s.state}`)}&z=15&output=embed`;
+      }
+      if (url.includes('/maps/place/') || url.includes('/maps/search/') || url.includes('/maps?')) {
+        return `https://www.google.com/maps?q=${encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ${s.state}`)}&z=15&output=embed`;
+      }
     }
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.name}, ${s.address}, ${s.city}`)}`;
+    return `https://www.google.com/maps?q=${encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ${s.state}`)}&z=15&output=embed`;
+  };
+
+  const generateEmbedUrl = (s: ChargingStation): string | null => {
+    if (s.map_embed_url) {
+      const url = s.map_embed_url.trim();
+      if (url.includes('/maps/embed?')) return url;
+      const query = encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ${s.state}`);
+      return `https://www.google.com/maps?q=${query}&z=15&output=embed`;
+    }
+    const query = encodeURIComponent(`${s.name}, ${s.address}, ${s.city}, ${s.state}`);
+    return `https://www.google.com/maps?q=${query}&z=15&output=embed`;
   };
 
   const directionsUrl = generateGoogleMapsUrl(station);
@@ -106,38 +124,32 @@ export default function ChargingStationDetailClient({
           <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="h-64 sm:h-80 relative bg-gray-100">
-                {station.lat && station.lng ? (
-                  <iframe
-                    src={`https://www.google.com/maps?q=${station.lat},${station.lng}&z=15&output=embed`}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title={`${station.name} location`}
-                    className="absolute inset-0"
-                  />
-                ) : station.map_embed_url ? (
-                  <iframe
-                    src={station.map_embed_url}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title={`${station.name} location`}
-                    className="absolute inset-0"
-                  />
-                ) : (
-                  <div className="h-full bg-gradient-to-br from-green-100 to-emerald-50 flex items-center justify-center">
-                    <div className="text-center">
-                      <MapPin size={40} className="text-[#145a2c] mx-auto mb-2" />
-                      <p className="text-sm font-medium text-gray-700">Map location not available</p>
+                {(() => {
+                  const embedUrl = generateEmbedUrl(station);
+                  if (embedUrl) {
+                    return (
+                      <iframe
+                        src={embedUrl}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        allowFullScreen
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title={`${station.name} location`}
+                        className="absolute inset-0"
+                      />
+                    );
+                  }
+                  return (
+                    <div className="h-full bg-gradient-to-br from-green-100 to-emerald-50 flex items-center justify-center">
+                      <div className="text-center">
+                        <MapPin size={40} className="text-[#145a2c] mx-auto mb-2" />
+                        <p className="text-sm font-medium text-gray-700">Map location not available</p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
               <div className="p-4 flex gap-2">
                 <a
