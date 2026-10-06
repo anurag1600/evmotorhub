@@ -500,3 +500,14 @@ export interface OfferEnquiry {
   created_at: string;
   updated_at: string;
 }
+
+export interface HomepageSection {
+  id: string;
+  section_key: string;
+  section_label: string;
+  sort_order: number;
+  is_enabled: boolean;
+  page: string;
+  created_at: string;
+  updated_at: string;
+}
