@@ -90,7 +90,7 @@ export default function ChargingStationDetailClient({
       case 'csd_header':
         return (
           <div key={key} className="bg-gradient-to-r from-[#0a2e14] to-[#145a2c] text-white">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <Link href="/charging-stations" className="inline-flex items-center gap-1.5 text-green-200 hover:text-white text-sm mb-4 transition-colors">
                 <ArrowLeft size={14} /> All Charging Stations
               </Link>
@@ -121,7 +121,7 @@ export default function ChargingStationDetailClient({
 
       case 'csd_map':
         return (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="h-64 sm:h-80 relative bg-gray-100">
                 {(() => {
@@ -175,7 +175,7 @@ export default function ChargingStationDetailClient({
 
       case 'csd_details':
         return (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-6">
@@ -325,21 +325,21 @@ export default function ChargingStationDetailClient({
 
       case 'csd_ad_sidebar':
         return (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <AdBanner position="charging_station_detail_sidebar" className="mx-auto" />
           </div>
         );
 
       case 'csd_ad_bottom':
         return (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <AdBanner position="charging_station_detail_bottom" className="mx-auto" />
           </div>
         );
 
       case 'csd_nearby':
         return nearby.length > 0 ? (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center gap-2 mb-4">
               <MapPin size={20} className="text-[#145a2c]" />
               <h2 className="text-lg font-bold text-gray-900">
@@ -381,7 +381,7 @@ export default function ChargingStationDetailClient({
 
       case 'csd_evs':
         return vehicles.length > 0 ? (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center gap-2 mb-4">
               <Car size={20} className="text-[#145a2c]" />
               <h2 className="text-lg font-bold text-gray-900">Popular EVs to Charge Here</h2>
@@ -396,7 +396,7 @@ export default function ChargingStationDetailClient({
 
       case 'csd_news':
         return news.length > 0 ? (
-          <div key={key} className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center gap-2 mb-4">
               <Newspaper size={20} className="text-[#145a2c]" />
               <h2 className="text-lg font-bold text-gray-900">Latest EV News</h2>
