@@ -7,28 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Megaphone, ArrowLeft, Save, Loader as Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageUpload from '@/components/ImageUpload';
-
-const AD_SIZES = [
-  { value: 'leaderboard', label: 'Leaderboard (728×90)' },
-  { value: 'large_leaderboard', label: 'Large Leaderboard (970×90)' },
-  { value: 'rectangle', label: 'Rectangle (300×250)' },
-  { value: 'large_rectangle', label: 'Large Rectangle (336×280)' },
-  { value: 'skyscraper', label: 'Skyscraper (120×600)' },
-  { value: 'wide_skyscraper', label: 'Wide Skyscraper (160×600)' },
-  { value: 'square', label: 'Square (250×250)' },
-  { value: 'mobile_banner', label: 'Mobile Banner (320×50)' },
-];
-
-const AD_POSITIONS = [
-  { value: 'homepage_below_hero', label: 'Homepage - Below Hero' },
-  { value: 'homepage_before_faq', label: 'Homepage - Before FAQ' },
-  { value: 'homepage_above_footer', label: 'Homepage - Above Footer' },
-  { value: 'vehicle_sidebar', label: 'Vehicle Detail - Right Sidebar' },
-  { value: 'vehicle_between_sections', label: 'Vehicle Detail - Between Sections' },
-  { value: 'news_between_articles', label: 'News - Between Articles' },
-  { value: 'listing_after_cards', label: 'Listings - After Every 6 Cards' },
-  { value: 'mobile_sticky_bottom', label: 'Mobile - Sticky Bottom Banner' },
-];
+import { AD_SIZES, AD_POSITIONS } from '@/lib/ad-constants';
 
 export default function EditAdvertisementPage() {
   const router = useRouter();
@@ -43,6 +22,13 @@ export default function EditAdvertisementPage() {
     ad_position: 'vehicle_sidebar',
     image_url: '',
     destination_url: '',
+    title: '',
+    description: '',
+    cta_text: '',
+    custom_width: '',
+    custom_height: '',
+    priority: '0',
+    page_target: '',
     start_date: '',
     end_date: '',
     sort_order: '0',
@@ -64,6 +50,13 @@ export default function EditAdvertisementPage() {
           ad_position: data.ad_position || 'vehicle_sidebar',
           image_url: data.image_url || '',
           destination_url: data.destination_url || '',
+          title: data.title || '',
+          description: data.description || '',
+          cta_text: data.cta_text || '',
+          custom_width: data.custom_width?.toString() || '',
+          custom_height: data.custom_height?.toString() || '',
+          priority: data.priority?.toString() || '0',
+          page_target: data.page_target || '',
           start_date: data.start_date || '',
           end_date: data.end_date || '',
           sort_order: data.sort_order?.toString() || '0',
@@ -74,10 +67,16 @@ export default function EditAdvertisementPage() {
     });
   }, [id]);
 
+  const isCustomSize = form.ad_size === 'custom';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
     if (!form.image_url) { toast.error('Please upload an advertisement image'); return; }
+    if (isCustomSize && (!form.custom_width || !form.custom_height)) {
+      toast.error('Please enter custom width and height');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -87,6 +86,13 @@ export default function EditAdvertisementPage() {
         ad_position: form.ad_position,
         image_url: form.image_url,
         destination_url: form.destination_url || null,
+        title: form.title || null,
+        description: form.description || null,
+        cta_text: form.cta_text || null,
+        custom_width: isCustomSize ? (parseInt(form.custom_width) || null) : null,
+        custom_height: isCustomSize ? (parseInt(form.custom_height) || null) : null,
+        priority: parseInt(form.priority) || 0,
+        page_target: form.page_target || null,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
         sort_order: parseInt(form.sort_order) || 0,
@@ -169,6 +175,33 @@ export default function EditAdvertisementPage() {
           </div>
         </div>
 
+        {isCustomSize && (
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Custom Width (px) *</label>
+              <input
+                type="number"
+                value={form.custom_width}
+                onChange={(e) => setForm(f => ({ ...f, custom_width: e.target.value }))}
+                placeholder="e.g., 468"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+                required={isCustomSize}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Custom Height (px) *</label>
+              <input
+                type="number"
+                value={form.custom_height}
+                onChange={(e) => setForm(f => ({ ...f, custom_height: e.target.value }))}
+                placeholder="e.g., 60"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+                required={isCustomSize}
+              />
+            </div>
+          </div>
+        )}
+
         <ImageUpload
           bucket="advertisements"
           onImageUrl={(url) => setForm(f => ({ ...f, image_url: url }))}
@@ -177,6 +210,40 @@ export default function EditAdvertisementPage() {
           aspectRatio="wide"
           helpText="Upload will auto-compress to WEBP"
         />
+
+        <div className="border-t border-gray-100 pt-4 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-800">Ad Content (Optional)</h3>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Title</label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Ad headline shown over the image"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+            <input
+              type="text"
+              value={form.description}
+              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Short text shown below the title"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">CTA Button Text</label>
+            <input
+              type="text"
+              value={form.cta_text}
+              onChange={(e) => setForm(f => ({ ...f, cta_text: e.target.value }))}
+              placeholder="e.g., Learn More, Shop Now"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+            />
+          </div>
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Destination URL (Click Link)</label>
@@ -189,6 +256,18 @@ export default function EditAdvertisementPage() {
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Page Targeting</label>
+          <input
+            type="text"
+            value={form.page_target}
+            onChange={(e) => setForm(f => ({ ...f, page_target: e.target.value }))}
+            placeholder="e.g., /vehicles, /charging-stations (comma-separated, blank = all pages)"
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+          />
+          <p className="text-xs text-gray-400 mt-1">Comma-separated page paths where this ad should appear. Leave blank for all pages.</p>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Start Date</label>
@@ -199,7 +278,6 @@ export default function EditAdvertisementPage() {
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">End Date</label>
             <input
@@ -211,15 +289,27 @@ export default function EditAdvertisementPage() {
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Sort Order</label>
-          <input
-            type="number"
-            value={form.sort_order}
-            onChange={(e) => setForm(f => ({ ...f, sort_order: e.target.value }))}
-            placeholder="0"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority (higher = shown first)</label>
+            <input
+              type="number"
+              value={form.priority}
+              onChange={(e) => setForm(f => ({ ...f, priority: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Sort Order</label>
+            <input
+              type="number"
+              value={form.sort_order}
+              onChange={(e) => setForm(f => ({ ...f, sort_order: e.target.value }))}
+              placeholder="0"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#145a2c]/20 focus:border-[#145a2c]"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

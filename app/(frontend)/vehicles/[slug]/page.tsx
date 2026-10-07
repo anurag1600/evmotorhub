@@ -6,6 +6,7 @@ import { Vehicle, VehicleVariant } from '@/lib/types';
 import { formatPrice, formatPriceRange, getVehicleTypeLabel, getSegmentLabel } from '@/lib/format';
 import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
 import { VehicleDetailSkeleton } from '@/components/Skeletons';
+import { DetailBreadcrumbs } from '@/components/Breadcrumbs';
 
 const VehicleDetailClient = dynamic(() => import('@/components/VehicleDetailClient'), {
   loading: () => <VehicleDetailSkeleton />,
@@ -124,6 +125,12 @@ export default async function VehicleDetailPage({ params }: { params: { slug: st
 
   return (
     <>
+      <DetailBreadcrumbs items={[
+        { label: 'Home', href: '/' },
+        { label: 'Vehicles', href: '/vehicles' },
+        { label: getVehicleTypeLabel(vehicle.type), href: `/vehicles?type=${vehicle.type}` },
+        { label: vehicle.name },
+      ]} />
       <VehicleSchema vehicle={vehicle} manufacturer={manufacturer} />
       {seo?.schema_breadcrumb !== false && <BreadcrumbSchema vehicle={vehicle} manufacturer={manufacturer} />}
       <VehicleDetailClient

@@ -3,13 +3,14 @@ import dynamic from 'next/dynamic';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Clock, ChevronRight, Tag, ArrowLeft, ArrowRight, Calendar } from 'lucide-react';
+import { Clock, Tag, ArrowLeft, ArrowRight, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { NewsArticle } from '@/lib/types';
 import { getCategoryColor, getCategoryLabel, timeAgo } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import NewsCard from '@/components/NewsCard';
 import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
+import { DetailBreadcrumbs } from '@/components/Breadcrumbs';
 const ContentBlockRenderer = dynamic(() => import('@/components/ContentBlockRenderer'));
 
 export const revalidate = 300;
@@ -109,22 +110,12 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
     <div className="bg-gray-50 min-h-screen">
       {seo?.schema_article !== false && <ArticleSchema article={article} />}
       {seo?.schema_breadcrumb !== false && <BreadcrumbSchema article={article} />}
-      {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <nav className="flex items-center gap-1.5 text-xs text-gray-500">
-            <Link href="/" className="hover:text-[#145a2c]">Home</Link>
-            <ChevronRight size={12} />
-            <Link href="/news" className="hover:text-[#145a2c]">News</Link>
-            <ChevronRight size={12} />
-            <Link href={`/news?category=${article.category}`} className="hover:text-[#145a2c]">
-              {getCategoryLabel(article.category)}
-            </Link>
-            <ChevronRight size={12} />
-            <span className="text-gray-900 font-medium line-clamp-1">{article.title}</span>
-          </nav>
-        </div>
-      </div>
+      <DetailBreadcrumbs items={[
+        { label: 'Home', href: '/' },
+        { label: 'News & Reviews', href: '/news' },
+        { label: getCategoryLabel(article.category), href: `/news?category=${article.category}` },
+        { label: article.title },
+      ]} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid lg:grid-cols-3 gap-8">

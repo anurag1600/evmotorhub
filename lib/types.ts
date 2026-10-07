@@ -511,3 +511,55 @@ export interface HomepageSection {
   created_at: string;
   updated_at: string;
 }
+
+export interface Advertisement {
+  id: string;
+  name: string;
+  ad_type: string;
+  ad_size: string;
+  ad_position: string;
+  image_url: string;
+  destination_url: string | null;
+  title: string | null;
+  description: string | null;
+  cta_text: string | null;
+  custom_width: number | null;
+  custom_height: number | null;
+  priority: number;
+  page_target: string | null;
+  is_popup: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  impression_count: number;
+  click_count: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export type PopupFrequency = 'once_per_visit' | 'once_per_session' | 'once_per_day' | 'once_per_week' | 'always';
+
+export interface PopupAd {
+  id: string;
+  name: string;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  cta_text: string | null;
+  cta_url: string | null;
+  delay_seconds: number;
+  display_duration: number;
+  frequency: PopupFrequency;
+  cooldown_minutes: number;
+  page_targets: string[] | null;
+  exclude_pages: string[] | null;
+  priority: number;
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  impression_count: number;
+  click_count: number;
+  close_button_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}

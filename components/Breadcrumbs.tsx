@@ -34,7 +34,6 @@ export default function Breadcrumbs({ dynamicTitle }: { dynamicTitle?: string })
 
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) return null;
-  if (segments.length > 1) return null;
 
   const crumbs: Crumb[] = [{ label: 'Home', href: '/' }];
 
@@ -42,15 +41,12 @@ export default function Breadcrumbs({ dynamicTitle }: { dynamicTitle?: string })
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     pathAccum += '/' + seg;
+    const isLast = i === segments.length - 1;
 
-    if (i === segments.length - 1 && dynamicTitle) {
+    if (isLast && dynamicTitle) {
       crumbs.push({ label: dynamicTitle });
-    } else if (i === 0) {
-      const label = routeLabels[seg] || seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ');
-      crumbs.push({ label, href: pathAccum });
     } else {
       const label = routeLabels[seg] || seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, ' ');
-      const isLast = i === segments.length - 1;
       crumbs.push({ label, href: isLast ? undefined : pathAccum });
     }
   }

@@ -1,6 +1,7 @@
 import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
 import Breadcrumbs from '@/components/Breadcrumbs';
+import PopupAdWrapper from '@/components/PopupAdWrapper';
 
 const Footer = dynamic(() => import('@/components/Footer'), {
   loading: () => (
@@ -18,6 +19,7 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
         {children}
       </main>
       <Footer />
+      <PopupAdWrapper />
     </>
   );
 }

@@ -4,49 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { Megaphone, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Image as ImageIcon } from 'lucide-react';
+import { Megaphone, Plus, Pencil, Trash2, Search, Loader as Loader2, CircleAlert as AlertCircle, Eye, Image as ImageIcon, MonitorPlay } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Pagination from '@/components/admin/Pagination';
 import { toast } from 'sonner';
-
-interface Advertisement {
-  id: string;
-  name: string;
-  ad_type: string;
-  ad_size: string;
-  ad_position: string;
-  image_url: string;
-  destination_url: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  is_active: boolean;
-  impression_count: number;
-  click_count: number;
-  sort_order: number;
-  created_at: string;
-}
-
-const AD_SIZES = [
-  { value: 'leaderboard', label: 'Leaderboard (728×90)' },
-  { value: 'large_leaderboard', label: 'Large Leaderboard (970×90)' },
-  { value: 'rectangle', label: 'Rectangle (300×250)' },
-  { value: 'large_rectangle', label: 'Large Rectangle (336×280)' },
-  { value: 'skyscraper', label: 'Skyscraper (120×600)' },
-  { value: 'wide_skyscraper', label: 'Wide Skyscraper (160×600)' },
-  { value: 'square', label: 'Square (250×250)' },
-  { value: 'mobile_banner', label: 'Mobile Banner (320×50)' },
-];
-
-const AD_POSITIONS = [
-  { value: 'homepage_below_hero', label: 'Homepage - Below Hero' },
-  { value: 'homepage_before_faq', label: 'Homepage - Before FAQ' },
-  { value: 'homepage_above_footer', label: 'Homepage - Above Footer' },
-  { value: 'vehicle_sidebar', label: 'Vehicle Detail - Right Sidebar' },
-  { value: 'vehicle_between_sections', label: 'Vehicle Detail - Between Sections' },
-  { value: 'news_between_articles', label: 'News - Between Articles' },
-  { value: 'listing_after_cards', label: 'Listings - After Every 6 Cards' },
-  { value: 'mobile_sticky_bottom', label: 'Mobile - Sticky Bottom Banner' },
-];
+import { AD_SIZES, AD_POSITIONS } from '@/lib/ad-constants';
+import type { Advertisement } from '@/lib/types';
 
 const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-700',
@@ -69,7 +32,7 @@ export default function AdvertisementsManagementPage() {
     setLoading(true);
     try {
       let countQuery = supabase.from('advertisements').select('id', { count: 'exact', head: true });
-      let dataQuery = supabase.from('advertisements').select('*').order('sort_order', { ascending: true });
+      let dataQuery = supabase.from('advertisements').select('*').order('priority', { ascending: false }).order('sort_order', { ascending: true });
 
       if (position) {
         countQuery = countQuery.eq('ad_position', position);
@@ -153,12 +116,18 @@ export default function AdvertisementsManagementPage() {
               <Megaphone size={28} className="text-[#145a2c]" />
               Advertisement Management
             </h1>
-            <p className="admin-subtitle">Manage banner ads across the site</p>
+            <p className="admin-subtitle">Manage banner ads and popup ads across the site</p>
           </div>
-          <Link href="/admin/advertisements/new" className="admin-btn-primary">
-            <Plus size={16} />
-            Create Ad
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/admin/advertisements/popups" className="admin-btn-secondary">
+              <MonitorPlay size={16} />
+              Popup Ads
+            </Link>
+            <Link href="/admin/advertisements/new" className="admin-btn-primary">
+              <Plus size={16} />
+              Create Ad
+            </Link>
+          </div>
         </div>
 
         <div className="admin-search-toolbar">
@@ -203,6 +172,7 @@ export default function AdvertisementsManagementPage() {
                       <th>Ad</th>
                       <th>Position</th>
                       <th>Size</th>
+                      <th>Priority</th>
                       <th>Stats</th>
                       <th>Status</th>
                       <th>Actions</th>
@@ -232,6 +202,7 @@ export default function AdvertisementsManagementPage() {
                               </div>
                               <div>
                                 <div className="font-semibold text-gray-900 text-sm">{ad.name}</div>
+                                {ad.title && <div className="text-xs text-gray-500">{ad.title}</div>}
                                 {ad.destination_url && (
                                   <a
                                     href={ad.destination_url}
@@ -246,7 +217,13 @@ export default function AdvertisementsManagementPage() {
                             </div>
                           </td>
                           <td className="text-xs text-gray-600">{getAdPositionLabel(ad.ad_position)}</td>
-                          <td className="text-xs text-gray-500">{getAdSizeLabel(ad.ad_size)}</td>
+                          <td className="text-xs text-gray-500">
+                            {getAdSizeLabel(ad.ad_size)}
+                            {ad.ad_size === 'custom' && ad.custom_width && ad.custom_height && (
+                              <span className="block text-gray-400">({ad.custom_width}×{ad.custom_height})</span>
+                            )}
+                          </td>
+                          <td className="text-xs text-gray-600 font-medium">{ad.priority || 0}</td>
                           <td>
                             <div className="text-xs space-y-0.5">
                               <div className="flex items-center gap-1">

@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getSeoSettings, buildCanonicalUrl, buildNoindexMeta } from '@/lib/seo';
+import { DetailBreadcrumbs } from '@/components/Breadcrumbs';
 import ChargingStationDetailClient from './ChargingStationDetailClient';
 
 export const revalidate = 3600;
@@ -119,6 +120,13 @@ export default async function ChargingStationDetailPage({ params }: { params: { 
 
   return (
     <>
+      <DetailBreadcrumbs items={[
+        { label: 'Home', href: '/' },
+        { label: 'Charging Stations', href: '/charging-stations' },
+        { label: data.station.state, href: `/charging-stations?state=${encodeURIComponent(data.station.state)}` },
+        { label: data.station.city, href: `/charging-stations?city=${encodeURIComponent(data.station.city)}` },
+        { label: data.station.name },
+      ]} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <ChargingStationDetailClient
         station={data.station}

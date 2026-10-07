@@ -2,11 +2,12 @@ import { notFound } from 'next/navigation';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Globe, MapPin, Calendar, Building2, ChevronRight, ArrowRight, ExternalLink, Car } from 'lucide-react';
+import { Globe, MapPin, Calendar, Building2, ArrowRight, ExternalLink, Car } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Manufacturer, Vehicle } from '@/lib/types';
 import VehicleCard from '@/components/VehicleCard';
 import { getSeoSettings, buildNoindexMeta, buildCanonicalUrl } from '@/lib/seo';
+import { DetailBreadcrumbs } from '@/components/Breadcrumbs';
 
 export const revalidate = 300;
 
@@ -48,18 +49,11 @@ export default async function ManufacturerDetailPage({ params }: { params: { slu
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <nav className="flex items-center gap-1.5 text-xs text-gray-500">
-            <Link href="/" className="hover:text-[#145a2c]">Home</Link>
-            <ChevronRight size={12} />
-            <Link href="/manufacturers" className="hover:text-[#145a2c]">Manufacturers</Link>
-            <ChevronRight size={12} />
-            <span className="text-gray-900 font-medium">{manufacturer.name}</span>
-          </nav>
-        </div>
-      </div>
+      <DetailBreadcrumbs items={[
+        { label: 'Home', href: '/' },
+        { label: 'Manufacturers', href: '/manufacturers' },
+        { label: manufacturer.name },
+      ]} />
 
       {/* Hero */}
       <div className="relative h-56 sm:h-72 overflow-hidden">

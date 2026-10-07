@@ -249,8 +249,10 @@ export default async function HomePage() {
 
       case 'ad_below_hero':
         return (
-          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <AdBanner position="homepage_below_hero" className="mx-auto" />
+          <div key={key} className="w-full bg-gray-100 py-4 flex justify-center">
+            <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
+              <AdBanner position="homepage_below_hero" className="mx-auto" />
+            </div>
           </div>
         );
 
@@ -544,8 +546,10 @@ export default async function HomePage() {
 
       case 'ad_before_faq':
         return (
-          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <AdBanner position="homepage_before_faq" className="mx-auto" />
+          <div key={key} className="w-full bg-gray-100 py-4 flex justify-center">
+            <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
+              <AdBanner position="homepage_before_faq" className="mx-auto" />
+            </div>
           </div>
         );
 
@@ -614,8 +618,10 @@ export default async function HomePage() {
 
       case 'ad_above_footer':
         return (
-          <div key={key} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-8">
-            <AdBanner position="homepage_above_footer" className="mx-auto" />
+          <div key={key} className="w-full bg-gray-100 py-4 pb-8 flex justify-center">
+            <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
+              <AdBanner position="homepage_above_footer" className="mx-auto" />
+            </div>
           </div>
         );
 
