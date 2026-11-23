@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MapPin, Search, Zap, Clock, ChevronRight, Navigation2, Filter, X, Building2, Loader as Loader2, Plus } from 'lucide-react';
+import { MapPin, Search, Zap, Clock, ChevronRight, Navigation2, Filter, X, Building2, Loader as Loader2, Plus, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ChargingStation, HomepageSection } from '@/lib/types';
 import { getStatusColor } from '@/lib/format';
@@ -26,6 +26,89 @@ const statusLabels: Record<string, string> = {
 
 const ALL_CONNECTORS = ['CCS2', 'CHAdeMO', 'Type 2 AC', 'Bharat DC-001', 'Bharat AC-001', 'Ather Proprietary', 'Ola Proprietary'];
 
+function getPageRange(current: number, total: number, siblings: number = 1): (number | 'ellipsis')[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages: (number | 'ellipsis')[] = [];
+  const left = Math.max(2, current - siblings);
+  const right = Math.min(total - 1, current + siblings);
+
+  pages.push(1);
+  if (left > 2) pages.push('ellipsis');
+  for (let i = left; i <= right; i++) pages.push(i);
+  if (right < total - 1) pages.push('ellipsis');
+  pages.push(total);
+  return pages;
+}
+
+function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (p: number) => void }) {
+  const pages = getPageRange(currentPage, totalPages);
+  const pageBtn = (p: number | 'ellipsis', idx: number) => {
+    if (p === 'ellipsis') {
+      return (
+        <span key={`e${idx}`} className="flex h-9 w-9 items-center justify-center text-gray-400 text-sm">
+          ...
+        </span>
+      );
+    }
+    return (
+      <button
+        key={p}
+        onClick={() => onPageChange(p)}
+        className={cn(
+          'flex h-9 w-9 items-center justify-center rounded-lg text-sm font-medium transition-colors',
+          p === currentPage
+            ? 'bg-[#145a2c] text-white shadow-sm'
+            : 'bg-white text-gray-700 border border-gray-200 hover:border-green-300 hover:text-[#145a2c]'
+        )}
+        aria-current={p === currentPage ? 'page' : undefined}
+        aria-label={`Go to page ${p}`}
+      >
+        {p}
+      </button>
+    );
+  };
+
+  return (
+    <nav className="flex items-center justify-center gap-2 mt-8" aria-label="Pagination">
+      <button
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        disabled={currentPage === 1}
+        className={cn(
+          'flex items-center gap-1 px-3 h-9 rounded-lg text-sm font-medium border transition-colors',
+          currentPage === 1
+            ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+            : 'bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:text-[#145a2c]'
+        )}
+        aria-label="Go to previous page"
+      >
+        <ChevronLeft size={16} />
+        <span className="hidden sm:inline">Previous</span>
+      </button>
+
+      <div className="flex items-center gap-1">
+        {pages.map((p, idx) => pageBtn(p, idx))}
+      </div>
+
+      <button
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+        disabled={currentPage === totalPages}
+        className={cn(
+          'flex items-center gap-1 px-3 h-9 rounded-lg text-sm font-medium border transition-colors',
+          currentPage === totalPages
+            ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+            : 'bg-white text-gray-700 border-gray-200 hover:border-green-300 hover:text-[#145a2c]'
+        )}
+        aria-label="Go to next page"
+      >
+        <span className="hidden sm:inline">Next</span>
+        <ChevronRight size={16} />
+      </button>
+    </nav>
+  );
+}
+
 export default function ChargingStationsClient({ sections, stats: initialStats }: ChargingStationsClientProps) {
   const searchParams = useSearchParams();
   const [stations, setStations] = useState<ChargingStation[]>([]);
@@ -41,6 +124,9 @@ export default function ChargingStationsClient({ sections, stats: initialStats }
   const [cities, setCities] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [stats, setStats] = useState(initialStats);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 24;
 
   const sectionMap = useMemo(() => {
     const enabled = sections.filter(s => s.is_enabled);
@@ -84,25 +170,57 @@ export default function ChargingStationsClient({ sections, stats: initialStats }
     return stateCityMap[selectedState] || [];
   }, [selectedState, cities, stateCityMap]);
 
-  // Fetch stations with all filters
+  // Fetch stations with all filters + pagination
   useEffect(() => {
     const fetchStations = async () => {
       setLoading(true);
-      let query = supabase.from('charging_stations').select('*').order('city');
+      let countQuery = supabase.from('charging_stations').select('*', { count: 'exact', head: true });
+      let dataQuery = supabase.from('charging_stations').select('*').order('city');
 
-      if (selectedState) query = query.eq('state', selectedState);
-      if (selectedCity) query = query.eq('city', selectedCity);
-      if (selectedStatus) query = query.eq('status', selectedStatus);
-      if (selectedConnector) query = query.contains('connector_types', [selectedConnector]);
-      if (search) query = query.or(`name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%,operator.ilike.%${search}%`);
+      if (selectedState) {
+        countQuery = countQuery.eq('state', selectedState);
+        dataQuery = dataQuery.eq('state', selectedState);
+      }
+      if (selectedCity) {
+        countQuery = countQuery.eq('city', selectedCity);
+        dataQuery = dataQuery.eq('city', selectedCity);
+      }
+      if (selectedStatus) {
+        countQuery = countQuery.eq('status', selectedStatus);
+        dataQuery = dataQuery.eq('status', selectedStatus);
+      }
+      if (selectedConnector) {
+        countQuery = countQuery.contains('connector_types', [selectedConnector]);
+        dataQuery = dataQuery.contains('connector_types', [selectedConnector]);
+      }
+      if (search) {
+        const orFilter = `name.ilike.%${search}%,address.ilike.%${search}%,city.ilike.%${search}%,operator.ilike.%${search}%`;
+        countQuery = countQuery.or(orFilter);
+        dataQuery = dataQuery.or(orFilter);
+      }
 
-      const { data } = await query.limit(60);
-      setStations((data || []) as ChargingStation[]);
+      const from = (currentPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const [countRes, dataRes] = await Promise.all([
+        countQuery,
+        dataQuery.range(from, to),
+      ]);
+
+      setTotalCount(countRes.count || 0);
+      setStations((dataRes.data || []) as ChargingStation[]);
       setLoading(false);
     };
     const timer = setTimeout(fetchStations, 200);
     return () => clearTimeout(timer);
+  }, [selectedState, selectedCity, selectedConnector, selectedStatus, search, currentPage]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
   }, [selectedState, selectedCity, selectedConnector, selectedStatus, search]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   // Update stats realtime
   useEffect(() => {
@@ -258,7 +376,7 @@ export default function ChargingStationsClient({ sections, stats: initialStats }
             {/* Active filter chips */}
             {hasActiveFilters && (
               <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <span className="text-xs text-gray-500 font-medium">{stations.length} result{stations.length !== 1 ? 's' : ''}</span>
+                <span className="text-xs text-gray-500 font-medium">{totalCount} result{totalCount !== 1 ? 's' : ''}</span>
                 {selectedState && (
                   <button onClick={() => setSelectedState('')} className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full">
                     {selectedState} <X size={11} />
@@ -366,6 +484,15 @@ export default function ChargingStationsClient({ sections, stats: initialStats }
                 ))
               )}
             </div>
+
+            {/* Pagination */}
+            {!loading && totalCount > PAGE_SIZE && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
           </div>
         );
 
